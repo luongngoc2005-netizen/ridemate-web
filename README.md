@@ -18,7 +18,7 @@ npm run dev
 - Chi tiết chuyến
 - Checklist tương tác
 - Công cụ hỗ trợ mở Google Maps
-- Google Maps preview
+- Bản đồ cung đường và các điểm hỗ trợ dọc đường
 - AI Assistant demo cục bộ
 - Nhật ký hành trình
 - Responsive cơ bản
@@ -36,3 +36,11 @@ Lưu ý: AI hiện là demo logic cục bộ, chưa gọi API thật.
 ## Kiểm tra
 `npm test` kiểm tra tạo lịch trình, sửa số ngày giữ dữ liệu, định dạng ngày và xử lý lưu trữ lỗi.
 `npm run build` tạo bản triển khai trong `dist`.
+
+## Bản đồ tổng quan hành trình
+- Leaflet hiển thị đường đi từ điểm xuất phát đến điểm đến; Photon tìm tọa độ tại Việt Nam, Valhalla tính tuyến xe máy với yêu cầu tránh cao tốc. Tuyến chưa bao gồm các điểm tham quan từng ngày. Người dùng mở Google Maps và chọn xe máy để dẫn đường.
+- Overpass tìm cây xăng, quán ăn và điểm nghỉ/chỗ ở tại 5 vùng nhỏ dọc tuyến, lọc trong khoảng 1,5 km theo đường thẳng tới tuyến và chọn tối đa 3 điểm mỗi loại. Đây là một số gợi ý, không phải danh sách đầy đủ. Dữ liệu lấy từ OpenStreetMap, không xác minh giờ mở cửa.
+- Các điểm có ghim trên bản đồ và danh sách bên dưới Thông tin nhanh. Nếu nguồn dữ liệu lỗi, cung đường vẫn hiển thị khi đã tải được; app cung cấp thử lại và liên kết tìm trên Google Maps.
+- Các dịch vụ công cộng hiện dùng cho demo, không cần API key và không đảm bảo tính sẵn sàng. Trước khi mở rộng cần chọn nhà cung cấp/hạ tầng phù hợp và kiểm tra chính sách sử dụng. Có thể đổi endpoint bằng `VITE_GEOCODER_URL`, `VITE_ROUTER_URL`, `VITE_PLACES_URL`, `VITE_TILE_URL` khi build.
+- Cache tọa độ 7 ngày, tuyến 24 giờ, điểm hỗ trợ 6 giờ, tối đa 8 mục trong trình duyệt. Không tải trước bản đồ offline. Tính năng này không bổ sung backend hay database.
+- Nguồn và chính sách: [Leaflet](https://leafletjs.com/), [Photon](https://github.com/komoot/photon), [Valhalla](https://github.com/valhalla/valhalla), [OSM tiles](https://operations.osmfoundation.org/policies/tiles/).
