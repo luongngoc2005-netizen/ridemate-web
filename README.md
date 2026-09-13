@@ -44,3 +44,9 @@ Lưu ý: AI hiện là demo logic cục bộ, chưa gọi API thật.
 - Các dịch vụ công cộng hiện dùng cho demo, không cần API key và không đảm bảo tính sẵn sàng. Trước khi mở rộng cần chọn nhà cung cấp/hạ tầng phù hợp và kiểm tra chính sách sử dụng. Có thể đổi endpoint bằng `VITE_GEOCODER_URL`, `VITE_ROUTER_URL`, `VITE_PLACES_URL`, `VITE_TILE_URL` khi build.
 - Cache tọa độ 7 ngày, tuyến 24 giờ, điểm hỗ trợ 6 giờ, tối đa 8 mục trong trình duyệt. Không tải trước bản đồ offline. Tính năng này không bổ sung backend hay database.
 - Nguồn và chính sách: [Leaflet](https://leafletjs.com/), [Photon](https://github.com/komoot/photon), [Valhalla](https://github.com/valhalla/valhalla), [OSM tiles](https://operations.osmfoundation.org/policies/tiles/).
+
+## Nhật ký và thành tựu theo năm
+- “Tạo bài mới” và “Thêm bài viết” tạo một bản ghi cho một chuyến đi đã hoàn thành. Người dùng nhập ngày kết thúc, km thực tế, các điểm đã đến, kỷ niệm và nhật ký; có thể chỉnh sửa hoặc xóa sau khi lưu.
+- Chọn năm để xem tổng km, số chuyến và số điểm đã đến. Điểm trùng tên (không phân biệt chữ hoa/thường) chỉ tính một lần trong năm; nên nhập kèm tỉnh/thành. Chuyến đang lên kế hoạch không tự tính vào thành tựu.
+- Mỗi chuyến có tối đa 8 ảnh JPG/PNG/WebP, tối đa 10 MB mỗi ảnh; ảnh được thu nhỏ cạnh dài tối đa 1600px và lưu JPEG. Có thể chọn ảnh bìa, bỏ ảnh và mở ảnh lớn trong chi tiết hành trình.
+- Nhật ký và ảnh được lưu cục bộ bằng IndexedDB, độc lập với chuyến đang lập kế hoạch. Chưa upload lên server hoặc đồng bộ tài khoản. Xóa dữ liệu trình duyệt sẽ mất nhật ký; lỗi lưu được báo ngay và giữ nguyên bản nháp để thử lại.
