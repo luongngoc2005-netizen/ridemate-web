@@ -50,3 +50,5 @@ Lưu ý: AI hiện là demo logic cục bộ, chưa gọi API thật.
 - Chọn năm để xem tổng km, số chuyến và số điểm đã đến. Điểm trùng tên (không phân biệt chữ hoa/thường) chỉ tính một lần trong năm; nên nhập kèm tỉnh/thành. Chuyến đang lên kế hoạch không tự tính vào thành tựu.
 - Mỗi chuyến có tối đa 8 ảnh JPG/PNG/WebP, tối đa 10 MB mỗi ảnh; ảnh được thu nhỏ cạnh dài tối đa 1600px và lưu JPEG. Có thể chọn ảnh bìa, bỏ ảnh và mở ảnh lớn trong chi tiết hành trình.
 - Nhật ký và ảnh được lưu cục bộ bằng IndexedDB, độc lập với chuyến đang lập kế hoạch. Chưa upload lên server hoặc đồng bộ tài khoản. Xóa dữ liệu trình duyệt sẽ mất nhật ký; lỗi lưu được báo ngay và giữ nguyên bản nháp để thử lại.
+- Nhật ký có thể nhập thêm điểm xuất phát và điểm kết thúc để xem bản đồ trong chi tiết. Bản đồ dựng tuyến xe máy tham khảo qua Valhalla, chưa gồm điểm ghé và không phải đường GPS đã ghi lại; không thay đổi số km thực tế tự nhập. Nhật ký cũ có nút Thêm cung đường, ảnh và nội dung vẫn được giữ nguyên.
+- Thông tin nhanh nhóm cây xăng/quán ăn/điểm nghỉ trong khung màu riêng. Mỗi địa điểm hiển thị một dòng; bấm tên mở ghim và địa chỉ trên bản đồ, bấm mũi tên mở Google Maps.
