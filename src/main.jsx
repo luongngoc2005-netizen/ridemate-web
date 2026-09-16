@@ -37,25 +37,28 @@ function App(){
   const [trip,setTrip] = useState(loaded.trip);
   const [storageError,setStorageError] = useState(loaded.error);
   const [page,setCurrentPage] = useState('home');
+  const [completionTrip,setCompletionTrip] = useState(null);
   const [view,setView] = useState('overview');
   const [feedback,setFeedback] = useState('');
   useEffect(()=>{ if(!trip)return; try { setStorageError(saveTrip(window.localStorage,trip)); } catch { setStorageError('Trình duyệt không cho phép lưu thay đổi. Hãy giữ trang này mở.'); } },[trip]);
-  const setPage=next=>{setView('overview');setCurrentPage(next);setFeedback('');window.scrollTo({top:0,behavior:'instant'});};
+  const setPage=next=>{setCompletionTrip(null);setView('overview');setCurrentPage(next);setFeedback('');window.scrollTo({top:0,behavior:'instant'});};
   const create=details=>{
     if(!validDetails(details)){setFeedback('Vui lòng nhập điểm đi, điểm đến, ngày đi và số ngày từ 1 đến 30.');return;}
     if(trip && !window.confirm('Tạo chuyến đi mới sẽ thay thế chuyến đi đang lưu trên trình duyệt này. Bạn có muốn tiếp tục?'))return;
     setTrip(createTrip(details));setPage('trip');setFeedback('Đã tạo chuyến đi. Bạn có thể chỉnh lịch trình và ghi chú bên dưới.');
   };
   const edit=details=>{if(!validDetails(details)){setFeedback('Vui lòng kiểm tra thông tin chuyến đi.');return;}setTrip(current=>editTripDetails(current,details));setPage('trip');setFeedback('Đã lưu thông tin chuyến đi. Các ngày được giữ lại vẫn có lịch trình và ghi chú của bạn.');};
+  const finishTrip=()=>{setPage('journal');setCompletionTrip(trip);};
+  const journalChanged=(entry,deleted=false)=>{setTrip(current=>current && entry.sourceTripId===current.id ? {...current,completedAt:deleted?null:entry.date,journalId:deleted?null:entry.id}:current);};
   let content;
   if(page==='home')content=<Home key={trip?.id || 'new'} trip={trip} onCreate={create} setPage={setPage}/>;
   else if(page==='create'||page==='edit')content=<TripForm key={page} trip={page==='edit'&&trip?trip:initialDetails} editing={page==='edit'&&!!trip} onSave={page==='edit'?edit:create} onCancel={()=>setPage(trip?'trip':'home')}/>;
-  else if(page==='trip'&&trip)content=<Journey trip={trip} setTrip={setTrip} view={view} setView={setView} onEdit={()=>setPage('edit')} setPage={setPage}/>;
+  else if(page==='trip'&&trip)content=<Journey trip={trip} setTrip={setTrip} view={view} setView={setView} onEdit={()=>setPage('edit')} onFinish={finishTrip} setPage={setPage}/>;
   else if(page==='checklist'&&trip)content=<TripChecklist trip={trip} setTrip={setTrip}/>;
   else if(page==='trip'||page==='checklist')content=<main className="page narrow"><h1>Chưa có chuyến đi</h1><p>Tạo chuyến đi để lưu lịch trình, checklist và ghi chú của bạn.</p><button className="green" onClick={()=>setPage('create')}>Tạo chuyến đi</button></main>;
   else if(page==='tools')content=<Tools setPage={setPage}/>;
   else if(page==='ai')content=<AI trip={trip||initialDetails}/>;
-  else content=<Journal/>;
+  else content=<Journal completionTrip={completionTrip} onEntryChange={journalChanged}/>;
   return <><Nav page={page} setPage={setPage}/>{trip && <div className="trip-return"><button onClick={()=>setPage('trip')}>← Tổng quan hành trình</button><span>{trip.origin} → {trip.destination}</span></div>}{storageError?<p className="storage-warning" role="alert">{storageError}</p>:trip?<p className="storage-hint">Chuyến đi được lưu trên trình duyệt này; chưa đồng bộ sang thiết bị khác.</p>:null}{feedback&&<p className="save-feedback app-feedback" role="status">{feedback}</p>}{content}<footer><b>▲ RideMate</b><span>Đi xa hơn, an toàn hơn, trải nghiệm nhiều hơn.</span><span>Giới thiệu · Hỗ trợ · Góp ý · Chính sách bảo mật</span></footer></>;
 }
 createRoot(document.getElementById('root')).render(<App/>);

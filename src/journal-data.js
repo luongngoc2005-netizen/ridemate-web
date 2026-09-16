@@ -1,4 +1,7 @@
 export const placeNames = text => [...new Map(text.split('\n').map(s => s.trim()).filter(Boolean).map(s => [s.normalize('NFC').toLocaleLowerCase('vi'), s])).values()];
+export function completionDraft(trip, date) {
+  return { id: `completed-${trip.id}`, sourceTripId: trip.id, isNew: true, title: `${trip.origin} → ${trip.destination}`, origin: trip.origin, destination: trip.destination, date, km: '', places: [], memory: '', story: trip.notes || '', photos: [] };
+}
 export function annualStats(entries, year) {
   const trips = entries.filter(e => e.date.slice(0, 4) === String(year));
   return { trips: trips.length, km: trips.reduce((sum, e) => sum + Number(e.km), 0), places: placeNames(trips.flatMap(e => e.places).join('\n')).length };

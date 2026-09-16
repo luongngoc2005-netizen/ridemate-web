@@ -46,6 +46,7 @@ Lưu ý: AI hiện là demo logic cục bộ, chưa gọi API thật.
 - Nguồn và chính sách: [Leaflet](https://leafletjs.com/), [Photon](https://github.com/komoot/photon), [Valhalla](https://github.com/valhalla/valhalla), [OSM tiles](https://operations.osmfoundation.org/policies/tiles/).
 
 ## Nhật ký và thành tựu theo năm
+- Trong Tổng quan hành trình, **Hoàn thành chuyến đi** mở nhật ký với tên chuyến, hai đầu tuyến và ghi chú có sẵn. Người dùng xác nhận ngày kết thúc, km thực tế và các điểm thực sự đã đến. Chỉ sau khi lưu nhật ký thành công mới đánh dấu hoàn thành. Nút chuyển thành **Xem nhật ký chuyến đi**, không tạo thêm bản trùng; xóa bài nhật ký liên kết sẽ bỏ trạng thái hoàn thành.
 - “Tạo bài mới” và “Thêm bài viết” tạo một bản ghi cho một chuyến đi đã hoàn thành. Người dùng nhập ngày kết thúc, km thực tế, các điểm đã đến, kỷ niệm và nhật ký; có thể chỉnh sửa hoặc xóa sau khi lưu.
 - Chọn năm để xem tổng km, số chuyến và số điểm đã đến. Điểm trùng tên (không phân biệt chữ hoa/thường) chỉ tính một lần trong năm; nên nhập kèm tỉnh/thành. Chuyến đang lên kế hoạch không tự tính vào thành tựu.
 - Mỗi chuyến có tối đa 8 ảnh JPG/PNG/WebP, tối đa 10 MB mỗi ảnh; ảnh được thu nhỏ cạnh dài tối đa 1600px và lưu JPEG. Có thể chọn ảnh bìa, bỏ ảnh và mở ảnh lớn trong chi tiết hành trình.
