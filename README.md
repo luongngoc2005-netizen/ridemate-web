@@ -38,6 +38,7 @@ Lưu ý: AI hiện là demo logic cục bộ, chưa gọi API thật.
 `npm run build` tạo bản triển khai trong `dist`.
 
 ## Bản đồ tổng quan hành trình
+- Thời tiết tại điểm đến dùng [Open-Meteo](https://open-meteo.com/en/docs), theo từng ngày của chuyến đi: trạng thái trời, nhiệt độ thấp/cao, xác suất mưa và gió tối đa. Dùng múi giờ Việt Nam và cửa sổ 16 ngày kể từ hôm nay; ngày đã qua hoặc quá xa được ghi rõ, không thay bằng dự báo ngày khác. Cache trong bộ nhớ 30 phút; nút tải lại lấy dữ liệu mới. Dữ liệu là dự báo tại điểm đến, không phải toàn tuyến. API miễn phí dùng cho demo phi thương mại; cần xem [điều khoản dịch vụ](https://open-meteo.com/en/terms) trước khi triển khai thương mại.
 - Leaflet hiển thị đường đi từ điểm xuất phát đến điểm đến; Photon tìm tọa độ tại Việt Nam, Valhalla tính tuyến xe máy với yêu cầu tránh cao tốc. Tuyến chưa bao gồm các điểm tham quan từng ngày. Người dùng mở Google Maps và chọn xe máy để dẫn đường.
 - Overpass tìm cây xăng, quán ăn và điểm nghỉ/chỗ ở tại 5 vùng nhỏ dọc tuyến, lọc trong khoảng 1,5 km theo đường thẳng tới tuyến và chọn tối đa 3 điểm mỗi loại. Đây là một số gợi ý, không phải danh sách đầy đủ. Dữ liệu lấy từ OpenStreetMap, không xác minh giờ mở cửa.
 - Các điểm có ghim trên bản đồ và danh sách bên dưới Thông tin nhanh. Nếu nguồn dữ liệu lỗi, cung đường vẫn hiển thị khi đã tải được; app cung cấp thử lại và liên kết tìm trên Google Maps.
