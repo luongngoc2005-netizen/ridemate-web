@@ -1,5 +1,7 @@
 # RideMate Web Demo
 
+Chuyển giao sang máy khác: đọc [HANDOFF.md](./HANDOFF.md) để biết cách chạy, trạng thái hiện tại, các phần còn thiếu và lưu ý chuyển dữ liệu.
+
 ## Chạy thử
 1. Cài Node.js 20+
 2. Mở Terminal tại thư mục `ridemate-web`
