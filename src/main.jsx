@@ -5,6 +5,7 @@ import {createRoot} from 'react-dom/client';
 import './styles.css';
 import './journey.css';
 import Journal from './Journal.jsx';
+import Account, { useAccount } from './Account.jsx';
 
 const routes=[
   ['Hà Nội → Hà Giang','~320 km','4 ngày','https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=85'],
@@ -16,7 +17,7 @@ const tools=[['⛽','Cây xăng','gas station'],['🔧','Sửa xe','motorcycle r
 const searchMaps=q=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,'_blank');
 const directions=(a,b)=>window.open(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(a)}&destination=${encodeURIComponent(b)}&travelmode=driving`,'_blank');
 
-function Nav({page,setPage}){return <header className="nav"><button className="logo" onClick={()=>setPage('home')}><span>▲</span>RideMate</button><nav>{[['home','Khám phá'],['create','Lên kế hoạch'],['tools','Công cụ'],['journal','Nhật ký hành trình'],['ai','AI Assistant']].map(([k,v])=><button className={page===k?'active':''} onClick={()=>setPage(k)} key={k}>{v}</button>)}</nav><div className="user">🔔 <b>N</b> Xin chào, Ngọc</div></header>}
+function Nav({page,setPage}){return <header className="nav"><button className="logo" onClick={()=>setPage('home')}><span>▲</span>RideMate</button><nav>{[['home','Khám phá'],['create','Lên kế hoạch'],['tools','Công cụ'],['journal','Nhật ký hành trình'],['ai','AI Assistant']].map(([k,v])=><button className={page===k?'active':''} onClick={()=>setPage(k)} key={k}>{v}</button>)}</nav><button className="account-link" onClick={()=>setPage('account')}>Tài khoản</button></header>}
 
 function Home({trip: savedTrip,onCreate,setPage}){const [trip,setTrip]=useState(()=>({...initialDetails,...savedTrip}));return <main className="dash"><div className="maincol">
   <section className="hero"><div><small>RIDE MORE · EXPLORE FURTHER</small><h1>Những cung đường<br/>đẹp hơn khi đi cùng<br/>RideMate</h1><p>Lên kế hoạch dễ dàng · Hành trình an toàn hơn · Trải nghiệm nhiều hơn.</p></div>
@@ -33,6 +34,8 @@ function Tools({setPage}){return <main className="page"><h1>Công cụ hỗ tr�
 function AI({trip}){const [msgs,setMsgs]=useState([{r:'ai',t:'Xin chào! Tôi là RideMate AI. Tôi có thể hỗ trợ lịch trình, checklist, chuẩn bị xe và xử lý tình huống.'}]);const [txt,setTxt]=useState('');const send=t=>{t=t||txt;if(!t.trim())return;let q=t.toLowerCase(),a=`Với chuyến ${trip.origin} → ${trip.destination} trong ${trip.days} ngày, hãy giữ lịch trình vừa sức và kiểm tra xe trước khi đi.`;if(q.includes('thủng')||q.includes('sự cố'))a='Đưa xe vào vị trí an toàn, kiểm tra lốp và dùng công cụ “Sửa xe” để mở Google Maps tìm điểm hỗ trợ gần nhất.';if(q.includes('checklist'))a='Gợi ý: CCCD, bằng lái, đăng ký xe, áo mưa, sạc dự phòng, nước, bộ vá lốp; kiểm tra lốp, phanh, dầu nhớt và đèn.';if(q.includes('lịch trình')||q.includes('hà giang'))a=trip.itinerary?trip.itinerary.map((day,index)=>`Ngày ${index+1}: ${day.title}${day.places.length?' — '+day.places.map(place=>place.name).join(', '):''}`).join('\n'):'Hãy tạo chuyến đi trước để xem lịch trình và các điểm tham quan gợi ý.';setMsgs([...msgs,{r:'user',t},{r:'ai',t:a}]);setTxt('')};return <main className="page narrow"><section className="card chat"><div className="chathead"><h1>AI Assistant</h1><span>Trả lời mẫu · chưa kết nối AI</span></div><div className="prompts">{['Gợi ý lịch trình Hà Giang 4 ngày','Tạo checklist','Xe tôi bị thủng lốp'].map(p=><button key={p} onClick={()=>send(p)}>{p}</button>)}</div><div className="messages">{msgs.map((m,i)=><div className={`bubble ${m.r}`} key={i}>{m.t}</div>)}</div><div className="inputrow"><input value={txt} onChange={e=>setTxt(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="Nhập câu hỏi..."/><button onClick={()=>send()}>➤</button></div></section></main>}
 
 function App(){
+  const account = useAccount();
+  const [accountBusy,setAccountBusy] = useState(false);
   const [loaded] = useState(() => { try { return readTrip(window.localStorage); } catch { return { trip: null, error: 'Trình duyệt không cho phép lưu dữ liệu. Thay đổi chỉ được giữ khi trang còn mở.' }; } });
   const [trip,setTrip] = useState(loaded.trip);
   const [storageError,setStorageError] = useState(loaded.error);
@@ -40,8 +43,15 @@ function App(){
   const [completionTrip,setCompletionTrip] = useState(null);
   const [view,setView] = useState('overview');
   const [feedback,setFeedback] = useState('');
+  useEffect(()=>{if(account.recovery)setCurrentPage('account');},[account.recovery]);
+  useEffect(()=>{
+    if(!accountBusy)return;
+    const warn = event => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload',warn);
+    return ()=>window.removeEventListener('beforeunload',warn);
+  },[accountBusy]);
   useEffect(()=>{ if(!trip)return; try { setStorageError(saveTrip(window.localStorage,trip)); } catch { setStorageError('Trình duyệt không cho phép lưu thay đổi. Hãy giữ trang này mở.'); } },[trip]);
-  const setPage=next=>{setCompletionTrip(null);setView('overview');setCurrentPage(next);setFeedback('');window.scrollTo({top:0,behavior:'instant'});};
+  const setPage=next=>{if(accountBusy)return;setCompletionTrip(null);setView('overview');setCurrentPage(next);setFeedback('');window.scrollTo({top:0,behavior:'instant'});};
   const create=details=>{
     if(!validDetails(details)){setFeedback('Vui lòng nhập điểm đi, điểm đến, ngày đi và số ngày từ 1 đến 30.');return;}
     if(trip && !window.confirm('Tạo chuyến đi mới sẽ thay thế chuyến đi đang lưu trên trình duyệt này. Bạn có muốn tiếp tục?'))return;
@@ -51,7 +61,8 @@ function App(){
   const finishTrip=()=>{setPage('journal');setCompletionTrip(trip);};
   const journalChanged=(entry,deleted=false)=>{setTrip(current=>current && entry.sourceTripId===current.id ? {...current,completedAt:deleted?null:entry.date,journalId:deleted?null:entry.id}:current);};
   let content;
-  if(page==='home')content=<Home key={trip?.id || 'new'} trip={trip} onCreate={create} setPage={setPage}/>;
+  if(page==='account')content=<Account account={account} localError={storageError} onBusy={setAccountBusy} onRestored={restored=>{setTrip(restored);setStorageError('');}}/>;
+  else if(page==='home')content=<Home key={trip?.id || 'new'} trip={trip} onCreate={create} setPage={setPage}/>;
   else if(page==='create'||page==='edit')content=<TripForm key={page} trip={page==='edit'&&trip?trip:initialDetails} editing={page==='edit'&&!!trip} onSave={page==='edit'?edit:create} onCancel={()=>setPage(trip?'trip':'home')}/>;
   else if(page==='trip'&&trip)content=<Journey trip={trip} setTrip={setTrip} view={view} setView={setView} onEdit={()=>setPage('edit')} onFinish={finishTrip} setPage={setPage}/>;
   else if(page==='checklist'&&trip)content=<TripChecklist trip={trip} setTrip={setTrip}/>;
@@ -59,6 +70,6 @@ function App(){
   else if(page==='tools')content=<Tools setPage={setPage}/>;
   else if(page==='ai')content=<AI trip={trip||initialDetails}/>;
   else content=<Journal completionTrip={completionTrip} onEntryChange={journalChanged}/>;
-  return <><Nav page={page} setPage={setPage}/>{trip && <div className="trip-return"><button onClick={()=>setPage('trip')}>← Tổng quan hành trình</button><span>{trip.origin} → {trip.destination}</span></div>}{storageError?<p className="storage-warning" role="alert">{storageError}</p>:trip?<p className="storage-hint">Chuyến đi được lưu trên trình duyệt này; chưa đồng bộ sang thiết bị khác.</p>:null}{feedback&&<p className="save-feedback app-feedback" role="status">{feedback}</p>}{content}<footer><b>▲ RideMate</b><span>Đi xa hơn, an toàn hơn, trải nghiệm nhiều hơn.</span><span>Giới thiệu · Hỗ trợ · Góp ý · Chính sách bảo mật</span></footer></>;
+  return <><Nav page={page} setPage={setPage}/>{trip && <div className="trip-return"><button onClick={()=>setPage('trip')}>← Tổng quan hành trình</button><span>{trip.origin} → {trip.destination}</span></div>}{storageError?<p className="storage-warning" role="alert">{storageError}</p>:trip?<p className="storage-hint">Chuyến đi được lưu trên trình duyệt này. Mở Tài khoản để lưu hoặc tải bản dữ liệu giữa các thiết bị.</p>:null}{feedback&&<p className="save-feedback app-feedback" role="status">{feedback}</p>}{content}<footer><b>▲ RideMate</b><span>Đi xa hơn, an toàn hơn, trải nghiệm nhiều hơn.</span><span>Giới thiệu · Hỗ trợ · Góp ý · Chính sách bảo mật</span></footer></>;
 }
 createRoot(document.getElementById('root')).render(<App/>);

@@ -1,0 +1,10 @@
+.account-page { max-width: 760px; }
+.account-page p { line-height: 1.65; overflow-wrap: anywhere; }
+.account-page fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 16px; }
+.account-page label { display: grid; gap: 8px; }
+.account-page input { width: 100%; padding: 12px; border: 1px solid #cbd5ce; border-radius: 10px; }
+.account-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+.account-page button { white-space: normal; }
+.account-page button:disabled { opacity: .55; cursor: wait; }
+.nav .account-link { color: #176a4a; font-weight: 700; padding: 8px; }
+@media(max-width: 600px) { .account-actions > button { width: 100%; } .nav .account-link { font-size: 12px; } }

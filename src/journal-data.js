@@ -11,12 +11,46 @@ export function validEntry(entry) {
 }
 async function database() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('ridemate-journal', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('entries', { keyPath: 'id' });
+    const request = indexedDB.open('ridemate-journal', 2);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains('entries')) request.result.createObjectStore('entries', { keyPath: 'id' });
+      if (!request.result.objectStoreNames.contains('backups')) request.result.createObjectStore('backups');
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
     request.onblocked = () => reject(new Error('Hãy đóng các tab RideMate khác rồi thử lại.'));
   });
+}
+// Keep the complete previous workspace in the same IndexedDB transaction.
+export async function replaceJournalEntries(entries, previousTrip) {
+  const db = await database();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(['entries', 'backups'], 'readwrite');
+      const store = tx.objectStore('entries');
+      const old = store.getAll();
+      old.onsuccess = () => {
+        tx.objectStore('backups').put({ version: 1, trip: previousTrip, entries: old.result }, 'before-cloud-load');
+        store.clear();
+        entries.forEach(entry => store.put(entry));
+      };
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('Không thay được nhật ký.'));
+    });
+  } finally { db.close(); }
+}
+export async function readWorkspaceBackup() {
+  const db = await database();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction('backups', 'readonly');
+      const request = tx.objectStore('backups').get('before-cloud-load');
+      tx.oncomplete = () => resolve(request.result);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('Không đọc được bản dự phòng.'));
+    });
+  } finally { db.close(); }
 }
 export async function journalStore(action, value) {
   const db = await database();

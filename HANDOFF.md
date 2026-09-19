@@ -1,5 +1,23 @@
 # RideMate — bàn giao code và việc còn thiếu
 
+## Cập nhật backend ngày 19/09/2026
+
+Bản tích hợp backend dựa trên commit `5a1f85d`; trạng thái deploy Render cần kiểm tra riêng. Người dùng đã chọn **Supabase**; kết nối project thật chưa được xác minh. Hướng dẫn hiện hành: [SUPABASE_SETUP.md](./SUPABASE_SETUP.md).
+
+- Thêm Supabase SDK; Node yêu cầu **22+**; dùng npm và đã tạo `package-lock.json`, có thể dùng `npm ci`.
+- Thêm trang Tài khoản: email/password, đăng ký, Google OAuth, quên/đổi mật khẩu, đăng xuất. Chưa cấu hình project thì local demo vẫn chạy.
+- Thêm migration SQL cho `user_workspaces` (snapshot JSONB, RLS), RPC save có revision chống ghi đè và bucket ảnh private. Đây là backend snapshot đầu tiên, chưa có các bảng trips/days/places riêng.
+- Lưu/tải thủ công toàn bộ một chuyến đang lập + nhật ký/ảnh. Không tự chuyển dữ liệu khi đăng nhập, không tự gộp. Upload không xóa local. Tải về có xác nhận và một bản backup khôi phục.
+- IndexedDB `ridemate-journal` lên version **2**, giữ `entries`, thêm store `backups` khóa `before-cloud-load`. Upgrade giữ nguyên bài cũ.
+- File mới chính: `src/Account.jsx`, `src/supabase.js`, `src/cloud-data.js`, `src/workspace-data.js`, `src/account.css`, `.env.example`, `supabase/migrations/202609190001_cloud_workspace.sql` và 3 file test backend/cloud/workspace.
+- Kiểm thử **23/23 đạt**, production build thành công trên máy này. SQL được kiểm tra qua PGlite với schema Supabase giả lập. Không có browser khả dụng để kiểm tra UI trong phiên. Chưa thử Supabase thật, email/OAuth thật hoặc Render.
+- Giới hạn: upload lại ảnh mỗi lần lưu, chưa dọn ảnh mồ côi; chưa autosync, nhiều chuyến đang lập, tách local theo tài khoản, xử lý local nhiều tab. Đăng xuất giữ local. localStorage và IndexedDB không có transaction chung khi crash.
+- Việc tiếp theo: người dùng tạo project và cấu hình theo hướng dẫn; chạy migration; điền `.env.local`; nghiệm thu tích hợp hai tài khoản/hai thiết bị. AI thật và thuê xe vẫn hoãn.
+
+## Bản bàn giao frontend trước khi thêm backend
+
+Các mục bên dưới mô tả trạng thái **17/09/2026**. Các thông tin về backend, phiên bản IndexedDB, lockfile, Node và kiểm thử đã được cập nhật ở mục trên.
+
 Cập nhật: **17/09/2026**. Trạng thái chức năng được đối chiếu tại commit `59bb1e0` trên nhánh `main`; commit chứa tài liệu này chỉ bổ sung tài liệu.
 
 - Repo: https://github.com/luongngoc2005-netizen/ridemate-web
