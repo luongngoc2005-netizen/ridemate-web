@@ -33,7 +33,7 @@ npm run dev
 
 Khởi động lại Vite sau khi sửa biến môi trường. Mở **Tài khoản** ở thanh trên cùng. Chưa có biến môi trường thì app hiển thị trạng thái chưa cấu hình và vẫn dùng local được.
 
-## 3. Email và Google
+## 3. Email và mật khẩu
 
 Trong Authentication → URL Configuration:
 
@@ -42,14 +42,9 @@ Trong Authentication → URL Configuration:
 - Bật email/password, bật xác nhận email, đặt độ dài mật khẩu tối thiểu ít nhất 8 ký tự. Cấu hình SMTP trước khi phục vụ người dùng thật; kiểm tra giới hạn gửi email trong project.
 - Kiểm tra đăng ký → xác nhận email → đăng nhập → quên mật khẩu → mở email → đặt mật khẩu mới.
 
-Google cần cấu hình thêm bên ngoài code:
+Ứng dụng chỉ cung cấp đăng nhập/đăng ký bằng email và mật khẩu, không có nút Google. Khi đăng ký, người dùng nhập tên hiển thị; tên lưu trong Auth user metadata (`full_name`). Tài khoản cũ có thể cập nhật tên trong trang Tài khoản; khi chưa có tên, giao diện dùng phần email trước dấu @. Không cần migration SQL mới cho thay đổi tên.
 
-1. Tạo OAuth client loại Web application trong Google Cloud và cấu hình consent screen.
-2. Dùng callback URL do trang Google provider của Supabase hiển thị làm Authorized redirect URI trong Google Cloud.
-3. Điền Google Client ID/Secret trong Supabase Authentication → Providers → Google và bật provider. Không đặt Google Client Secret trong frontend.
-4. Khi Google app còn ở chế độ thử nghiệm, thêm tài khoản thử vào danh sách test users nếu cấu hình consent yêu cầu.
-
-Tham khảo tài liệu chính thức: [Google login](https://supabase.com/docs/guides/auth/social-login/auth-google), [email signup](https://supabase.com/docs/reference/javascript/auth-signup), [password recovery](https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail).
+Tham khảo tài liệu chính thức: [email signup](https://supabase.com/docs/reference/javascript/auth-signup), [password recovery](https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail).
 
 ## 4. Cách lưu và chuyển thiết bị
 

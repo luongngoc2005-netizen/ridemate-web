@@ -1,5 +1,13 @@
 # RideMate — bàn giao code và việc còn thiếu
 
+## Điều chỉnh tài khoản và icon
+
+- Chỉ cung cấp đăng nhập/đăng ký email + mật khẩu; đã bỏ nút Google. Giữ quên mật khẩu và các chức năng dữ liệu.
+- Đăng ký có tên hiển thị, lưu trong Auth metadata `full_name`. Thanh trên cùng và trang Tài khoản hiển thị tên; tài khoản cũ có thể sửa tên. Khi thiếu tên, dùng phần email trước @. Không cần migration SQL mới.
+- Công cụ nhanh và trang Công cụ dùng SVG nét đơn giản thay emoji, giữ AI Assistant theo xác nhận của người dùng.
+- Kiểm tra sau thay đổi: 23/23 test hiện có đạt, production build thành công, `git diff --check` đạt. Chưa kiểm tra đăng ký/cập nhật tên trên Supabase thật hoặc giao diện trên trình duyệt.
+- Các ghi chú Google bên dưới là lịch sử triển khai trước thay đổi này.
+
 ## Cập nhật backend ngày 19/09/2026
 
 Bản tích hợp backend dựa trên commit `5a1f85d`; trạng thái deploy Render cần kiểm tra riêng. Người dùng đã chọn **Supabase**; kết nối project thật chưa được xác minh. Hướng dẫn hiện hành: [SUPABASE_SETUP.md](./SUPABASE_SETUP.md).

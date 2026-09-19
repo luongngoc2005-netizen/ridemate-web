@@ -4,6 +4,7 @@ import { readCloud, saveCloud, downloadCloud } from './cloud-data.js';
 import { readLocalWorkspace, applyWorkspace } from './workspace-data.js';
 import { readWorkspaceBackup } from './journal-data.js';
 import './account.css';
+import { accountName } from './account-name.js';
 
 export function useAccount() {
   const [session, setSession] = useState(null);
@@ -31,11 +32,14 @@ export default function Account({ account, onRestored, onBusy, localError }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [profileName, setProfileName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [cloud, setCloud] = useState(undefined);
   const userId = session?.user.id;
+  useEffect(() => { setProfileName(session?.user ? accountName(session.user) : ''); }, [userId, session?.user.user_metadata]);
   const currentUser = useRef(userId);
   currentUser.current = userId;
   useEffect(() => { setCloud(undefined); setError(''); setMessage(''); setPassword(''); }, [userId]);
@@ -53,7 +57,10 @@ export default function Account({ account, onRestored, onBusy, localError }) {
     await run(async () => {
       let result;
       if (recovery) result = await supabase.auth.updateUser({ password });
-      else if (mode === 'register') result = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: authRedirect() } });
+      else if (mode === 'register') {
+        if (!fullName.trim()) throw new Error('Vui lòng nhập tên hiển thị.');
+        result = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: authRedirect(), data: { full_name: fullName.trim() } } });
+      }
       else if (mode === 'reset') result = await supabase.auth.resetPasswordForEmail(email, { redirectTo: authRedirect() });
       else result = await supabase.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
@@ -98,16 +105,27 @@ export default function Account({ account, onRestored, onBusy, localError }) {
     {!supabase ? <p role="status">Tính năng tài khoản chưa được cấu hình. Bạn vẫn có thể lập chuyến đi và viết nhật ký trên trình duyệt này.</p> : loading ? <p role="status">Đang mở phiên đăng nhập…</p> : recovery || !session ? <>
       <h2>{recovery ? 'Đặt mật khẩu mới' : mode === 'register' ? 'Đăng ký' : mode === 'reset' ? 'Quên mật khẩu' : 'Đăng nhập'}</h2>
       <form onSubmit={authenticate}><fieldset disabled={busy}>
+        {!recovery && mode === 'register' && <label>Tên hiển thị<input required maxLength={80} autoComplete="name" value={fullName} onChange={e => setFullName(e.target.value)} /></label>}
         {!recovery && <label>Email<input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} /></label>}
         {(recovery || mode !== 'reset') && <label>Mật khẩu<input required type="password" minLength={mode === 'login' && !recovery ? 1 : 8} autoComplete={mode === 'login' && !recovery ? 'current-password' : 'new-password'} value={password} onChange={e => setPassword(e.target.value)} /></label>}
         <button className="green" type="submit">{recovery ? 'Lưu mật khẩu mới' : mode === 'register' ? 'Tạo tài khoản' : mode === 'reset' ? 'Gửi liên kết' : 'Đăng nhập'}</button>
       </fieldset></form>
       {!recovery && <div className="account-actions">
-        <button disabled={busy} className="soft" onClick={() => run(async () => { const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: authRedirect() } }); if (error) throw error; })}>Tiếp tục với Google</button>
         {['login', 'register', 'reset'].filter(item => item !== mode).map(item => <button disabled={busy} key={item} className="soft" onClick={() => { setMode(item); setError(''); setMessage(''); setPassword(''); }}>{item === 'login' ? 'Đăng nhập' : item === 'register' ? 'Đăng ký' : 'Quên mật khẩu'}</button>)}
       </div>}
     </> : <>
-      <p>Đã đăng nhập: <strong>{session.user.email}</strong></p>
+      <h2>Xin chào, {accountName(session.user)}</h2>
+      <p>{session.user.email}</p>
+      <form onSubmit={event => { event.preventDefault(); run(async () => {
+        const name = profileName.trim();
+        if (!name) throw new Error('Vui lòng nhập tên hiển thị.');
+        const { error } = await supabase.auth.updateUser({ data: { full_name: name } });
+        if (error) throw error;
+        setMessage('Đã cập nhật tên hiển thị.');
+      }); }}><fieldset disabled={busy}>
+        <label>Tên hiển thị<input required maxLength={80} autoComplete="name" value={profileName} onChange={e => setProfileName(e.target.value)} /></label>
+        <button className="soft" type="submit">Lưu tên</button>
+      </fieldset></form>
       <p>Dữ liệu đang xem thuộc trình duyệt này. Đăng nhập không tự tải hoặc gửi dữ liệu. Hãy kiểm tra đúng tài khoản trước khi lưu.</p>
       <div className="account-actions">
         <button disabled={busy} className="soft" onClick={inspect}>Kiểm tra bản trên tài khoản</button>
