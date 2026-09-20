@@ -46,29 +46,28 @@ Trong Authentication → URL Configuration:
 
 Tham khảo tài liệu chính thức: [email signup](https://supabase.com/docs/reference/javascript/auth-signup), [password recovery](https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail).
 
-## 4. Cách lưu và chuyển thiết bị
+## 4. Nhật ký đồng bộ giữa các thiết bị
 
-1. Tạo chuyến/nhật ký như trước. Dữ liệu vẫn được lưu trong trình duyệt.
-2. Đăng nhập, mở **Tài khoản → Kiểm tra bản trên tài khoản**.
-3. Chọn **Lưu lên tài khoản** và kiểm tra email/số bài trong xác nhận. Lần đầu là chuyển dữ liệu local lên server. Những lần sau thay thế toàn bộ bản cloud bằng bản của trình duyệt hiện tại.
-4. Trên thiết bị khác, đăng nhập cùng tài khoản, kiểm tra bản cloud, chọn **Tải về trình duyệt**.
-5. Ứng dụng tải đủ ảnh trước khi thay dữ liệu local. Bản local trước đó được giữ trong IndexedDB để dùng nút **Khôi phục bản trước khi tải**. Chỉ giữ một bản dự phòng; mỗi lần tải/khôi phục đổi bản dự phòng.
-6. Sau mỗi đợt chỉnh sửa, chủ động lưu lên tài khoản. Xóa nhật ký local rồi lưu sẽ loại bài khỏi bản cloud tiếp theo.
+1. Đăng nhập rồi mở **Nhật ký hành trình**. Trang tự tải nhật ký và ảnh thuộc tài khoản, không cần bấm tải thủ công.
+2. Tạo/sửa bài và bấm **Lưu nhật ký**: chỉ báo thành công sau khi đã lưu cloud. Xóa bài cũng áp dụng cho tài khoản trên mọi thiết bị.
+3. Trên thiết bị khác, đăng nhập cùng tài khoản rồi mở nhật ký. Khi đang xem, trang kiểm tra bản mới mỗi 30 giây và khi quay lại tab/kết nối mạng. Không cập nhật đè form đang sửa.
+4. Nhật ký tạo từ bản app cũ chỉ lưu local: bấm **Nhập nhật ký cũ từ trình duyệt** trên máy có dữ liệu. Nhập có xác nhận, bỏ qua ID đã có trên tài khoản, giữ nguyên local. Thử lại an toàn nếu mất mạng giữa chừng.
+5. Nếu hai thiết bị sửa cùng bài, lần lưu sau báo xung đột và giữ form. Sao chép nội dung cần giữ rồi hủy form/tải lại trước khi sửa tiếp. Hai bài khác nhau được gộp vào workspace mới nhất.
 
-Không tự tải/gửi dữ liệu khi đăng nhập hay đổi tài khoản. Đăng xuất giữ nguyên dữ liệu trình duyệt, vì vậy đây chưa phải chế độ dành cho máy dùng chung. Đóng các tab RideMate khác khi tải/khôi phục dữ liệu.
+Chưa đăng nhập vẫn lưu nhật ký local. Đăng nhập không tự nhập dữ liệu local vào tài khoản. Đăng xuất quay về nhật ký local; bản cloud không được tự sao chép vào IndexedDB.
 
-## 5. Thiết kế và giới hạn
+## 5. Chuyến đi, sao lưu và giới hạn
 
-- Bản backend đầu dùng một **workspace snapshot JSONB**/người dùng: `{version: 1, trip, entries}`. Giữ tương thích một chuyến đang lập và nhiều nhật ký hiện tại; chưa phải schema quan hệ trips/days/places riêng biệt và chưa thêm giao diện quản lý nhiều chuyến đang lập.
-- Metadata nằm trong `public.user_workspaces`, có `revision` và `updated_at`. Người dùng chỉ có quyền SELECT hàng của mình qua RLS. Chỉ RPC `save_workspace` được ghi; RPC tự lấy `auth.uid()`, đối chiếu tài khoản và revision, rồi commit metadata trong một transaction.
-- Nếu thiết bị khác đã lưu kể từ lần kiểm tra, RPC trả lỗi xung đột. Không có tự động retry ghi đè hoặc tự gộp. Kiểm tra/tải bản mới trước, hoặc chủ động xác nhận lưu thay thế.
-- Ảnh được tải vào bucket private theo đường dẫn `<user-id>/<uuid>.<ext>`, giới hạn 10 MB/ảnh. Upload không ghi đè; chỉ cho phép SELECT/INSERT trong thư mục của chính người dùng. Khi tải lại, dùng SDK download có xác thực rồi chuyển về data URL cho giao diện cũ.
-- Mỗi lần lưu hiện upload lại ảnh. Ảnh của bản cũ hoặc lượt lưu lỗi được giữ lại để tránh xóa ảnh của bản đã commit khi phản hồi mạng bị mất. **Chưa có tác vụ dọn ảnh mồ côi/deduplicate**; dung lượng tăng theo số lần lưu. Chưa phù hợp đồng bộ thường xuyên dữ liệu lớn.
-- Metadata tối đa 5 MB/bản. Lưu ảnh và metadata không có transaction chung: metadata chỉ commit sau khi tất cả upload thành công. Lỗi giữa chừng giữ nguyên bản metadata cũ.
-- Tải local dùng transaction IndexedDB cho nhật ký + backup, rollback localStorage nếu transaction lỗi. Hai kho không có transaction chung khi trình duyệt crash/đóng đột ngột; chưa hỗ trợ chỉnh local đồng thời nhiều tab.
-- Chưa tự đồng bộ, giải quyết xung đột từng trường, offline queue, xóa tài khoản hay di chuyển dữ liệu giữa các tài khoản. AI và thuê xe vẫn hoãn.
+- Chuyến đang lập, lịch trình/checklist vẫn lưu local. Trong **Tài khoản**, kiểm tra bản cloud rồi **Lưu chuyến đang lập**. Thao tác giữ nguyên nhật ký trên cloud và từ chối nếu revision đã đổi.
+- **Tải về trình duyệt** tải snapshot đã kiểm tra và ghi local có xác nhận, giữ một bản dự phòng. **Khôi phục bản trước khi tải** chỉ tác động local. Khi đăng nhập, trang Nhật ký tiếp tục đọc cloud, không đọc bản local vừa khôi phục.
+- Dùng bảng workspace JSONB/RPC/bucket private cũ. **Không cần chạy lại migration** nếu đã chạy thành công. Mỗi lần sửa journal chỉ thay bài liên quan, giữ các bài khác và chuyến đã lưu; revision bảo vệ transaction metadata.
+- Ảnh đã tải trong phiên được tái dùng theo path khi không đổi; chỉ upload ảnh mới/thay đổi. Chưa dọn ảnh mồ côi khi xóa/sửa hoặc upload thất bại. Metadata tối đa 5 MB, ảnh tối đa 10 MB/ảnh.
+- Không có hàng đợi lưu offline: lỗi mạng giữ form để thử lại, không thông báo lưu thành công giả. Bản nháp chưa tự lưu khi đóng trang. Chưa quản lý nhiều chuyến đang lập.
+- Nên reload/cập nhật mọi thiết bị sau deploy: bản app cũ vẫn có thao tác ghi đè toàn snapshot. Revision bảo vệ các request cạnh tranh nhưng không thể ngăn người dùng chủ động ghi một snapshot cũ từ phiên bản app cũ.
+- localStorage và IndexedDB không có transaction chung khi crash; tránh tải/khôi phục local trong nhiều tab đồng thời.
+- Form điểm đi/đến dùng select với 34 tỉnh/thành hiện hành; Hà Giang/Mộc Châu/Cát Bà là nhóm điểm du lịch riêng. Các địa điểm cũ được giữ nguyên trong option riêng.
 
-Tham khảo: [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [database functions](https://supabase.com/docs/guides/database/functions), [Storage access control](https://supabase.com/docs/guides/storage/security/access-control).
+Nguồn danh sách: [34 đơn vị hành chính cấp tỉnh](https://xaydungchinhsach.chinhphu.vn/chi-tiet-34-don-vi-hanh-chinh-cap-tinh-tu-12-6-2025-119250612141845533.htm).
 
 ## 6. Render
 
@@ -76,12 +75,12 @@ Giữ service hiện tại; chưa thay đổi deploy trong lượt triển khai 
 
 ## 7. Kiểm tra đã chạy và còn cần chạy
 
-Ngày 19/09/2026:
+Cập nhật kiểm tra ngày 20/09/2026:
 
-- `npm test`: **23/23 đạt**. Có kiểm thử migration thực trên PostgreSQL nhúng PGlite với các schema Auth/Storage giả lập: anonymous bị từ chối, hai user tách biệt, direct mutation bị chặn, revision conflict, đường dẫn ảnh đúng owner. Đây chưa phải chạy trên dịch vụ Supabase thật.
+- `npm test`: **31/31 đạt**. Có kiểm thử migration thực trên PostgreSQL nhúng PGlite với các schema Auth/Storage giả lập: anonymous bị từ chối, hai user tách biệt, direct mutation bị chặn, revision conflict, đường dẫn ảnh đúng owner. Đây chưa phải chạy trên dịch vụ Supabase thật.
 - Kiểm thử client: upload lỗi không commit metadata, đổi tài khoản hủy thao tác, bản local không bị sửa khi upload, thiếu ảnh chặn tải, backup/restore IndexedDB và lỗi localStorage.
 - `npm run build`: thành công.
 - Chưa kiểm tra UI tương tác: công cụ trình duyệt trong phiên không có browser khả dụng.
 - Chưa tạo project, chạy migration trên Supabase thật, gửi email, thử OAuth, kiểm tra upload/download thật hoặc deploy Render.
 
-Sau khi cấu hình project, kiểm tra với **hai tài khoản riêng** và hai trình duyệt: email/Google/recovery; tải ảnh và nhật ký; không thấy dữ liệu của user khác; xung đột hai thiết bị; mất mạng lúc upload; dữ liệu local còn nguyên nếu thất bại; tải về rồi khôi phục backup; mobile 320/390 px. Không coi unit test là thay thế kiểm tra tích hợp này.
+Sau khi cấu hình project, kiểm tra với **hai tài khoản riêng** và hai trình duyệt: email/recovery và đồng bộ nhật ký; tải ảnh và nhật ký; không thấy dữ liệu của user khác; xung đột hai thiết bị; mất mạng lúc upload; dữ liệu local còn nguyên nếu thất bại; tải về rồi khôi phục backup; mobile 320/390 px. Không coi unit test là thay thế kiểm tra tích hợp này.

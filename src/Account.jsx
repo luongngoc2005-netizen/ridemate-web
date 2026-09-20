@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase, authRedirect } from './supabase.js';
-import { readCloud, saveCloud, downloadCloud } from './cloud-data.js';
+import { readCloud, requireUser, downloadCloud } from './cloud-data.js';
 import { readLocalWorkspace, applyWorkspace } from './workspace-data.js';
 import { readWorkspaceBackup } from './journal-data.js';
 import './account.css';
@@ -78,8 +78,12 @@ export default function Account({ account, onRestored, onBusy, localError }) {
     if (localError) throw new Error('Hãy xử lý lỗi lưu dữ liệu trình duyệt trước khi gửi lên tài khoản.');
     if (cloud === undefined) throw new Error('Hãy kiểm tra bản trên tài khoản trước.');
     const workspace = await readLocalWorkspace(); guard();
-    if (!window.confirm(`Lưu ${workspace.trip ? '1 chuyến đang lập' : '0 chuyến đang lập'} và ${workspace.entries.length} bài nhật ký lên ${session.user.email}?${cloud ? ' Bản trên tài khoản sẽ được thay thế bằng dữ liệu của trình duyệt này.' : ''}`)) return;
-    const revision = await saveCloud(supabase, userId, workspace, cloud?.revision || 0);
+    if (!window.confirm(`Lưu chuyến đang lập lên ${session.user.email}? Nhật ký trên tài khoản được giữ nguyên.`)) return;
+    await requireUser(supabase, userId);
+    const payload = { version: 1, trip: workspace.trip, entries: cloud?.payload.entries || [] };
+    const { data: revision, error } = await supabase.rpc('save_workspace', { expected_user_id: userId, expected_revision: cloud?.revision || 0, new_payload: payload });
+    if (error?.code === '40001') throw new Error('Tài khoản vừa có thay đổi. Hãy kiểm tra bản trên tài khoản rồi lưu lại.');
+    if (error) throw error;
     guard();
     // Re-read metadata before another write; never silently adopt a newer revision.
     setCloud(undefined);
@@ -90,7 +94,7 @@ export default function Account({ account, onRestored, onBusy, localError }) {
     if (!window.confirm('Tải bản trên tài khoản sẽ thay thế chuyến đi và nhật ký trên trình duyệt này. Bản hiện tại được giữ để khôi phục. Hãy đóng các tab RideMate khác trước khi tiếp tục.')) return;
     const workspace = await downloadCloud(supabase, userId, cloud); guard();
     await applyWorkspace(workspace); onRestored(workspace.trip);
-    setMessage('Đã tải đủ chuyến đi, nhật ký và ảnh. Thay đổi tiếp theo vẫn cần bấm Lưu lên tài khoản.');
+    setMessage('Đã tải bản sao chuyến đi, nhật ký và ảnh về trình duyệt. Khi đăng nhập, trang Nhật ký luôn dùng dữ liệu trên tài khoản.');
   });
   const undo = () => run(async () => {
     const workspace = await readWorkspaceBackup();
@@ -126,14 +130,14 @@ export default function Account({ account, onRestored, onBusy, localError }) {
         <label>Tên hiển thị<input required maxLength={80} autoComplete="name" value={profileName} onChange={e => setProfileName(e.target.value)} /></label>
         <button className="soft" type="submit">Lưu tên</button>
       </fieldset></form>
-      <p>Dữ liệu đang xem thuộc trình duyệt này. Đăng nhập không tự tải hoặc gửi dữ liệu. Hãy kiểm tra đúng tài khoản trước khi lưu.</p>
+      <p>Nhật ký tự tải theo tài khoản và lưu trực tiếp khi bạn thêm, sửa hoặc xóa bài. Chuyến đang lập vẫn lưu trên trình duyệt; dùng các nút bên dưới để chuyển chuyến sang thiết bị khác.</p>
       <div className="account-actions">
         <button disabled={busy} className="soft" onClick={inspect}>Kiểm tra bản trên tài khoản</button>
-        <button disabled={busy || cloud === undefined} className="green" onClick={upload}>Lưu lên tài khoản</button>
+        <button disabled={busy || cloud === undefined} className="green" onClick={upload}>Lưu chuyến đang lập</button>
         <button disabled={busy || !cloud} className="soft" onClick={download}>Tải về trình duyệt</button>
       </div>
       {cloud && <p>Bản {cloud.revision} · {new Date(cloud.updated_at).toLocaleString('vi-VN')} · {cloud.payload.entries.length} bài nhật ký · {cloud.payload.trip ? '1 chuyến đang lập' : 'Chưa có chuyến đang lập'}</p>}
-      <p>Mỗi lần lưu gửi toàn bộ dữ liệu hiện tại. Chưa tự đồng bộ hay gộp thay đổi giữa các thiết bị.</p>
+      <p>Nhật ký cũ lưu riêng trên trình duyệt có thể nhập từ trang Nhật ký bằng nút “Nhập nhật ký cũ từ trình duyệt”. Việc lưu chuyến không ghi đè nhật ký.</p>
       <button disabled={busy} className="soft" onClick={() => run(async () => { const { error } = await supabase.auth.signOut({ scope: 'local' }); if (error) throw error; })}>Đăng xuất</button>
       <p className="muted-copy">Đăng xuất giữ nguyên dữ liệu trên trình duyệt. Trên máy dùng chung, dữ liệu đã tải vẫn có thể được xem.</p>
     </>}

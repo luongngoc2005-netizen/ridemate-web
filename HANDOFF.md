@@ -1,5 +1,30 @@
 # RideMate — bàn giao code và việc còn thiếu
 
+## 20/09/2026 — Điểm đầu/cuối và ghim hỗ trợ trên Tổng quan
+
+- Google Maps nhận tọa độ điểm đầu/cuối đã dùng để vẽ bản đồ, không tự tìm lại theo tên. Geocoder ưu tiên đúng đơn vị hành chính và bỏ kết quả cửa hàng/đường trùng tên; đổi phiên bản cache để tránh dùng lại tọa độ sai.
+- Chọn tỉnh/thành vẫn là điểm đại diện, không phải địa chỉ cụ thể hay GPS của người dùng. Google Maps có thể chọn đường khác; chưa đồng bộ hình dạng tuyến hoặc điểm dừng lịch trình.
+- Tìm điểm hỗ trợ theo hành lang liên tục dọc tuyến, chia đoạn giới hạn kích thước, tối đa hai truy vấn đồng thời; lọc trong khoảng 1,5 km theo đường thẳng. Chọn tối đa 30 ghim mỗi loại phân bố dọc tuyến. Các nút cây xăng/quán ăn/điểm nghỉ bật tắt ghim, tự thu bản đồ về toàn tuyến.
+- Bấm ghim xem tên, địa chỉ nếu có và “Chỉ đường đến đây”. Liên kết dùng tọa độ ghim, để Google Maps chọn vị trí xuất phát. Bấm dòng danh sách vẫn mở ghim tương ứng.
+- Kiểm thử 35/35 đạt, production build thành công. Kiểm tra dịch vụ thật xác nhận geocode Hà Nội–Hải Phòng và tuyến 119,828 km. Overpass trả 406 với User-Agent mặc định của Node; khi dùng User-Agent ứng dụng trả 504 quá tải. Chưa xác minh tải ghim thật hoặc tương tác trình duyệt; UI cho phép thử lại khi dịch vụ lỗi. Không thay nhà cung cấp hoặc thêm Google API trả phí.
+
+## 20/09/2026 — Nhật ký theo tài khoản và chọn tỉnh/thành
+
+- Đăng nhập: Nhật ký đọc trực tiếp workspace Supabase, tạo/sửa/xóa tự ghi cloud khi lưu. Mở lại trang, quay lại tab hoặc mỗi 30 giây khi đang xem sẽ cập nhật; tạm dừng polling khi chỉnh form để giữ bản nháp. Đổi tài khoản remount danh sách, không lấy IndexedDB làm fallback khi cloud lỗi.
+- Khách chưa đăng nhập vẫn dùng IndexedDB. Nút “Nhập nhật ký cũ từ trình duyệt” nhập có xác nhận, bỏ qua ID đã tồn tại và không xóa local. Không tự nhập dữ liệu của máy dùng chung.
+- `journal-sync.js` merge một bài vào workspace mới nhất, retry tối đa 3 lần khi revision đụng nhau; cùng bài bị sửa/xóa thì báo lỗi giữ nội dung form. `cloud-journal.js` chỉ upload ảnh mới/thay đổi, tái dùng đường dẫn ảnh trong phiên.
+- Trang Tài khoản: lưu chuyến đang lập giữ nguyên nhật ký cloud. Chuyến đang lập vẫn chuyển thiết bị thủ công; chưa tự đồng bộ lịch trình/checklist. Bản app cũ có thể còn ghi toàn snapshot, nên cập nhật/reload tất cả thiết bị trước khi dùng luồng mới.
+- `ProvinceSelect.jsx`, `provinces.js`: 34 tỉnh/thành hiện hành + nhóm riêng Hà Giang/Mộc Châu/Cát Bà. Áp dụng điểm đi/đến trên Home, TripForm và nhật ký. Giữ nguyên địa điểm cũ ngoài danh sách bằng option riêng; địa điểm tham quan chi tiết vẫn nhập tự do.
+- Không cần migration mới; dùng RPC và bucket hiện có. Chưa có hàng đợi offline hay dọn ảnh mồ côi. Mất mạng khi lưu báo lỗi và giữ form.
+- Kiểm thử 31/31 đạt, build thành công; có test hai thiết bị, xung đột cùng bài, xóa, retry an toàn, upload lỗi và danh sách tỉnh. Chưa kiểm tra hai tài khoản/thiết bị trên Supabase thật hoặc UI trình duyệt.
+- Các phần bên dưới ghi lại các giai đoạn cũ; mô tả nhật ký lưu cloud thủ công không còn áp dụng cho người đã đăng nhập.
+
+## Đồng bộ icon toàn giao diện
+
+- Thay emoji và ký hiệu trang trí bằng SVG nét: logo, liên kết/nút điều hướng, lịch trình, nhật ký/thành tựu, thời tiết, điểm hỗ trợ và ghim bản đồ, nút gửi AI. Giữ nhãn chữ và chức năng AI Assistant theo xác nhận của người dùng.
+- Dùng chung `ToolIcon.jsx`; Leaflet tạo SVG DOM từ cùng bộ hình. Tên chuyến và các chuỗi dữ liệu người dùng được giữ nguyên.
+- Kiểm tra: bộ 23 test hiện có đạt và production build thành công. Chưa kiểm tra giao diện trực tiếp trên trình duyệt.
+
 ## Điều chỉnh tài khoản và icon
 
 - Chỉ cung cấp đăng nhập/đăng ký email + mật khẩu; đã bỏ nút Google. Giữ quên mật khẩu và các chức năng dữ liệu.

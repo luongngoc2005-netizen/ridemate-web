@@ -2,7 +2,7 @@
 
 Chuyển giao sang máy khác: đọc [HANDOFF.md](./HANDOFF.md) để biết cách chạy, trạng thái hiện tại, các phần còn thiếu và lưu ý chuyển dữ liệu.
 
-Backend Supabase: đăng nhập email/mật khẩu, tên hiển thị, quên mật khẩu, lưu/tải bản dữ liệu tài khoản và ảnh riêng tư. Làm theo [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) để tạo project, chạy migration và cấu hình môi trường. Nếu chưa cấu hình, app vẫn chạy ở chế độ local. Đồng bộ hiện là thao tác thủ công trong trang **Tài khoản**.
+Backend Supabase: đăng nhập email/mật khẩu, tên hiển thị, quên mật khẩu và ảnh riêng tư. Nhật ký đã đăng nhập tự đọc/ghi tài khoản khi lưu và cập nhật giữa các thiết bị; chuyến đang lập vẫn lưu/tải thủ công trong **Tài khoản**. Nhật ký local cũ có nút nhập riêng trong trang Nhật ký. Làm theo [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) để cấu hình. Chưa cấu hình vẫn dùng local. Điểm đi/đến chọn bằng danh sách tỉnh/thành.
 
 ## Chạy thử
 1. Cài Node.js 22+ (Supabase SDK yêu cầu Node 22)
