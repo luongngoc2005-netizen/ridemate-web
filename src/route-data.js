@@ -1,3 +1,6 @@
+import { validPoint, routePosition } from './places-data.js';
+export { supportTypes, markerTypes, validPoint, routePosition, selectPlaces } from './places-data.js';
+import { createPlaceProcessor } from './places-processor.js';
 import { osrmUrl, parseOsrm, routePoints, itineraryStops } from './osrm-data.js';
 import { provinces, travelDestinations } from './provinces.js';
 const env = import.meta.env || {};
@@ -7,14 +10,6 @@ export const mapServices = {
   places: env.VITE_PLACES_URL || 'https://overpass-api.de/api/interpreter',
   style: env.VITE_MAP_STYLE_URL || 'https://tiles.openfreemap.org/styles/liberty',
 };
-export const supportTypes = {
-  fuel: { label: 'Cây xăng', icon: 'fuel', color: '#c04f19' },
-  food: { label: 'Quán ăn', icon: 'food', color: '#805bb0' },
-  drink: { label: 'Đồ uống', icon: 'drink', color: '#2573a6' },
-  repair: { label: 'Sửa xe', icon: 'repair', color: '#a54a35' },
-  rest: { label: 'Điểm nghỉ / chỗ ở', icon: 'bed', color: '#14728c' },
-};
-export const markerTypes = { ...supportTypes, planned: { label: 'Điểm trong lịch trình', icon: 'flag', color: '#126745' } };
 const cache = new Map();
 const CACHE_KEY = 'ridemate.map-cache.v1';
 function cached(key) {
@@ -50,21 +45,21 @@ async function request(url, { signal, ...options } = {}) {
     throw error;
   } finally { clearTimeout(timer); signal?.removeEventListener('abort', cancel); }
 }
-export function validPoint(point) {
-  return Array.isArray(point) && point.length >= 2 && point.slice(0, 2).every(Number.isFinite) && Math.abs(point[0]) <= 180 && Math.abs(point[1]) <= 90;
-}
 export function chooseLocation(features, name = '') {
   const candidates = (features || []).filter(item => validPoint(item.geometry?.coordinates) && item.properties?.countrycode?.toUpperCase() === 'VN');
   const normalize = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/đ/g, 'd').replace(/^(tinh|thanh pho|tp\.?)\s+/, '').trim();
   const target = normalize(name);
   const exact = candidates.filter(item => normalize(item.properties.name || '') === target);
-  // A street/shop with the same name must not win over the actual city/province.
-  const area = exact.find(item => ['city', 'town', 'state', 'province', 'administrative', 'island', 'village', 'district'].includes(item.properties.osm_value));
+  // Require a geographic area, not just a matching name or OSM value.
+  const area = exact.find(({ properties: p }) =>
+    (p.osm_key === 'place' && ['city', 'town', 'state', 'province', 'island', 'village', 'district', 'county'].includes(p.osm_value)) ||
+    (p.osm_key === 'boundary' && p.osm_value === 'administrative'));
   const known = [...provinces, ...travelDestinations].some(value => normalize(value) === target);
-  return area || exact.find(item => !['highway', 'shop', 'amenity'].includes(item.properties.osm_key)) || (known ? undefined : candidates[0]);
+  if (known) return area;
+  return area || exact.find(item => !['highway', 'shop', 'amenity'].includes(item.properties.osm_key)) || candidates[0];
 }
 export async function geocode(name, signal) {
-  const key = `geo:v3:${mapServices.geocode}:${name.trim().toLowerCase()}`;
+  const key = `geo:v4:${mapServices.geocode}:${name.trim().toLowerCase()}`;
   const saved = cached(key);
   if (saved && validPoint(saved.coordinates)) return saved;
   const url = new URL(mapServices.geocode);
@@ -77,7 +72,7 @@ export async function geocode(name, signal) {
   return remember(key, { coordinates: result.geometry.coordinates, label: [...new Set([properties.name, properties.city, properties.state].filter(Boolean))].join(', ') }, 7 * 86400000);
 }
 export async function loadRoute(origin, destination, signal, stops = []) {
-  const key = 'osrm:v1:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
+  const key = 'osrm:v2:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
   const saved = cached(key);
   if (saved) return saved;
   const start = await geocode(origin, signal), end = await geocode(destination, signal);
@@ -97,22 +92,6 @@ export async function loadRoute(origin, destination, signal, stops = []) {
 }
 export async function loadTripRoute(trip, signal) {
   return loadRoute(trip.origin, trip.destination, signal, itineraryStops(trip));
-}
-// Coordinates are [longitude, latitude]; distances are approximate ground distances.
-export function routePosition(point, coordinates) {
-  const scaleX = 111320 * Math.cos(point[1] * Math.PI / 180), scaleY = 111320;
-  let distance = Infinity, progress = 0, traversed = 0;
-  for (let i = 1; i < coordinates.length; i++) {
-    const a = coordinates[i - 1], b = coordinates[i];
-    const ax = (a[0] - point[0]) * scaleX, ay = (a[1] - point[1]) * scaleY;
-    const dx = (b[0] - a[0]) * scaleX, dy = (b[1] - a[1]) * scaleY;
-    const squared = dx * dx + dy * dy;
-    const t = squared ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / squared)) : 0;
-    const current = Math.hypot(ax + t * dx, ay + t * dy);
-    if (current < distance) { distance = current; progress = traversed + Math.sqrt(squared) * t; }
-    traversed += Math.sqrt(squared);
-  }
-  return { distance, progress, total: traversed };
 }
 export function sampleRoute(coordinates, limit = 100) {
   if (coordinates.length <= limit) return coordinates;
@@ -157,68 +136,46 @@ export function placeSearchSegments(coordinates) {
   if (chunk.length > 1) chunks.push(chunk);
   return chunks;
 }
-export function selectPlaces(elements, coordinates, limit = 30) {
-  const seen = new Set(), candidates = [];
-  for (const item of elements || []) {
-    const tags = item.tags || {};
-    const type = tags.amenity === 'fuel' ? 'fuel' : ['cafe', 'ice_cream'].includes(tags.amenity) ? 'drink' : ['restaurant', 'fast_food', 'food_court'].includes(tags.amenity) ? 'food' : ['motorcycle_repair', 'car_repair', 'tyres'].includes(tags.shop) || (tags.shop === 'motorcycle' && tags['service:motorcycle:repair'] === 'yes') ? 'repair' : ['rest_area', 'services'].includes(tags.highway) || ['hotel', 'guest_house', 'motel'].includes(tags.tourism) ? 'rest' : null;
-    const point = [item.lon ?? item.center?.lon, item.lat ?? item.center?.lat];
-    if (!type || !validPoint(point)) continue;
-    const position = routePosition(point, coordinates);
-    if (position.distance > 1500) continue;
-    const name = tags['name:vi'] || tags.name || tags.brand || tags.operator || `${supportTypes[type].label} chưa có tên trên bản đồ`;
-    const duplicate = `${type}:${name}:${point.map(n => n.toFixed(3)).join(',')}`;
-    if (seen.has(duplicate)) continue;
-    seen.add(duplicate);
-    candidates.push({ id: `${item.type}/${item.id}`, name, type, coordinates: point, distanceMeters: position.distance, progressMeters: position.progress, totalMeters: position.total, address: [tags['addr:housenumber'], tags['addr:street'], tags['addr:city']].filter(Boolean).join(', '), hours: tags.opening_hours || '', source: `https://www.openstreetmap.org/${item.type}/${item.id}` });
-  }
-  const result = [];
-  for (const type of Object.keys(supportTypes)) {
-    const pool = candidates.filter(place => place.type === type);
-    const count = Math.min(limit, pool.length);
-    for (let index = 0; index < count; index++) {
-      const fraction = count === 1 ? 0.5 : index / (count - 1);
-      if (!pool.length) break;
-      pool.sort((a, b) => Math.abs(a.progressMeters - fraction * a.totalMeters) + a.distanceMeters - (Math.abs(b.progressMeters - fraction * b.totalMeters) + b.distanceMeters));
-      result.push(pool.shift());
-    }
-  }
-  return result.sort((a, b) => a.progressMeters - b.progressMeters);
-}
 // Completed segments remain cached; retry only fetches failed/expired segments.
 const segmentCache = new Map();
 export async function loadPlaces(route, signal, onProgress = () => {}) {
   const queries = placeSearchSegments(route.coordinates).map(placesQuery);
-  const elements = []; let completed = 0, failed = 0;
-  const snapshot = () => ({ places: selectPlaces(elements, route.coordinates), completed, failed, total: queries.length });
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-  const missing = [];
-  for (const query of queries) {
-    const saved = segmentCache.get(mapServices.places + ':' + query);
-    if (saved?.expires > Date.now()) { elements.push(...saved.elements); completed++; }
-    else missing.push(query);
-  }
-  if (completed) onProgress(snapshot());
-  for (const query of missing) {
-    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    const key = mapServices.places + ':' + query;
-    let data = segmentCache.get(key);
-    try {
-      if (!data || data.expires <= Date.now()) {
-        const response = await request(mapServices.places, { signal, method: 'POST', body: new URLSearchParams({ data: query }) });
-        if (!Array.isArray(response.elements) || response.remark) throw new Error('Incomplete places response');
-        data = { elements: response.elements, expires: Date.now() + 6 * 3600000 };
-        segmentCache.set(key, data);
-        while (segmentCache.size > 150) segmentCache.delete(segmentCache.keys().next().value);
-      }
-      elements.push(...data.elements); completed++;
-    } catch (error) {
-      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-      failed++;
+  const processor = createPlaceProcessor(route.coordinates, signal);
+  let places = [], completed = 0, failed = 0;
+  const snapshot = () => ({ places, completed, failed, total: queries.length });
+  try {
+    const missing = [], cachedElements = [];
+    for (const query of queries) {
+      const saved = segmentCache.get(mapServices.places + ':' + query);
+      if (saved?.expires > Date.now()) { cachedElements.push(saved.elements); completed++; }
+      else missing.push(query);
     }
-    onProgress(snapshot());
-  }
-  return snapshot();
+    if (completed) {
+      places = await processor.add(cachedElements.flat());
+      onProgress(snapshot());
+    }
+    for (const query of missing) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      const key = mapServices.places + ':' + query;
+      let data = segmentCache.get(key);
+      try {
+        if (!data || data.expires <= Date.now()) {
+          const response = await request(mapServices.places, { signal, method: 'POST', body: new URLSearchParams({ data: query }) });
+          if (!Array.isArray(response.elements) || response.remark) throw new Error('Incomplete places response');
+          data = { elements: response.elements, expires: Date.now() + 6 * 3600000 };
+          segmentCache.set(key, data);
+          while (segmentCache.size > 150) segmentCache.delete(segmentCache.keys().next().value);
+        }
+      } catch (error) {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        failed++; onProgress(snapshot()); continue;
+      }
+      places = await processor.add(data.elements); completed++;
+      onProgress(snapshot());
+    }
+    return snapshot();
+  } finally { processor.dispose(); }
 }
 export function pointText(point) {
   const coordinates = Array.isArray(point) ? point : point?.coordinates;
@@ -229,14 +186,19 @@ export function pointText(point) {
 export async function searchPlannedCandidates(name, route, signal) {
   if (!name.trim()) return [];
   const url = new URL(mapServices.geocode);
-  url.search = new URLSearchParams({ q: name.trim(), lang: 'default', limit: '8', bbox: '102,8,110,24', lon: String(route.end.coordinates[0]), lat: String(route.end.coordinates[1]) });
+  const params = new URLSearchParams({ q: name.trim(), lang: 'default', limit: '8', bbox: '102,8,110,24' });
+  if (validPoint(route?.end?.coordinates)) {
+    params.set('lon', String(route.end.coordinates[0])); params.set('lat', String(route.end.coordinates[1]));
+  }
+  url.search = params;
+  const hasRoute = route?.coordinates?.length >= 2 && route.coordinates.every(validPoint);
   const result = await request(url, { signal });
   return (result.features || []).filter(item => validPoint(item.geometry?.coordinates) && item.properties?.countrycode?.toUpperCase() === 'VN').map(item => {
     const properties = item.properties, coordinates = item.geometry.coordinates;
     return { id: `${properties.osm_type}/${properties.osm_id}`, name: properties.name || name.trim(), coordinates,
       address: [...new Set([properties.housenumber, properties.street, properties.city, properties.state].filter(Boolean))].join(', '),
-      distanceMeters: routePosition(coordinates, route.coordinates).distance };
-  }).sort((a, b) => a.distanceMeters - b.distanceMeters);
+      distanceMeters: hasRoute ? routePosition(coordinates, route.coordinates).distance : null };
+  }).sort((a, b) => hasRoute ? a.distanceMeters - b.distanceMeters : 0);
 }
 export function directionsUrl(origin, destination) {
   return `https://www.google.com/maps/dir/?${new URLSearchParams({ api: '1', origin: pointText(origin), destination: pointText(destination), travelmode: 'driving', avoid: 'highways' })}`;

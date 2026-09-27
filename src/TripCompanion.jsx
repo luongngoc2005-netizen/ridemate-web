@@ -4,7 +4,7 @@ import RouteMap from './RouteMap.jsx';
 import { LocationControls } from './Location.jsx';
 import { useTripRoute } from './TripRouteContext.jsx';
 import { markerTypes, placeDirectionsUrl, searchPlannedCandidates, validPoint } from './route-data.js';
-import { plannedPlaces, addPlannedPlace, locatePlannedPlace } from './planned-places.js';
+import { plannedPlaces, addPlannedPlace, locatePlannedPlace, clearPlannedLocation } from './planned-places.js';
 import './trip-companion.css';
 
 function ResolvePlace({ place, route, onChoose, onCancel }) {
@@ -18,11 +18,12 @@ function ResolvePlace({ place, route, onChoose, onCancel }) {
     return () => controller.abort();
   }, [term, route]);
   return <section className="companion-action">
-    <form onSubmit={e => { e.preventDefault(); setTerm({ query: query.trim() }); }}><label>Chọn vị trí cho {place.name}<input autoFocus required value={query} onChange={e => setQuery(e.target.value)} placeholder="Tên quán, đường, tỉnh/thành"/></label><button type="submit" disabled={!route || state.loading}>Tìm vị trí</button><button type="button" onClick={onCancel}>Hủy</button></form>
+    <form onSubmit={e => { e.preventDefault(); setTerm({ query: query.trim() }); }}><label>Chọn vị trí cho {place.name}<input autoFocus required value={query} onChange={e => setQuery(e.target.value)} placeholder="Tên quán, đường, tỉnh/thành"/></label><button type="submit" disabled={!query.trim() || state.loading}>Tìm vị trí</button><button type="button" onClick={onCancel}>Hủy</button></form>
     <p>Tên có thể trùng nhau. Hãy kiểm tra địa chỉ trước khi chọn.</p>
     {state.loading && <p role="status">Đang tìm…</p>}{state.error && <p role="status">{state.error}</p>}
     {state.results?.length === 0 && <p role="status">Chưa tìm thấy. Thử thêm tên đường hoặc tỉnh/thành.</p>}
-    {state.results?.map((candidate, index) => <button className="candidate-result" key={`${candidate.id}:${index}`} onClick={() => onChoose(candidate)}><b>{candidate.name}</b><span>{candidate.address || 'Chưa có địa chỉ'}</span><small>Cách tuyến khoảng {(candidate.distanceMeters / 1000).toFixed(1)} km · {candidate.coordinates[1].toFixed(5)}, {candidate.coordinates[0].toFixed(5)}</small><span>Chọn vị trí này</span></button>)}
+    {!route && <p>Vẫn có thể tìm và sửa vị trí khi tuyến chưa tải được. Thêm tên đường, tỉnh/thành để tìm chính xác hơn.</p>}
+    {state.results?.map((candidate, index) => <button className="candidate-result" key={`${candidate.id}:${index}`} onClick={() => onChoose(candidate)}><b>{candidate.name}</b><span>{candidate.address || 'Chưa có địa chỉ'}</span><small>{Number.isFinite(candidate.distanceMeters) && <>Cách tuyến khoảng {(candidate.distanceMeters / 1000).toFixed(1)} km · </>}{candidate.coordinates[1].toFixed(5)}, {candidate.coordinates[0].toFixed(5)}</small><span>Chọn vị trí này</span></button>)}
   </section>;
 }
 
@@ -55,7 +56,7 @@ function CompanionPanel({ trip, setTrip, onClose }) {
       {!data.loading && (data.error || data.placesError) && <button className="soft" onClick={data.retry}>Thử tải lại</button>}
       <div ref={action}>
         {adding && <section className="companion-action"><b>Thêm {adding.name}</b><label>Chọn ngày<select value={targetDay.id} onChange={e => setDayId(e.target.value)}>{trip.itinerary.map((day, index) => <option value={day.id} key={day.id}>Ngày {index + 1}: {day.title}</option>)}</select></label><button onClick={add}>Lưu vào lịch trình</button><button onClick={() => setAdding(null)}>Hủy</button></section>}
-        {resolved && data.route && <ResolvePlace key={resolved.id} place={resolved} route={data.route} onCancel={() => setResolving(null)} onChoose={candidate => {
+        {resolved && <ResolvePlace key={resolved.id} place={resolved} route={data.route} onCancel={() => setResolving(null)} onChoose={candidate => {
           setTrip(current => locatePlannedPlace(current, resolved.dayId, resolved.placeId, candidate, resolved.name));
           setSelected({ ...resolved, coordinates: candidate.coordinates }); setResolving(null); setMessage(`Đã chọn vị trí cho ${resolved.name}.`);
         }}/>}
@@ -65,7 +66,16 @@ function CompanionPanel({ trip, setTrip, onClose }) {
         {!items.length && <p>{category === 'planned' ? 'Chưa có điểm đã lưu. Chọn nhóm bên trên và thêm ghim vào lịch trình.' : data.placesLoading ? 'Đang tải dữ liệu…' : data.placesError || data.error ? 'Chưa có dữ liệu để hiển thị.' : 'Chưa tìm thấy điểm phù hợp trong dữ liệu bản đồ.'}</p>}
         {items.map(place => <article className="companion-place" key={place.id}>
           <button className="companion-place-name" disabled={!data.route} onClick={() => { if (validPoint(place.coordinates)) { setSelected({ ...place }); } else { setResolving(place); setAdding(null); } }}><b>{place.name}</b><small>{place.dayNumber ? `Ngày ${place.dayNumber} · ` : ''}{place.address || markerTypes[place.type].label}</small></button>
-          <div className="companion-place-actions">{validPoint(place.coordinates) ? <a href={placeDirectionsUrl(place)} target="_blank" rel="noreferrer">Chỉ đường</a> : <button disabled={!data.route} onClick={() => { setResolving(place); setAdding(null); }}>Chọn vị trí</button>}{place.type !== 'planned' && <button onClick={() => setAdding(place)}>Thêm vào lịch trình</button>}</div>
+          <div className="companion-place-actions">
+            {validPoint(place.coordinates) && <a href={placeDirectionsUrl(place)} target="_blank" rel="noreferrer">Chỉ đường</a>}
+            {place.type === 'planned' ? <>
+              <button onClick={() => { setResolving(place); setAdding(null); }}>{validPoint(place.coordinates) ? 'Đổi vị trí' : 'Chọn vị trí'}</button>
+              {validPoint(place.coordinates) && <button onClick={() => {
+                setTrip(current => clearPlannedLocation(current, place.dayId, place.placeId, place.name));
+                setSelected(null); setResolving(null); setMessage(`Đã xóa vị trí của ${place.name}. Điểm vẫn được giữ trong lịch trình.`);
+              }}>Xóa vị trí</button>}
+            </> : <button onClick={() => setAdding(place)}>Thêm vào lịch trình</button>}
+          </div>
         </article>)}
       </div>
       <p className="companion-help">OSRM nối các điểm đã có tọa độ theo thứ tự lịch trình. Điểm chưa có tọa độ cần Chọn vị trí. Tuyến ô tô có thể đi cao tốc, không phải tuyến dành riêng cho xe máy. Dữ liệu OpenStreetMap có thể thiếu; hãy kiểm tra cửa hàng sửa xe có nhận xe máy. Định vị chỉ cập nhật khi trình duyệt cho phép.</p>

@@ -14,7 +14,19 @@ export function addPlannedPlace(trip, dayId, place) {
 
 export function locatePlannedPlace(trip, dayId, placeId, candidate, originalName) {
   if (!validPoint(candidate.coordinates)) throw new Error('Vị trí không hợp lệ.');
-  return { ...trip, itinerary: trip.itinerary.map(day => day.id !== dayId ? day : { ...day, places: day.places.map(place => place.id !== placeId || place.name !== originalName ? place : { ...place, coordinates: [...candidate.coordinates], address: candidate.address || '' }) }) };
+  return { ...trip, itinerary: trip.itinerary.map(day => day.id !== dayId ? day : { ...day, places: day.places.map(place => {
+    if (place.id !== placeId || place.name !== originalName) return place;
+    const { sourceId, ...rest } = place;
+    return { ...rest, coordinates: [...candidate.coordinates], address: candidate.address || '', ...(candidate.id ? { sourceId: candidate.id } : {}) };
+  }) }) };
+}
+
+export function clearPlannedLocation(trip, dayId, placeId, originalName) {
+  return { ...trip, itinerary: trip.itinerary.map(day => day.id !== dayId ? day : { ...day, places: day.places.map(place => {
+    if (place.id !== placeId || place.name !== originalName) return place;
+    const { coordinates, address, sourceId, ...rest } = place;
+    return rest;
+  }) }) };
 }
 
 export function renamePlannedPlace(place, name) {

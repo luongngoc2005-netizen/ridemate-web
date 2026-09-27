@@ -2,7 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTrip, initialDetails, saveTrip, readTrip } from '../src/trip-data.js';
 import { validateWorkspace } from '../src/cloud-data.js';
-import { plannedPlaces, addPlannedPlace, locatePlannedPlace, renamePlannedPlace, mergeEditedDay } from '../src/planned-places.js';
+import { plannedPlaces, addPlannedPlace, locatePlannedPlace, clearPlannedLocation, renamePlannedPlace, mergeEditedDay } from '../src/planned-places.js';
+import { itineraryStops, routePoints } from '../src/osrm-data.js';
+
+test('An unroutable saved stop can be relocated or cleared without deleting the plan', () => {
+  const trip = createTrip(initialDetails), original = plannedPlaces(trip)[0];
+  const wrong = locatePlannedPlace(trip, original.dayId, original.placeId, { id: 'node/old', coordinates: [110, 10], address: 'Wrong' }, original.name);
+  const corrected = locatePlannedPlace(wrong, original.dayId, original.placeId, { id: 'node/new', coordinates: [105, 21], address: 'Correct' }, original.name);
+  const saved = plannedPlaces(corrected)[0];
+  assert.deepEqual(saved.coordinates, [105, 21]); assert.equal(saved.sourceId, 'node/new');
+  const cleared = clearPlannedLocation(wrong, original.dayId, original.placeId, original.name);
+  const clearedPlace = plannedPlaces(cleared)[0];
+  assert.equal(clearedPlace.name, original.name); assert.equal(clearedPlace.placeId, original.placeId);
+  for (const key of ['coordinates', 'address', 'sourceId']) assert.equal(clearedPlace[key], undefined);
+  assert.equal(plannedPlaces(cleared).length, plannedPlaces(trip).length);
+  assert.deepEqual(routePoints({ coordinates: [105, 21] }, { coordinates: [106, 22] }, itineraryStops(cleared)).map(p => p.coordinates), [[105, 21], [106, 22]]);
+  assert.deepEqual(clearPlannedLocation(wrong, original.dayId, original.placeId, 'stale name'), wrong);
+  assert.deepEqual(validateWorkspace({ version: 1, trip: corrected, entries: [] }).trip, corrected);
+});
 
 test('Adding a route pin stores its exact location once per day and preserves the rest of the trip', () => {
   const trip = createTrip(initialDetails), day = trip.itinerary[0];

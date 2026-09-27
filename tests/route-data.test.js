@@ -19,7 +19,7 @@ test('English browser language cannot translate Vietnamese endpoint and saved-pl
 });
 import { chooseLocation, routePosition, selectPlaces, placesQuery, directionsUrl, placeUrl, placeDirectionsUrl, simplifyRoute, placeSearchSegments } from '../src/route-data.js';
 test('Geocoding preserves exact match instead of choosing a different city', () => {
-  const feature = (name, osm_value, point = [105, 22]) => ({ properties: { name, osm_value, countrycode: 'VN' }, geometry: { coordinates: point } });
+  const feature = (name, osm_value, point = [105, 22]) => ({ properties: { name, osm_key: 'place', osm_value, countrycode: 'VN' }, geometry: { coordinates: point } });
   assert.equal(chooseLocation([feature('Hà Giang', 'state'), feature('Hà Tiên', 'city')], 'Hà Giang').properties.name, 'Hà Giang');
   assert.equal(chooseLocation([feature('Invalid', 'city', [NaN, 22])], 'Invalid'), undefined);
 });
@@ -52,6 +52,59 @@ test('Known provinces never fall back to an unrelated result or a same-name shop
   const city = feature('Thành phố Hà Nội', 'place', 'city');
   assert.equal(chooseLocation([shop, city], 'Hà Nội'), city);
   assert.equal(chooseLocation([shop, feature('Hà Tiên', 'place', 'city')], 'Hà Nội'), undefined);
+});
+
+test('Province matches reject railway, buildings and other non-area features', () => {
+  const feature = (osm_key, osm_value, name = 'Hà Nội') => ({ properties: { name, osm_key, osm_value, countrycode: 'VN' }, geometry: { coordinates: [105, 21] } });
+  for (const [key, value] of [['railway', 'station'], ['building', 'yes'], ['tourism', 'hotel'], ['shop', 'city'], ['natural', 'water']]) {
+    assert.equal(chooseLocation([feature(key, value)], 'Hà Nội'), undefined);
+  }
+  const boundary = feature('boundary', 'administrative', 'Thành phố Hà Nội');
+  assert.equal(chooseLocation([feature('railway', 'station'), boundary], 'Hà Nội'), boundary);
+  const island = feature('place', 'island', 'Cát Bà');
+  assert.equal(chooseLocation([island], 'Cát Bà'), island);
+  const cafe = feature('amenity', 'cafe', 'Cafe A');
+  assert.equal(chooseLocation([cafe], 'Cafe A'), cafe);
+});
+
+test('Location search remains available when routing fails, without invented distance', async context => {
+  context.mock.method(globalThis, 'fetch', async input => {
+    const url = new URL(input);
+    assert.equal(url.searchParams.has('lon'), false);
+    assert.equal(url.searchParams.has('lat'), false);
+    return { ok: true, json: async () => ({ features: [{ properties: { name: 'Quán A', countrycode: 'VN', osm_type: 'N', osm_id: 1 }, geometry: { coordinates: [105, 21] } }] }) };
+  });
+  const result = await searchPlannedCandidates('Quán A', null);
+  assert.equal(result.length, 1);
+  assert.deepEqual(result[0].coordinates, [105, 21]);
+  assert.equal(result[0].distanceMeters, null);
+});
+
+test('Old geocoding and route caches cannot preserve a wrong endpoint after the fix', async context => {
+  const endpoint = 'https://photon.komoot.io/api/';
+  const cached = data => ({ expires: Date.now() + 60000, data });
+  const oldEntries = [
+    [`geo:v3:${endpoint}:hà nội`, cached({ label: 'Wrong station', coordinates: [105.7, 21] })],
+    ['osrm:v1:https://router.project-osrm.org/route/v1/driving:["Hà Nội","Huế",[]]', cached({ wrong: true })],
+  ];
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: () => JSON.stringify(oldEntries), setItem() {} } });
+  context.after(() => { if (previous) Object.defineProperty(globalThis, 'localStorage', previous); else delete globalThis.localStorage; });
+  let requests = 0;
+  context.mock.method(globalThis, 'fetch', async input => {
+    const url = new URL(input); requests++;
+    if (url.hostname === 'photon.komoot.io') {
+      const name = url.searchParams.get('q');
+      return { ok: true, json: async () => ({ features: [{ properties: { name, countrycode: 'VN', osm_key: 'place', osm_value: 'city' }, geometry: { coordinates: name === 'Hà Nội' ? [105.85, 21.03] : [107.58, 16.46] } }] }) };
+    }
+    const coordinates = [[105.85, 21.03], [107.58, 16.46]];
+    return { ok: true, json: async () => ({ code: 'Ok', routes: [{ distance: 1000, duration: 100, geometry: { coordinates }, legs: [{ distance: 1000, duration: 100, steps: [{ geometry: { coordinates } }] }] }] }) };
+  });
+  const { loadRoute } = await import('../src/route-data.js?cache-regression');
+  const result = await loadRoute('Hà Nội', 'Huế');
+  assert.equal(requests, 3);
+  assert.deepEqual(result.start.coordinates, [105.85, 21.03]);
+  assert.equal(result.wrong, undefined);
 });
 test('Directions reuse the exact overview endpoints without latitude/longitude reversal', () => {
   const start = { coordinates: [105.8342, 21.0278], label: 'Hà Nội' };

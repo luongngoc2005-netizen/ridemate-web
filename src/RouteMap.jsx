@@ -6,6 +6,7 @@ import { createToolIconElement } from './ToolIcon.jsx';
 import { mapServices, markerTypes, placeDirectionsUrl, validPoint } from './route-data.js';
 import { routeGeoJSON, accuracyGeoJSON, dayColor } from './osrm-data.js';
 import { useLocation, LocationControls } from './Location.jsx';
+import { reconcilePlaceMarkers, clearPlaceMarkers } from './map-markers.js';
 import './route-map.css';
 
 const emptyPlaces = [], emptyVisibility = {};
@@ -43,7 +44,7 @@ export default function RouteMap({ route, center, places = emptyPlaces, visible 
     instance.on('error', () => setError('Một phần bản đồ chưa tải được. Kiểm tra kết nối hoặc bấm tải lại nền.'));
     instance.on('dragstart', () => setFollow(false));
     const resize = new ResizeObserver(() => instance.resize()); resize.observe(container.current);
-    return () => { resize.disconnect(); instance.remove(); map.current = null; };
+    return () => { resize.disconnect(); clearPlaceMarkers(markers.current); instance.remove(); map.current = null; };
   }, []);
   useEffect(() => {
     if (!ready || !map.current) return;
@@ -68,28 +69,42 @@ export default function RouteMap({ route, center, places = emptyPlaces, visible 
   }, [ready, route, center]);
   useEffect(() => {
     if (!ready || !map.current) return;
-    const instance = map.current; markers.current.clear();
-    const added = [];
-    for (const place of places.filter(p => visible[p.type] && validPoint(p.coordinates))) {
+    const instance = map.current;
+    reconcilePlaceMarkers(markers.current, places, visible, place => {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'support-pin maplibre-support';
+      const marker = new maplibregl.Marker({ element: button }).setLngLat(place.coordinates).setPopup(new maplibregl.Popup({ offset: 22 })).addTo(instance);
+      button.addEventListener('click', () => setFollow(false));
+      const record = { marker, button, place };
+      marker.getPopup().on('close', () => {
+        if (record.retained && markers.current.get(place.id) === record) {
+          markers.current.delete(place.id); marker.remove();
+        }
+      });
+      return record;
+    }, (record, place) => {
+      const signature = JSON.stringify([place, !!pick.current]);
+      record.place = place;
+      if (signature === record.signature) return;
+      record.signature = signature;
+      const { marker, button } = record;
       const config = markerTypes[place.type] || markerTypes.planned;
-      const button = document.createElement('button'); button.type = 'button'; button.className = 'support-pin maplibre-support'; button.setAttribute('aria-label', `${config.label}: ${place.name}`);
-      const icon = document.createElement('span'); icon.style.background = config.color; icon.append(createToolIconElement(config.icon)); button.append(icon);
+      button.setAttribute('aria-label', `${config.label}: ${place.name}`);
+      const icon = document.createElement('span'); icon.style.background = config.color; icon.append(createToolIconElement(config.icon)); button.replaceChildren(icon);
       const root = popupContent(place, config.label);
       if (Number.isFinite(place.distanceMeters)) { const distance = document.createElement('p'); distance.textContent = `Cách tuyến khoảng ${Math.round(place.distanceMeters)} m (đường thẳng)`; root.append(distance); }
       if (pick.current && place.type !== 'planned') {
         const save = document.createElement('button'); save.type = 'button'; save.className = 'pin-save'; save.textContent = 'Thêm vào lịch trình'; save.onclick = () => pick.current?.(place); root.append(save);
       }
-      const marker = new maplibregl.Marker({ element: button }).setLngLat(place.coordinates).setPopup(new maplibregl.Popup({ offset: 22 }).setDOMContent(root)).addTo(instance);
-      button.addEventListener('click', () => setFollow(false)); markers.current.set(place.id, marker); added.push(marker);
-    }
-    return () => { added.forEach(m => m.remove()); markers.current.clear(); };
+      marker.setLngLat(place.coordinates); marker.getPopup().setDOMContent(root);
+    });
   }, [ready, places, visible, !!onPick]);
   useEffect(() => {
-    const marker = markers.current.get(selected?.id);
+    if (!ready) return;
+    const marker = markers.current.get(selected?.id)?.marker;
     if (!marker || !map.current) return;
     setFollow(false); map.current.flyTo({ center: marker.getLngLat(), zoom: 15 });
     if (!marker.getPopup().isOpen()) marker.togglePopup();
-  }, [selected, places, visible, ready]);
+  }, [selected, ready]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const instance = map.current;

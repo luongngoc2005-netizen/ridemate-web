@@ -231,3 +231,16 @@ Checklist nghiệm thu đề xuất:
 - [ ] Kiểm tra Render đã deploy đúng commit và dữ liệu người dùng không bị xóa khi cập nhật.
 
 Sau mỗi đợt sửa, cập nhật tài liệu này với commit đối chiếu, chức năng mới, giới hạn còn tồn tại và các kiểm tra thực sự đã chạy.
+
+## 9. Sửa lỗi bản đồ sau rà soát — 27/09/2026
+
+Thay đổi local trên nền commit `289193f`; chưa commit/push/deploy trong lượt sửa này.
+
+- Hành trình → Lịch trình có **Đổi vị trí / Xóa vị trí**. Tìm địa điểm hoạt động cả khi OSRM lỗi; khi chưa có tuyến, không hiển thị khoảng cách giả. Xóa tọa độ giữ nguyên điểm và nội dung lịch trình.
+- Các đợt tải địa điểm cập nhật marker theo ID, giữ popup đang mở. Nếu ghim bị loại khỏi danh sách phân bố tối đa 30 điểm/loại, ghim đang mở được giữ tạm đến khi đóng popup hoặc ẩn nhóm. Camera chỉ chuyển tới điểm khi người dùng chọn, không chạy lại theo mỗi đợt tải.
+- Lọc địa điểm trong `places.worker.js`, tính khoảng cách mỗi tọa độ một lần trên từng tuyến. Worker bị hủy khi đổi tuyến; nếu worker không hoạt động, xử lý theo từng lượt ngắn và giữ dữ liệu đã tải. `places-data.js` chứa các hàm tính toán dùng chung; `route-data.js` tiếp tục xuất các API cũ.
+- Tỉnh/thành và các điểm đến có sẵn chỉ nhận kết quả địa lý phù hợp (`place` hoặc ranh giới hành chính), không nhận ga/tòa nhà/cửa hàng trùng tên. Cache geocode `v4` và OSRM `v2` bỏ qua kết quả cũ có thể định vị sai.
+
+Đã kiểm tra: **57/57 test đạt**, production build thành công, `git diff --check` đạt. Test mới bao gồm thay/xóa tọa độ, tìm khi mất tuyến, marker giữ popup, worker thực qua Node worker_threads, worker lỗi/hủy và cache cũ. Benchmark giả lập 15.000 điểm tuyến + 2.000 địa điểm: lượt đầu trong worker ~1.190 ms, timer luồng chính vẫn chạy 76 lần; xử lý lại cùng dữ liệu ~15 ms. Đây là phép đo Node trên máy phát triển, không phải số đo trình duyệt/điện thoại.
+
+Chưa kiểm thử trực tiếp WebGL/GPS trên trình duyệt hoặc bản Render trong lượt này. Build vẫn cảnh báo bundle chính lớn (~1,30 MB trước gzip); chưa tách tải lười các màn hình. Kiểm tra thủ công tiếp: chọn sai điểm rồi đổi/xóa khi tuyến lỗi, mở popup trong lúc Overpass còn tải, kéo bản đồ sau khi chọn ghim, ẩn/hiện nhóm và đổi tuyến khi worker đang chạy.
