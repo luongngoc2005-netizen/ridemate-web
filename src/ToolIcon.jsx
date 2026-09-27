@@ -1,6 +1,8 @@
 import React from 'react';
 
 const paths = {
+  locate: <><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></>,
+  drink: <><path d="M4 7h13v8a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V7Zm13 1h2a3 3 0 0 1 0 6h-2M7 2v2m4-2v2m4-2v2"/></>,
   mountain: <><path d="m2 20 7-14 4 8 3-5 6 11H2Z" /><path d="m6 12 3 2 2-2" /></>,
   arrowRight: <path d="M4 12h16m-6-6 6 6-6 6" />,
   arrowLeft: <path d="M20 12H4m6-6-6 6 6 6" />,

@@ -1,16 +1,20 @@
+import { osrmUrl, parseOsrm, routePoints, itineraryStops } from './osrm-data.js';
 import { provinces, travelDestinations } from './provinces.js';
 const env = import.meta.env || {};
 export const mapServices = {
   geocode: env.VITE_GEOCODER_URL || 'https://photon.komoot.io/api/',
-  route: env.VITE_ROUTER_URL || 'https://valhalla1.openstreetmap.de/route',
+  route: env.VITE_OSRM_URL || 'https://router.project-osrm.org/route/v1/driving',
   places: env.VITE_PLACES_URL || 'https://overpass-api.de/api/interpreter',
-  tiles: env.VITE_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  style: env.VITE_MAP_STYLE_URL || 'https://tiles.openfreemap.org/styles/liberty',
 };
 export const supportTypes = {
   fuel: { label: 'Cây xăng', icon: 'fuel', color: '#c04f19' },
   food: { label: 'Quán ăn', icon: 'food', color: '#805bb0' },
+  drink: { label: 'Đồ uống', icon: 'drink', color: '#2573a6' },
+  repair: { label: 'Sửa xe', icon: 'repair', color: '#a54a35' },
   rest: { label: 'Điểm nghỉ / chỗ ở', icon: 'bed', color: '#14728c' },
 };
+export const markerTypes = { ...supportTypes, planned: { label: 'Điểm trong lịch trình', icon: 'flag', color: '#126745' } };
 const cache = new Map();
 const CACHE_KEY = 'ridemate.map-cache.v1';
 function cached(key) {
@@ -60,52 +64,39 @@ export function chooseLocation(features, name = '') {
   return area || exact.find(item => !['highway', 'shop', 'amenity'].includes(item.properties.osm_key)) || (known ? undefined : candidates[0]);
 }
 export async function geocode(name, signal) {
-  const key = `geo:v2:${mapServices.geocode}:${name.trim().toLowerCase()}`;
+  const key = `geo:v3:${mapServices.geocode}:${name.trim().toLowerCase()}`;
   const saved = cached(key);
   if (saved && validPoint(saved.coordinates)) return saved;
   const url = new URL(mapServices.geocode);
-  url.search = new URLSearchParams({ q: name.trim(), limit: '15', bbox: '102,8,110,24' });
+  // Without lang, Photon translates names using the browser's Accept-Language
+  // (e.g. Hà Nội -> Hanoi), which breaks matching the Vietnamese select values.
+  url.search = new URLSearchParams({ q: name.trim(), lang: 'default', limit: '15', bbox: '102,8,110,24' });
   const result = chooseLocation((await request(url, { signal })).features, name);
   if (!result) throw new Error(`Không xác định được “${name}” tại Việt Nam. Hãy nhập tên địa điểm cụ thể hơn.`);
   const properties = result.properties;
   return remember(key, { coordinates: result.geometry.coordinates, label: [...new Set([properties.name, properties.city, properties.state].filter(Boolean))].join(', ') }, 7 * 86400000);
 }
-export function routeRequest(start, end) {
-  return { locations: [start, end].map(([lon, lat]) => ({ lon, lat, type: 'break' })), costing: 'motorcycle', costing_options: { motorcycle: { exclude_highways: true, use_highways: 0, use_trails: 0, use_tolls: 0 } }, units: 'kilometers', shape_format: 'geojson', directions_type: 'none' };
-}
-export function parseRoute(result, start, end) {
-  const trip = result.trip;
-  const coordinates = trip?.legs?.flatMap(leg => typeof leg.shape === 'string' ? decodePolyline(leg.shape) : leg.shape?.coordinates || []);
-  if (trip?.status !== 0 || !coordinates || coordinates.length < 2 || !coordinates.every(validPoint) || !Number.isFinite(trip.summary?.length) || !Number.isFinite(trip.summary?.time)) throw new Error('Chưa tìm được cung đường phù hợp. Hãy kiểm tra lại điểm đi và điểm đến.');
-  return { coordinates, distanceKm: trip.summary.length, durationSeconds: trip.summary.time, start, end, fetchedAt: Date.now() };
-}
-export function decodePolyline(shape) {
-  let cursor = 0, lat = 0, lon = 0;
-  const coordinates = [];
-  function delta() {
-    let result = 0, shift = 0, byte;
-    do {
-      if (cursor >= shape.length || shift > 30) throw new Error('Dữ liệu đường đi không hợp lệ.');
-      byte = shape.charCodeAt(cursor++) - 63;
-      if (byte < 0 || byte > 63) throw new Error('Dữ liệu đường đi không hợp lệ.');
-      result |= (byte & 31) << shift;
-      shift += 5;
-    } while (byte >= 32);
-    return result & 1 ? ~(result >> 1) : result >> 1;
-  }
-  while (cursor < shape.length) { lat += delta(); lon += delta(); coordinates.push([lon / 1e6, lat / 1e6]); }
-  return coordinates;
-}
-export async function loadRoute(origin, destination, signal) {
-  const key = `route:v2:${mapServices.route}:${origin.trim().toLowerCase()}:${destination.trim().toLowerCase()}`;
+export async function loadRoute(origin, destination, signal, stops = []) {
+  const key = 'osrm:v1:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
   const saved = cached(key);
-  if (saved?.coordinates?.length && saved.coordinates.every(validPoint)) return saved;
-  const start = await geocode(origin, signal);
-  const end = await geocode(destination, signal);
-  const url = new URL(mapServices.route);
-  url.searchParams.set('json', JSON.stringify(routeRequest(start.coordinates, end.coordinates)));
-  const result = await request(url, { signal, headers: { 'X-Client-Id': 'ridemate-pka.onrender.com' } });
-  return remember(key, parseRoute(result, start, end), 86400000);
+  if (saved) return saved;
+  const start = await geocode(origin, signal), end = await geocode(destination, signal);
+  const points = routePoints(start, end, stops);
+  // Bound request size and preserve every stop, including shared chunk endpoints.
+  const parts = [];
+  for (let i = 0; i < points.length - 1; i += 24) {
+    const chunk = points.slice(i, i + 25);
+    parts.push(parseOsrm(await request(osrmUrl(mapServices.route, chunk), { signal }), chunk));
+  }
+  const route = { ...parts[0], start, end, points,
+    coordinates: parts.flatMap(p => p.coordinates), legs: parts.flatMap(p => p.legs),
+    distanceKm: parts.reduce((n, p) => n + p.distanceKm, 0), durationSeconds: parts.reduce((n, p) => n + p.durationSeconds, 0),
+    unresolved: stops.filter(p => !validPoint(p.coordinates)).map(p => ({ id: p.id, name: p.name })),
+  };
+  return remember(key, route, 86400000);
+}
+export async function loadTripRoute(trip, signal) {
+  return loadRoute(trip.origin, trip.destination, signal, itineraryStops(trip));
 }
 // Coordinates are [longitude, latitude]; distances are approximate ground distances.
 export function routePosition(point, coordinates) {
@@ -132,7 +123,8 @@ export function placesQuery(coordinates) {
   // Overpass linestring corridor, not isolated circles. The 200 m margin
   // accommodates route simplification; final filtering uses the full route.
   const line = coordinates.map(([lon, lat]) => `${lat.toFixed(5)},${lon.toFixed(5)}`).join(',');
-  return `[out:json][timeout:20];nwr[~"^(amenity|highway|tourism)$"~"^(fuel|restaurant|cafe|fast_food|rest_area|services|hotel|guest_house|motel)$"](around:1700,${line});out tags center;`;
+  const around = `(around:1700,${line})`;
+  return `[out:json][timeout:20];(nwr[amenity~"^(fuel|restaurant|cafe|fast_food|food_court|ice_cream)$"]${around};nwr[highway~"^(rest_area|services)$"]${around};nwr[tourism~"^(hotel|guest_house|motel)$"]${around};nwr[shop~"^(motorcycle_repair|car_repair|tyres)$"]${around};nwr[shop=motorcycle]["service:motorcycle:repair"=yes]${around};);out body center;`;
 }
 export function simplifyRoute(coordinates, tolerance = 200) {
   if (coordinates.length <= 2) return coordinates;
@@ -169,7 +161,7 @@ export function selectPlaces(elements, coordinates, limit = 30) {
   const seen = new Set(), candidates = [];
   for (const item of elements || []) {
     const tags = item.tags || {};
-    const type = tags.amenity === 'fuel' ? 'fuel' : ['restaurant', 'cafe', 'fast_food'].includes(tags.amenity) ? 'food' : ['rest_area', 'services'].includes(tags.highway) || ['hotel', 'guest_house', 'motel'].includes(tags.tourism) ? 'rest' : null;
+    const type = tags.amenity === 'fuel' ? 'fuel' : ['cafe', 'ice_cream'].includes(tags.amenity) ? 'drink' : ['restaurant', 'fast_food', 'food_court'].includes(tags.amenity) ? 'food' : ['motorcycle_repair', 'car_repair', 'tyres'].includes(tags.shop) || (tags.shop === 'motorcycle' && tags['service:motorcycle:repair'] === 'yes') ? 'repair' : ['rest_area', 'services'].includes(tags.highway) || ['hotel', 'guest_house', 'motel'].includes(tags.tourism) ? 'rest' : null;
     const point = [item.lon ?? item.center?.lon, item.lat ?? item.center?.lat];
     if (!type || !validPoint(point)) continue;
     const position = routePosition(point, coordinates);
@@ -193,27 +185,58 @@ export function selectPlaces(elements, coordinates, limit = 30) {
   }
   return result.sort((a, b) => a.progressMeters - b.progressMeters);
 }
-export async function loadPlaces(route, signal) {
+// Completed segments remain cached; retry only fetches failed/expired segments.
+const segmentCache = new Map();
+export async function loadPlaces(route, signal, onProgress = () => {}) {
   const queries = placeSearchSegments(route.coordinates).map(placesQuery);
-  const key = `places:v2:${mapServices.places}:${JSON.stringify(route.coordinates)}`;
-  const saved = cached(key);
-  if (Array.isArray(saved)) return saved;
-  const elements = [];
-  // At most two concurrent requests, with bounded corridor segments.
-  for (let i = 0; i < queries.length; i += 2) {
-    const responses = await Promise.all(queries.slice(i, i + 2).map(query => request(mapServices.places, { signal, method: 'POST', body: new URLSearchParams({ data: query }) })));
-    for (const response of responses) {
-      if (!Array.isArray(response.elements) || response.remark) throw new Error('Nguồn địa điểm chưa trả đủ dữ liệu. Bạn có thể thử lại hoặc tìm trên Google Maps.');
-      elements.push(...response.elements);
-    }
+  const elements = []; let completed = 0, failed = 0;
+  const snapshot = () => ({ places: selectPlaces(elements, route.coordinates), completed, failed, total: queries.length });
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  const missing = [];
+  for (const query of queries) {
+    const saved = segmentCache.get(mapServices.places + ':' + query);
+    if (saved?.expires > Date.now()) { elements.push(...saved.elements); completed++; }
+    else missing.push(query);
   }
-  return remember(key, selectPlaces(elements, route.coordinates), 6 * 3600000);
+  if (completed) onProgress(snapshot());
+  for (const query of missing) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    const key = mapServices.places + ':' + query;
+    let data = segmentCache.get(key);
+    try {
+      if (!data || data.expires <= Date.now()) {
+        const response = await request(mapServices.places, { signal, method: 'POST', body: new URLSearchParams({ data: query }) });
+        if (!Array.isArray(response.elements) || response.remark) throw new Error('Incomplete places response');
+        data = { elements: response.elements, expires: Date.now() + 6 * 3600000 };
+        segmentCache.set(key, data);
+        while (segmentCache.size > 150) segmentCache.delete(segmentCache.keys().next().value);
+      }
+      elements.push(...data.elements); completed++;
+    } catch (error) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      failed++;
+    }
+    onProgress(snapshot());
+  }
+  return snapshot();
 }
 export function pointText(point) {
   const coordinates = Array.isArray(point) ? point : point?.coordinates;
   if (validPoint(coordinates)) return `${coordinates[1]},${coordinates[0]}`;
   if (typeof point === 'string' && point.trim()) return point.trim();
   throw new Error('Vị trí chỉ đường không hợp lệ.');
+}
+export async function searchPlannedCandidates(name, route, signal) {
+  if (!name.trim()) return [];
+  const url = new URL(mapServices.geocode);
+  url.search = new URLSearchParams({ q: name.trim(), lang: 'default', limit: '8', bbox: '102,8,110,24', lon: String(route.end.coordinates[0]), lat: String(route.end.coordinates[1]) });
+  const result = await request(url, { signal });
+  return (result.features || []).filter(item => validPoint(item.geometry?.coordinates) && item.properties?.countrycode?.toUpperCase() === 'VN').map(item => {
+    const properties = item.properties, coordinates = item.geometry.coordinates;
+    return { id: `${properties.osm_type}/${properties.osm_id}`, name: properties.name || name.trim(), coordinates,
+      address: [...new Set([properties.housenumber, properties.street, properties.city, properties.state].filter(Boolean))].join(', '),
+      distanceMeters: routePosition(coordinates, route.coordinates).distance };
+  }).sort((a, b) => a.distanceMeters - b.distanceMeters);
 }
 export function directionsUrl(origin, destination) {
   return `https://www.google.com/maps/dir/?${new URLSearchParams({ api: '1', origin: pointText(origin), destination: pointText(destination), travelmode: 'driving', avoid: 'highways' })}`;

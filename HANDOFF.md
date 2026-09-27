@@ -1,5 +1,31 @@
 # RideMate — bàn giao code và việc còn thiếu
 
+## 27/09/2026 — MapLibre GL JS + OpenFreeMap + OSRM
+
+- Thay Leaflet bằng MapLibre GL JS 6.11.2, nền vector OpenFreeMap Liberty. Marker/popup DOM an toàn, `flyTo`, zoom/rotate/fullscreen, vòng sai số GPS và bám vị trí. Vite đóng gói riêng worker MapLibre qua `?worker&url`; không dùng đường dẫn worker tương đối bị mất sau build. Cần WebGL; có thông báo khi nền/khởi tạo lỗi và tải lại style.
+- `osrm-data.js` xử lý URL/response OSRM, đổi mét sang km, GeoJSON LineString theo từng chặng. Thứ tự: xuất phát → các điểm có tọa độ trong lịch trình theo ngày/thứ tự → điểm đến. Mỗi request tối đa 25 điểm, giữ điểm chung giữa các request; không tự tối ưu đảo thứ tự. Chặng có màu theo ngày, bấm danh sách chặng highlight và fitBounds. Điểm chỉ có tên được liệt kê là chưa định vị; chọn vị trí ở bảng Hành trình để đưa vào tuyến. Không gán nhầm POI dựa trên tên gần giống.
+- OSRM public profile `driving` là ô tô, có thể đi cao tốc. Đã đổi nhãn trên Tổng quan, bảng nổi và Nhật ký; không còn tuyên bố tuyến xe máy tránh cao tốc. Nhật ký vẫn dựng tuyến hai đầu, không phải đường GPS. Google Maps link vẫn chỉ hai đầu; link từng ghim giữ đúng tọa độ.
+- Tổng quan/bảng nổi dùng chung context; thay điểm hoặc thứ tự lịch trình cập nhật tuyến, ghi chú/checklist/GPS không gọi lại tuyến. Điểm hỗ trợ vẫn từ Overpass: tải tuần tự từng đoạn, hiện kết quả ngay, báo tiến độ và số đoạn lỗi; giữ đoạn thành công trong cache RAM 6 giờ, tối đa 150 đoạn, retry chỉ tải đoạn thiếu. Có cache trước thì hiển thị ngay cả khi retry thất bại. Bản đồ nền không tự cung cấp dữ liệu cửa hàng.
+- `.env.example`: `VITE_MAP_STYLE_URL`, `VITE_OSRM_URL` thay `VITE_TILE_URL`, `VITE_ROUTER_URL` cũ; Photon và Overpass giữ nguyên. Không yêu cầu API key/billing cho mặc định demo; endpoint công cộng không có bảo đảm sẵn sàng. Không cần migration SQL.
+- Xác minh: 47/47 tests đạt; production build đạt, có worker asset. OpenFreeMap style HTTP 200 (111 layers). OSRM Hà Nội–Hải Phòng: 108,801 km; Hà Nội–Hải Dương–Hải Phòng: 2 chặng, 108,3001 km. Chưa kiểm tra UI/WebGL/mobile/GPS hoặc Render vì không có browser kết nối. Bundle MapLibre lớn (main ~1,3 MB trước gzip, worker ~510 KB), build có cảnh báo chunk >500 KB.
+- Nghiệm thu localhost: Ctrl+F5, mở Tổng quan, bật từng nhóm ghim; Hành trình → Lịch trình → chọn vị trí điểm cũ/thêm ghim vào ngày; xác nhận tuyến và số chặng đổi; bấm chặng để highlight, thử toàn tuyến/rotate/fullscreen/GPS. Tài liệu cũ bên dưới mô tả Leaflet/Valhalla là lịch sử.
+- Nguồn kỹ thuật: https://openfreemap.org/quick_start/ ; https://project-osrm.org/docs/v5.22.0/api/ ; https://maplibre.org/maplibre-gl-js/docs/ .
+
+## 20/09/2026 — Sửa không định vị được Hà Nội trên trình duyệt tiếng Anh
+
+- Tái hiện với API thật: không truyền `lang`, header `Accept-Language: en-US` trả `Hanoi`, bộ so khớp tên `Hà Nội` loại kết quả nên không dựng tuyến. Dùng `lang=default` cho cả geocode hai đầu và tìm vị trí điểm lịch trình để lấy tên địa phương; không dùng `lang=vi` vì demo Photon hiện trả HTTP 400 cho giá trị đó. Cache geocode/tuyến lên v3, giữ kiểm tra đúng tên/đơn vị hành chính.
+- Xác minh API thật với header tiếng Anh và tiếng Việt đều nhận Hà Nội; tuyến Hà Nội–Hà Giang tải được 13.249 tọa độ, 382,702 km. Thêm kiểm thử hồi quy ngôn ngữ trình duyệt và tránh chọn ga cùng tên. Bộ 45 kiểm thử/build đạt. Chưa xác minh UI bằng trình duyệt kết nối; người dùng tải lại localhost để nghiệm thu.
+
+## 20/09/2026 — Định vị và bảng hành trình nổi
+
+- `Location.jsx`/`geolocation.js`: một `watchPosition` chung cho toàn ứng dụng, chỉ bắt đầu khi bấm Bật định vị. Có nút tắt toàn cục, hiển thị thời gian/sai số, đánh dấu dữ liệu quá 30 giây là vị trí lần cuối. Dọn watch khi tắt/unmount; bỏ callback muộn; xử lý HTTPS, thiếu hỗ trợ, từ chối quyền và timeout. Vị trí chỉ giữ trong RAM, không ghi lịch sử GPS vào localStorage/Supabase.
+- `RouteMap.jsx`: dùng chung cho Tổng quan, Nhật ký, bản đồ trang chủ và bảng nổi. Chấm vị trí/vòng sai số, Về vị trí tôi, Bám theo tôi; kéo bản đồ hoặc chọn ghim dừng bám. Trình duyệt quyết định tần suất GPS; không cam kết mỗi vài giây hoặc chạy khi tắt màn hình/ẩn tab. Tham chiếu: https://www.w3.org/TR/geolocation/.
+- `TripCompanion.jsx`: nút nổi sau khi có chuyến, giữ được khi chuyển màn hình. Bảng gồm danh mục phía trên, bản đồ phía dưới và danh sách. Nhóm Lịch trình chính là điểm đã thêm theo xác nhận người dùng; các nhóm tìm kiếm gồm Quán ăn, Đồ uống, Cây xăng, Sửa xe, Điểm nghỉ. Có thu gọn/Escape, tránh thanh điều hướng dưới trên mobile.
+- Ghim tìm kiếm mở tên/chỉ đường/thêm vào ngày. Điểm mới lưu tọa độ, địa chỉ, loại và ID nguồn. Điểm cũ chỉ có tên yêu cầu người dùng tìm và chọn đúng kết quả Photon; không tự gán tọa độ đoán. Đổi tên điểm xóa tọa độ cũ. Lưu ngày đang chỉnh giữ các điểm/vị trí vừa thêm từ bảng nổi. Lịch trình vẫn lưu local và chuyển cloud thủ công qua Tài khoản như trước; không cần migration.
+- `TripRouteContext.jsx`: Tổng quan và bảng nổi dùng chung dữ liệu/request tuyến và điểm hỗ trợ, không gọi lại theo mỗi lần GPS cập nhật. Truy vấn Overpass tách đồ uống khỏi đồ ăn, thêm sửa xe; dùng `out body center` để có tọa độ node và tâm way/relation (sửa lỗi thiếu tọa độ của `out tags center` trước đây). Cache địa điểm tăng lên v3.
+- Kiểm thử 44/44 đạt và production build thành công. Thử một hành lang ngắn tại Hà Nội qua Overpass thật: HTTP 200, 1.422 đối tượng, xác nhận node có tọa độ, lọc được 111 điểm thuộc các nhóm (tối đa 30 mỗi nhóm). Không đại diện cho toàn tuyến hoặc độ đầy đủ dữ liệu. Không có trình duyệt kết nối trong phiên nên chưa kiểm tra UI mobile, GPS thiết bị hoặc Render thật.
+- Nghiệm thu: tạo chuyến → mở nút Hành trình → bật/tắt định vị → thử từ chối quyền → chọn từng nhóm/ghim → thêm ghim vào ngày → tải lại trang và kiểm tra tọa độ → chọn vị trí cho điểm cũ → chuyển màn hình khi đang định vị. Tuyến vẫn nối hai đầu, chưa tự định tuyến qua mọi điểm lịch trình hoặc dẫn đường từng ngã rẽ.
+
 ## 20/09/2026 — Điểm đầu/cuối và ghim hỗ trợ trên Tổng quan
 
 - Google Maps nhận tọa độ điểm đầu/cuối đã dùng để vẽ bản đồ, không tự tìm lại theo tên. Geocoder ưu tiên đúng đơn vị hành chính và bỏ kết quả cửa hàng/đường trùng tên; đổi phiên bản cache để tránh dùng lại tọa độ sai.

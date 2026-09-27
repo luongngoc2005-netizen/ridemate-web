@@ -1,24 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chooseLocation, routeRequest, decodePolyline, parseRoute, routePosition, selectPlaces, placesQuery, directionsUrl, placeUrl, placeDirectionsUrl, simplifyRoute, placeSearchSegments } from '../src/route-data.js';
+import { geocode, searchPlannedCandidates } from '../src/route-data.js';
+test('English browser language cannot translate Vietnamese endpoint and saved-place results', async context => {
+  context.mock.method(globalThis, 'fetch', async input => {
+    const url = new URL(input);
+    const name = url.searchParams.get('lang') === 'default' ? 'Hà Nội' : 'Hanoi';
+    return { ok: true, json: async () => ({ features: [
+      { properties: { name, osm_key: 'railway', osm_value: 'station', countrycode: 'VN' }, geometry: { coordinates: [105.84, 21.02] } },
+      { properties: { name, osm_key: 'place', osm_value: 'city', countrycode: 'VN' }, geometry: { coordinates: [105.854041, 21.0283334] } },
+    ] }) };
+  });
+  const city = await geocode('Hà Nội');
+  assert.equal(city.label, 'Hà Nội');
+  assert.deepEqual(city.coordinates, [105.854041, 21.0283334]);
+  const candidates = await searchPlannedCandidates('Hà Nội', { end: city, coordinates: [[105, 21], [106, 22]] });
+  assert.ok(candidates.length > 0);
+  assert.ok(candidates.every(place => place.name === 'Hà Nội'));
+});
+import { chooseLocation, routePosition, selectPlaces, placesQuery, directionsUrl, placeUrl, placeDirectionsUrl, simplifyRoute, placeSearchSegments } from '../src/route-data.js';
 test('Geocoding preserves exact match instead of choosing a different city', () => {
   const feature = (name, osm_value, point = [105, 22]) => ({ properties: { name, osm_value, countrycode: 'VN' }, geometry: { coordinates: point } });
   assert.equal(chooseLocation([feature('Hà Giang', 'state'), feature('Hà Tiên', 'city')], 'Hà Giang').properties.name, 'Hà Giang');
   assert.equal(chooseLocation([feature('Invalid', 'city', [NaN, 22])], 'Invalid'), undefined);
-});
-test('Route request uses motorcycle with highway exclusion and parses real geometry', () => {
-  const start = [105, 21], end = [105, 22];
-  const payload = routeRequest(start, end);
-  assert.equal(payload.costing, 'motorcycle');
-  assert.equal(payload.costing_options.motorcycle.exclude_highways, true);
-  assert.deepEqual(payload.locations[0], { lon: 105, lat: 21, type: 'break' });
-  // Standard encoded example decoded at Valhalla's polyline6 precision.
-  const decoded = decodePolyline('_p~iF~ps|U_ulLnnqC_mqNvxq`@');
-  assert.deepEqual(decoded[0], [-12.02, 3.85]);
-  assert.throws(() => decodePolyline('_'));
-  const result = { trip: { status: 0, legs: [{ shape: { coordinates: [start, end] } }], summary: { length: 120, time: 8000 } } };
-  assert.equal(parseRoute(result, {}, {}).distanceKm, 120);
-  assert.throws(() => parseRoute({ trip: { status: 0, legs: [], summary: {} } }));
 });
 test('Support places preserve nearby results beyond the old three-place limit', () => {
   const route = [[105, 20], [105, 22]];
@@ -73,8 +76,21 @@ test('Corridor searches preserve route bends and cover continuous segments end t
   for (const segment of segments) {
     assert.ok(segment.length <= 40);
     assert.ok(routePosition(segment[0], segment).total < 65000);
-    assert.match(placesQuery(segment), /out tags center;/);
+    assert.match(placesQuery(segment), /out body center;/);
   }
+});
+test('Food and drinks are separate; only actual repair shops match the repair category', () => {
+  const tags = [{ amenity: 'restaurant' }, { amenity: 'cafe' }, { amenity: 'ice_cream' }, { shop: 'motorcycle_repair' }, { shop: 'motorcycle', 'service:motorcycle:repair': 'yes' }, { shop: 'motorcycle' }];
+  const elements = tags.map((tags, id) => ({ type: 'node', id, lon: 105, lat: 21, tags: { ...tags, name: `Place ${id}` } }));
+  const places = selectPlaces(elements, [[105, 20], [105, 22]]);
+  assert.equal(places.filter(p => p.type === 'food').length, 1);
+  assert.equal(places.filter(p => p.type === 'drink').length, 2);
+  assert.equal(places.filter(p => p.type === 'repair').length, 2);
+  assert.ok(!places.some(p => p.id === 'node/5'));
+  const query = placesQuery([[105, 20], [105, 22]]);
+  assert.match(query, /motorcycle_repair/);
+  // Body is required to include node coordinates, while center supplies way/relation coordinates.
+  assert.match(query, /out body center;/);
 });
 test('Thirty markers per type are distributed over the route including both ends', () => {
   const points = [[105, 20], [105, 22]];
