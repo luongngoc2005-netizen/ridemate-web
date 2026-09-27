@@ -78,7 +78,7 @@ function CompanionPanel({ trip, setTrip, onClose }) {
           </div>
         </article>)}
       </div>
-      <p className="companion-help">Chỉ hiển thị tuyến và ghim trong Việt Nam theo ranh giới OpenStreetMap. OSRM nối các điểm đã có tọa độ theo thứ tự lịch trình. Điểm chưa có tọa độ cần Chọn vị trí. Tuyến ô tô có thể đi cao tốc, không phải tuyến dành riêng cho xe máy. Dữ liệu OpenStreetMap có thể thiếu; hãy kiểm tra cửa hàng sửa xe có nhận xe máy. Định vị chỉ cập nhật khi trình duyệt cho phép. Google Maps tự tính tuyến riêng; kiểm tra không qua biên giới trước khi đi.</p>
+      <p className="companion-help">Chỉ hiển thị tuyến và ghim trong Việt Nam theo ranh giới OpenStreetMap. Tuyến xe máy nối các điểm đã có tọa độ theo thứ tự lịch trình. Điểm chưa có tọa độ cần Chọn vị trí. Tuyến yêu cầu tránh cao tốc; kiểm tra biển báo thực tế. Dữ liệu OpenStreetMap có thể thiếu; hãy kiểm tra cửa hàng sửa xe có nhận xe máy. Định vị chỉ cập nhật khi trình duyệt cho phép. Google Maps tự tính tuyến riêng; kiểm tra không qua biên giới trước khi đi.</p>
     </div>
   </section>;
 }

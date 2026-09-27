@@ -23,7 +23,7 @@ test('manual and GPS origins outside Vietnam are rejected and explicit coordinat
   const point=await chosenOrigin([105.8342,21.0278]);
   assert.deepEqual((await resolveRoutePoint(point)).coordinates,point.coordinates);
 });
-test('trip routing sends the selected GPS origin to OSRM, not its display label to Photon',async context=>{
+test('trip routing sends the selected GPS origin to the motorcycle router, not its display label to Photon',async context=>{
   const start=[105.8342,21.0278],end=[105.85,21.03],point=await chosenOrigin(start);let routed=false;
   context.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input);
@@ -31,7 +31,7 @@ test('trip routing sends the selected GPS origin to OSRM, not its display label 
       assert.equal(url.searchParams.get('q'),'Test destination');
       return {ok:true,json:async()=>({features:[{properties:{name:'Test destination',countrycode:'VN'},geometry:{coordinates:end}}]})};
     }
-    routed=true;assert.ok(url.pathname.includes(start.join(',')));
+    routed=true;assert.deepEqual(JSON.parse(url.searchParams.get('json')).locations[0], { lon:start[0], lat:start[1], type:'break' });
     return {ok:true,json:async()=>({code:'Ok',routes:[{distance:2000,duration:300,geometry:{coordinates:[start,end]},legs:[{distance:2000,duration:300,steps:[{geometry:{coordinates:[start,end]}}]}]}]})};
   });
   const route=await loadTripRoute({origin:point.label,originPoint:point,destination:'Test destination',itinerary:[]});

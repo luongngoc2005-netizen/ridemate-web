@@ -287,3 +287,11 @@ Kiểm chứng: **67/67 test đạt**, build thành công. Gọi OSRM thật v�
   PostgREST. Cần chủ project chạy trên Supabase để sửa lỗi bảng/hàm chưa có.
 - Xác minh: 74/74 unit/integration tests đạt, gồm GPS không geocode lại nhãn,
   từ chối tọa độ nước ngoài và chạy lại SQL giữ đơn. Chưa xác minh Supabase thật/GPS thiết bị.
+
+
+## Cập nhật ngày 27/09/2026 về thời gian xe máy
+- Thay router ô tô OSRM bằng Valhalla motorcycle, giữ định dạng phản hồi OSRM để dùng lại parser và geometry theo chặng. VITE_MOTORCYCLE_ROUTER_URL thay VITE_OSRM_URL; biến cũ không còn dùng.
+- Server demo có thể bỏ qua hard exclusion (warning 208). Vì vậy còn kiểm tra tên cao tốc, mã CT và classes motorway; thử loại vị trí trên đoạn bị phát hiện tối đa 3 lần, không fallback tuyến ô tô. Kiểm tra này phụ thuộc metadata OSM, không bảo đảm phát hiện đường cấm bị gắn nhãn thiếu/sai.
+- Giữ kiểm tra tuyến trong Việt Nam, thứ tự waypoint và cảnh báo các điểm chưa có tọa độ. Cache mới motorcycle:vn-v2 không dùng tuyến OSRM cũ.
+- Thời gian là giả định lập kế hoạch: max(thời gian dịch vụ, km/40) theo chặng. Cộng nghỉ ngắn 15 phút mỗi 2 giờ chạy; khoảng trên cộng 25% dự phòng chạy xe. Không coi là ETA giao thông thực tế, chưa gồm ăn/tham quan/ngủ.
+- Kiểm tra trực tiếp hai điểm đại diện Hà Nội–Cao Bằng: tuyến thay thế khoảng 346,4 km, 11 giờ 45 phút chạy xe (làm tròn 5 phút), gồm nghỉ khoảng 13 giờ–15 giờ 55 phút. Đây là kết quả provider tại lúc kiểm tra, không phải thời gian thực địa đã đo; điểm xuất phát/đến cụ thể và điểm dừng có thể làm thay đổi kết quả.

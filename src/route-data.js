@@ -1,14 +1,15 @@
 import { validPoint, routePosition } from './places-data.js';
 export { supportTypes, markerTypes, validPoint, routePosition, selectPlaces } from './places-data.js';
 import { createPlaceProcessor } from './places-processor.js';
-import { osrmUrl, parseOsrm, routePoints, itineraryStops } from './osrm-data.js';
+import { parseOsrm, routePoints, itineraryStops } from './osrm-data.js';
 import { provinces, travelDestinations } from './provinces.js';
 import { domesticShapingPoints } from './domestic-routing.js';
 import { tripOrigin } from './origin-data.js';
+import { motorcycleUrl, highwaySteps, exclusionPoints, applyRidingEstimate } from './motorcycle-routing.js';
 const env = import.meta.env || {};
 export const mapServices = {
   geocode: env.VITE_GEOCODER_URL || 'https://photon.komoot.io/api/',
-  route: env.VITE_OSRM_URL || 'https://router.project-osrm.org/route/v1/driving',
+  route: env.VITE_MOTORCYCLE_ROUTER_URL || 'https://valhalla1.openstreetmap.de/route',
   places: env.VITE_PLACES_URL || 'https://overpass-api.de/api/interpreter',
   style: env.VITE_MAP_STYLE_URL || 'https://tiles.openfreemap.org/styles/liberty',
 };
@@ -84,15 +85,27 @@ export async function resolveRoutePoint(value,signal) {
 export async function loadRoute(origin, destination, signal, stops = []) {
   const { vietnam, isDomesticRoute, DOMESTIC_ROUTE_ERROR } = await import('./vietnam-guard.js');
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-  const key = 'osrm:vn-v1:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
+  const key = 'motorcycle:vn-v2:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
   const saved = cached(key);
   if (saved && isDomesticRoute(saved)) return saved;
   const start = await resolveRoutePoint(origin, signal), end = await resolveRoutePoint(destination, signal);
   const points = routePoints(start, end, stops);
   const outside = points.find(point => !vietnam.containsPoint(point.coordinates));
   if (outside) throw new Error(`Vị trí “${outside.label || outside.name || 'đã chọn'}” nằm ngoài phạm vi Việt Nam. Hãy đổi hoặc xóa vị trí này trong lịch trình.`);
+  async function motorcycleRequest(chunk, alternatives = false) {
+    let exclusions = [];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const result = await request(motorcycleUrl(mapServices.route, chunk, alternatives, exclusions), { signal });
+      const routes = result.routes || [];
+      const safe = routes.filter(route => !highwaySteps(route).length);
+      if (safe.length) return { ...result, routes: safe };
+      if (!routes.length) throw new Error('Chưa tìm được tuyến xe máy. Hãy kiểm tra lại điểm đi và điểm đến.');
+      exclusions = [...new Map([...exclusions, ...exclusionPoints(routes)].map(p => [p.join(','), p])).values()].slice(0, 50);
+    }
+    throw new Error('Tuyến trả về vẫn có đoạn cao tốc nên chưa được hiển thị. Hãy chọn lại điểm hoặc thử lại sau.');
+  }
   async function domesticPart(chunk) {
-    const result = await request(osrmUrl(mapServices.route, chunk, chunk.length === 2), { signal });
+    const result = await motorcycleRequest(chunk, chunk.length === 2);
     if (Array.isArray(result.waypoints) && result.waypoints.some(point => !vietnam.containsPoint(point.location))) throw new Error(DOMESTIC_ROUTE_ERROR);
     let boundaryRejected = false, parseError;
     for (const candidate of result.routes || []) {
@@ -113,7 +126,7 @@ export async function loadRoute(origin, destination, signal, stops = []) {
       const via = domesticShapingPoints(chunk[0], chunk.at(-1));
       if (via.length && via.every(point => vietnam.containsPoint(point.coordinates))) {
         const shaped = [chunk[0], ...via, chunk.at(-1)];
-        const retry = await request(osrmUrl(mapServices.route, shaped), { signal });
+        const retry = await motorcycleRequest(shaped);
         if (!retry.waypoints?.some(point => !vietnam.containsPoint(point.location))) {
           for (const candidate of retry.routes || []) {
             try {
@@ -125,7 +138,7 @@ export async function loadRoute(origin, destination, signal, stops = []) {
       }
       throw new Error(DOMESTIC_ROUTE_ERROR);
     }
-    throw parseError || new Error('OSRM chưa tìm được tuyến qua các điểm đã chọn. Hãy kiểm tra vị trí các điểm hoặc thử lại.');
+    throw parseError || new Error('Dịch vụ bản đồ chưa tìm được tuyến qua các điểm đã chọn. Hãy kiểm tra vị trí các điểm hoặc thử lại.');
   }
   // Bound request size and preserve every stop, including shared chunk endpoints.
   const parts = [];
@@ -140,7 +153,7 @@ export async function loadRoute(origin, destination, signal, stops = []) {
     unresolved: stops.filter(p => !validPoint(p.coordinates)).map(p => ({ id: p.id, name: p.name })),
   };
   if (!isDomesticRoute(route)) throw new Error(DOMESTIC_ROUTE_ERROR);
-  return remember(key, route, 86400000);
+  return remember(key, applyRidingEstimate(route), 86400000);
 }
 export async function loadTripRoute(trip, signal) {
   return loadRoute(tripOrigin(trip), trip.destination, signal, itineraryStops(trip));

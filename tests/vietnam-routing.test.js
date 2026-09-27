@@ -42,7 +42,7 @@ test('Routing chooses a domestic alternative and never accepts a faster foreign 
   context.mock.method(globalThis, 'fetch', async input => {
     const url = new URL(input);
     if (url.hostname === 'photon.komoot.io') return {ok:true,json:async()=>geocodeResponse(url.searchParams.get('q'))};
-    assert.equal(url.searchParams.get('alternatives'), 'true');
+    assert.equal(JSON.parse(url.searchParams.get('json')).costing, 'motorcycle');
     return {ok:true,json:async()=>({code:'Ok',routes:[makeRoute([hanoi,foreign,haiphong]),makeRoute([hanoi,haiphong])]})};
   });
   const route = await loadRoute('Hà Nội','Hải Phòng');
@@ -85,7 +85,7 @@ test('Rejected multi-stop routes retry each leg and preserve waypoint order', as
   let calls=0;
   context.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input);calls++;
-    const coordinates=url.pathname.split('/').at(-1).split(';').map(pair=>pair.split(',').map(Number));
+    const coordinates=JSON.parse(url.searchParams.get('json')).locations.map(p=>[p.lon,p.lat]);
     const legs=coordinates.slice(1).map((p,i)=>({distance:1000,duration:100,steps:[{geometry:{coordinates:[coordinates[i],p]}}]}));
     return {ok:true,json:async()=>({code:'Ok',routes:[{distance:legs.length*1000,duration:legs.length*100,geometry:{coordinates:calls===1?[hanoi,foreign,haiphong]:coordinates},legs}]})};
   });
