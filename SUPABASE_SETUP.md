@@ -84,3 +84,39 @@ Cập nhật kiểm tra ngày 20/09/2026:
 - Chưa tạo project, chạy migration trên Supabase thật, gửi email, thử OAuth, kiểm tra upload/download thật hoặc deploy Render.
 
 Sau khi cấu hình project, kiểm tra với **hai tài khoản riêng** và hai trình duyệt: email/recovery và đồng bộ nhật ký; tải ảnh và nhật ký; không thấy dữ liệu của user khác; xung đột hai thiết bị; mất mạng lúc upload; dữ liệu local còn nguyên nếu thất bại; tải về rồi khôi phục backup; mobile 320/390 px. Không coi unit test là thay thế kiểm tra tích hợp này.
+# Bổ sung: đặt phòng khách sạn demo (27/09/2026)
+
+Tính năng **Chỗ nghỉ** dùng 8 chỗ nghỉ và 16 loại phòng mẫu. Không có giao dịch,
+thanh toán hay giữ phòng thực tế. Không cần API khách sạn hoặc cấu hình billing.
+
+- **Chưa đăng nhập:** đơn lưu bằng IndexedDB trên trình duyệt hiện tại; có thể thử ngay.
+- **Đã đăng nhập:** đơn lưu riêng trong Supabase, tự tải lại mỗi 15 giây và khi quay lại tab.
+  Đơn khách không tự nhập vào tài khoản. Số phòng mẫu được tính riêng từng tài khoản,
+  không phải tồn kho khách sạn chung giữa mọi người dùng.
+- Đơn phòng độc lập với bản sao workspace/nhật ký. Để xem ghim trên thiết bị khác,
+  cần mở đúng hành trình có cùng ID bằng chức năng tải workspace hiện có.
+
+Để bật lưu đơn theo tài khoản:
+
+1. Mở project tại **Supabase Dashboard → SQL Editor → New query**.
+2. Sao chép toàn bộ `supabase/migrations/202609270001_demo_bookings.sql`, bấm **Run** một lần.
+3. Tải lại web, đăng nhập, mở **Chỗ nghỉ → Xem phòng → Chọn phòng**.
+4. Dùng **Điền thông tin mẫu**, xác nhận đặt thử rồi kiểm tra **Đơn của tôi**.
+
+Migration tạo bảng catalog chỉ đọc, bảng đơn với RLS và hai hàm RPC đặt/hủy đơn.
+Server tính lại giá, kiểm tra ngày/sức chứa/số phòng và chống tạo trùng mã yêu cầu.
+Nếu chưa chạy migration, trang báo lỗi rõ ràng; không âm thầm lưu đơn tài khoản vào máy.
+
+Kiểm thử demo:
+
+1. Chọn ngày tương lai, đặt 2 phòng đôi Hiên Đồi Stay trong 2 đêm: tổng 1.280.000 ₫.
+2. Đặt tiếp 2 phòng cùng ngày: không đủ phòng; hủy đơn đầu rồi thử lại.
+3. Hiên Mây Lodge có loại phòng đôi hết phòng để kiểm tra trạng thái này.
+4. Tạo chuyến Hà Nội → Hà Giang, chọn Tìm phòng tại một đêm của chuyến đi,
+   bật liên kết hành trình khi xác nhận; kiểm tra ghim ở bản đồ và bảng Hành trình.
+5. Hủy đơn: ghim chỗ nghỉ bị gỡ. Đổi ngày đi: đơn giữ nguyên, hiện cảnh báo lệch ngày.
+6. Đăng nhập cùng tài khoản trên hai trình duyệt, kiểm tra đơn sau tối đa 15 giây.
+   Đăng nhập tài khoản khác: không thấy đơn của tài khoản trước.
+
+`npm test` kiểm thử local storage và migration bằng Postgres PGlite; không thay thế
+kiểm tra trực tiếp trên Supabase project và trình duyệt thật.

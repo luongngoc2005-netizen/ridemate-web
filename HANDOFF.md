@@ -244,3 +244,31 @@ Thay đổi local trên nền commit `289193f`; chưa commit/push/deploy trong l
 Đã kiểm tra: **57/57 test đạt**, production build thành công, `git diff --check` đạt. Test mới bao gồm thay/xóa tọa độ, tìm khi mất tuyến, marker giữ popup, worker thực qua Node worker_threads, worker lỗi/hủy và cache cũ. Benchmark giả lập 15.000 điểm tuyến + 2.000 địa điểm: lượt đầu trong worker ~1.190 ms, timer luồng chính vẫn chạy 76 lần; xử lý lại cùng dữ liệu ~15 ms. Đây là phép đo Node trên máy phát triển, không phải số đo trình duyệt/điện thoại.
 
 Chưa kiểm thử trực tiếp WebGL/GPS trên trình duyệt hoặc bản Render trong lượt này. Build vẫn cảnh báo bundle chính lớn (~1,30 MB trước gzip); chưa tách tải lười các màn hình. Kiểm tra thủ công tiếp: chọn sai điểm rồi đổi/xóa khi tuyến lỗi, mở popup trong lúc Overpass còn tải, kéo bản đồ sau khi chọn ghim, ẩn/hiện nhóm và đổi tuyến khi worker đang chạy.
+
+## 10. Giới hạn tuyến trong Việt Nam — 27/09/2026
+
+Thay đổi local trên nền `8a3235a`, chưa push/deploy trong lượt này.
+
+- `loadRoute` kiểm tra điểm đi, điểm đến, điểm dừng, tọa độ đã snap, toàn bộ geometry và từng leg. Kiểm tra cả đoạn nối giữa hai tọa độ để phát hiện đoạn cắt qua biên giới dù hai đầu nằm trong nước. Không vẽ/cắt bỏ riêng phần ở nước ngoài rồi giả thành tuyến liền mạch.
+- Ranh giới OSM relation 49915 được đóng gói và tải lười; nguồn, giấy phép ODbL và checksum ở `src/data/README.md`. Đây là dữ liệu bản đồ cộng đồng để lọc tuyến, không phải xác nhận pháp lý ranh giới. Kiểm tra chi tiết bằng chỉ mục vĩ độ, không dùng bounding box làm ranh giới.
+- Chọn phương án OSRM trong nước nếu có. Tuyến nhiều điểm bị từ chối được thử lại từng chặng. Chặng dài Bắc–Nam không có phương án phù hợp được thử lại một lần qua các điểm dẫn tuyến trong nước (Vinh, Đồng Hới, Đà Nẵng, Nha Trang, Phan Thiết tùy khoảng vĩ độ). Mọi phương án tìm lại đều phải qua cùng kiểm tra; nếu không đạt thì báo lỗi, không hiển thị đường vượt biên. Điểm dẫn tuyến tự động được ghi rõ trên bản đồ, không sửa lịch trình đã lưu; không khẳng định đây là tuyến trong nước ngắn nhất.
+- Cache OSRM `vn-v1` và geocode `v5`; kiểm tra lại geometry ngay cả khi đọc cache mới. Lọc điểm tìm kiếm và ghim Overpass theo cùng ranh giới.
+- Google Maps URLs không có tùy chọn giới hạn quốc gia (https://developers.google.com/maps/documentation/urls/get-started). Bộ lọc chỉ bảo đảm tuyến hiển thị trong web theo dữ liệu OSM; các liên kết ngoài vẫn do Google tự tính. Đã bỏ `dir_action=navigate` và ghi rõ cần kiểm tra biên giới khi mở Google Maps.
+
+Kiểm chứng: **67/67 test đạt**, build thành công. Gọi OSRM thật với hai đầu Hà Nội `[105.854,21.028]` → TP.HCM `[106.7,10.77]`: phương án mặc định ~1.496 km bị chặn, có điểm ngoài ranh giới `[105.159383,18.386529]`; phương án qua Vinh → Đồng Hới → Đà Nẵng → Nha Trang ~1.678 km đạt kiểm tra (~101 ms trên máy phát triển). Hà Nội → Hải Phòng trả hai phương án ~110/106 km đều đạt. Chưa kiểm tra trực tiếp UI/GPS/Render. Chunk ranh giới tải lười ~1,91 MB, gzip ~602 KB; các dịch vụ công cộng vẫn có thể lỗi hoặc không tìm ra tuyến phù hợp.
+# Bổ sung 27/09/2026 — Đặt phòng demo
+
+- Mục Chỗ nghỉ từ thanh điều hướng/Công cụ hỗ trợ nhanh, 8 chỗ nghỉ mẫu, 16 loại phòng,
+  lọc khu vực/ngày/khách/phòng/giá, xem bản đồ/ảnh/tiện ích, báo giá và xác nhận demo.
+- Đơn của tôi: xem/hủy trong giao diện; không thu tiền hoặc đặt khách sạn thật.
+- `src/stays/`: catalog, logic giá/tồn kho, IndexedDB khách, Supabase tài khoản,
+  context tự tải lại 15 giây và giao diện. Không tự nhập đơn khách vào tài khoản.
+- `supabase/migrations/202609270001_demo_bookings.sql`: cần chạy thủ công trên project.
+  RLS theo chủ sở hữu, RPC giá chuẩn, khóa giao dịch, idempotency. Tồn kho riêng từng tài khoản demo.
+- Ghim chỗ nghỉ là dữ liệu dẫn xuất, không ghi đè lịch trình. Hủy gỡ ghim; thay đổi
+  ngày chuyến đi cảnh báo và bỏ ghim lệch ngày, không tự đổi đơn. TripRouteProvider nhận
+  trip đã bổ sung ghim, trình chỉnh lịch trình vẫn nhận trip gốc.
+- Tests bổ sung: giá/ngày/sức chứa, đặt đồng thời/trùng yêu cầu, hủy trả phòng,
+  ghim theo ngày, migration thực trên PGlite và cô lập tài khoản.
+- Chưa push/deploy/chạy migration trên Supabase. Phiên này không có browser CUA
+  khả dụng nên chưa xác minh tương tác và ảnh/bản đồ trên trình duyệt thật.

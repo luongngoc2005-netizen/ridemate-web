@@ -27,7 +27,7 @@ export default function RouteOverview({ trip, children }) {
           <p className="route-caption" role="status">{current.placesLoading ? `Đang tìm điểm hỗ trợ… ${current.progress}` : current.placesError || (Object.values(visible).some(Boolean) ? 'Bấm ghim để xem tên và chọn “Chỉ đường đến đây”.' : 'Chọn loại điểm hỗ trợ để hiện ghim dọc đường.')}</p>
           {!!current.route.unresolved?.length && <p className="route-message">{current.route.unresolved.length} điểm chưa có tọa độ nên chưa được nối vào tuyến. Mở Hành trình → Lịch trình → Chọn vị trí để bổ sung.</p>}<RouteMap route={current.route} places={current.places} visible={visible} selected={selected} />
           <p className="route-caption">Điểm đi: {current.route.start.label}. Điểm đến: {current.route.end.label}. Tỉnh/thành được định vị bằng điểm đại diện, không phải địa chỉ cụ thể của bạn.</p>
-          <p className="route-caption">OSRM demo tính tuyến ô tô, có thể đi cao tốc; không dùng làm hướng dẫn xe máy. Liên kết Google Maps hiện chỉ chuyển hai đầu tuyến, không phải toàn bộ điểm dừng.</p>
+          <p className="route-caption">Chỉ hiển thị tuyến trong Việt Nam theo ranh giới OpenStreetMap. Tuyến ô tô có thể đi cao tốc. Google Maps tự tính tuyến riêng từ hai đầu tuyến, không áp dụng bộ lọc biên giới của web; hãy kiểm tra trước khi đi.</p>
         </> : <div className="route-placeholder" role="status">{current.loading ? 'Đang xác định điểm đi–đến và tải cung đường…' : current.error || 'Chưa tải được bản đồ.'}</div>}
         {!current.loading && (current.error || current.placesError) && <button className="soft" onClick={current.retry}>Thử tải lại</button>}
         <p className="route-caption">MapLibre · OpenFreeMap / OpenStreetMap · Tuyến OSRM (ô tô)</p>

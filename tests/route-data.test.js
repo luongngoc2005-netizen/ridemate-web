@@ -85,7 +85,7 @@ test('Old geocoding and route caches cannot preserve a wrong endpoint after the 
   const cached = data => ({ expires: Date.now() + 60000, data });
   const oldEntries = [
     [`geo:v3:${endpoint}:hà nội`, cached({ label: 'Wrong station', coordinates: [105.7, 21] })],
-    ['osrm:v1:https://router.project-osrm.org/route/v1/driving:["Hà Nội","Huế",[]]', cached({ wrong: true })],
+    ['osrm:v2:https://router.project-osrm.org/route/v1/driving:["Hà Nội","Hải Phòng",[]]', cached({ wrong: true })],
   ];
   const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
   Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: () => JSON.stringify(oldEntries), setItem() {} } });
@@ -95,13 +95,13 @@ test('Old geocoding and route caches cannot preserve a wrong endpoint after the 
     const url = new URL(input); requests++;
     if (url.hostname === 'photon.komoot.io') {
       const name = url.searchParams.get('q');
-      return { ok: true, json: async () => ({ features: [{ properties: { name, countrycode: 'VN', osm_key: 'place', osm_value: 'city' }, geometry: { coordinates: name === 'Hà Nội' ? [105.85, 21.03] : [107.58, 16.46] } }] }) };
+      return { ok: true, json: async () => ({ features: [{ properties: { name, countrycode: 'VN', osm_key: 'place', osm_value: 'city' }, geometry: { coordinates: name === 'Hà Nội' ? [105.85, 21.03] : [106.688, 20.844] } }] }) };
     }
-    const coordinates = [[105.85, 21.03], [107.58, 16.46]];
+    const coordinates = [[105.85, 21.03], [106.688, 20.844]];
     return { ok: true, json: async () => ({ code: 'Ok', routes: [{ distance: 1000, duration: 100, geometry: { coordinates }, legs: [{ distance: 1000, duration: 100, steps: [{ geometry: { coordinates } }] }] }] }) };
   });
   const { loadRoute } = await import('../src/route-data.js?cache-regression');
-  const result = await loadRoute('Hà Nội', 'Huế');
+  const result = await loadRoute('Hà Nội', 'Hải Phòng');
   assert.equal(requests, 3);
   assert.deepEqual(result.start.coordinates, [105.85, 21.03]);
   assert.equal(result.wrong, undefined);
@@ -116,7 +116,7 @@ test('Directions reuse the exact overview endpoints without latitude/longitude r
   assert.equal(place.pathname, '/maps/dir/');
   assert.equal(place.searchParams.get('destination'), '22.82,104.98');
   assert.equal(place.searchParams.has('origin'), false);
-  assert.equal(place.searchParams.get('dir_action'), 'navigate');
+  assert.equal(place.searchParams.has('dir_action'), false);
 });
 test('Corridor searches preserve route bends and cover continuous segments end to end', () => {
   const points = [[105, 20], [105, 20.5], [106, 20.5], [106, 22]];

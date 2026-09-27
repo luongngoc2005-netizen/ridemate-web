@@ -68,7 +68,7 @@ function CompanionPanel({ trip, setTrip, onClose }) {
           <button className="companion-place-name" disabled={!data.route} onClick={() => { if (validPoint(place.coordinates)) { setSelected({ ...place }); } else { setResolving(place); setAdding(null); } }}><b>{place.name}</b><small>{place.dayNumber ? `Ngày ${place.dayNumber} · ` : ''}{place.address || markerTypes[place.type].label}</small></button>
           <div className="companion-place-actions">
             {validPoint(place.coordinates) && <a href={placeDirectionsUrl(place)} target="_blank" rel="noreferrer">Chỉ đường</a>}
-            {place.type === 'planned' ? <>
+            {place.bookingId ? <small>Demo</small> : place.type === 'planned' ? <>
               <button onClick={() => { setResolving(place); setAdding(null); }}>{validPoint(place.coordinates) ? 'Đổi vị trí' : 'Chọn vị trí'}</button>
               {validPoint(place.coordinates) && <button onClick={() => {
                 setTrip(current => clearPlannedLocation(current, place.dayId, place.placeId, place.name));
@@ -78,7 +78,7 @@ function CompanionPanel({ trip, setTrip, onClose }) {
           </div>
         </article>)}
       </div>
-      <p className="companion-help">OSRM nối các điểm đã có tọa độ theo thứ tự lịch trình. Điểm chưa có tọa độ cần Chọn vị trí. Tuyến ô tô có thể đi cao tốc, không phải tuyến dành riêng cho xe máy. Dữ liệu OpenStreetMap có thể thiếu; hãy kiểm tra cửa hàng sửa xe có nhận xe máy. Định vị chỉ cập nhật khi trình duyệt cho phép.</p>
+      <p className="companion-help">Chỉ hiển thị tuyến và ghim trong Việt Nam theo ranh giới OpenStreetMap. OSRM nối các điểm đã có tọa độ theo thứ tự lịch trình. Điểm chưa có tọa độ cần Chọn vị trí. Tuyến ô tô có thể đi cao tốc, không phải tuyến dành riêng cho xe máy. Dữ liệu OpenStreetMap có thể thiếu; hãy kiểm tra cửa hàng sửa xe có nhận xe máy. Định vị chỉ cập nhật khi trình duyệt cho phép. Google Maps tự tính tuyến riêng; kiểm tra không qua biên giới trước khi đi.</p>
     </div>
   </section>;
 }

@@ -23,11 +23,13 @@ function popupContent(place, label) {
   const name = document.createElement('strong'); name.textContent = place.name || place.label; root.append(name);
   const address = document.createElement('p'); address.textContent = place.address || label; root.append(address);
   const link = document.createElement('a'); link.href = placeDirectionsUrl(place); link.textContent = 'Chỉ đường đến đây'; link.target = '_blank'; link.rel = 'noopener noreferrer'; root.append(link);
+  const notice = document.createElement('small'); notice.textContent = 'Google Maps tự tính tuyến riêng; kiểm tra tuyến không qua biên giới trước khi đi.'; root.append(notice);
   return root;
 }
-export default function RouteMap({ route, center, places = emptyPlaces, visible = emptyVisibility, selected, onPick }) {
+export default function RouteMap({ route, center, places = emptyPlaces, visible = emptyVisibility, selected, onPick, onSelectPlace }) {
   const container = useRef(null), map = useRef(null), markers = useRef(new Map());
   const pick = useRef(onPick); pick.current = onPick;
+  const selectPlace = useRef(onSelectPlace); selectPlace.current = onSelectPlace;
   const [ready, setReady] = useState(false), [error, setError] = useState(''), [follow, setFollow] = useState(false), [activeLeg, setActiveLeg] = useState(null);
   const location = useLocation(), position = location?.position;
   useEffect(() => {
@@ -73,8 +75,8 @@ export default function RouteMap({ route, center, places = emptyPlaces, visible 
     reconcilePlaceMarkers(markers.current, places, visible, place => {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'support-pin maplibre-support';
       const marker = new maplibregl.Marker({ element: button }).setLngLat(place.coordinates).setPopup(new maplibregl.Popup({ offset: 22 })).addTo(instance);
-      button.addEventListener('click', () => setFollow(false));
       const record = { marker, button, place };
+      button.addEventListener('click', () => { setFollow(false); selectPlace.current?.(record.place); });
       marker.getPopup().on('close', () => {
         if (record.retained && markers.current.get(place.id) === record) {
           markers.current.delete(place.id); marker.remove();
@@ -125,8 +127,9 @@ export default function RouteMap({ route, center, places = emptyPlaces, visible 
   const fit = () => { setFollow(false); setActiveLeg(null); if (map.current) fitPoints(map.current, [...(route?.coordinates || []), ...places.filter(p => visible[p.type] && validPoint(p.coordinates)).map(p => p.coordinates)]); };
   return <div className="live-map">
     <LocationControls onCenter={() => { if (position) map.current?.flyTo({ center: position.coordinates, zoom: 16 }); }} follow={follow} onFollow={() => setFollow(value => !value)}/>
+    {!!route?.routingVia?.length && <p className="route-message">Đã chọn đường trong nước qua {route.routingVia.join(' → ')} để tránh đi qua nước ngoài. Đây là điểm dẫn tuyến tự động; lịch trình đã lưu không bị thay đổi.</p>}
     {error && <p className="route-message" role="status">{error} <button onClick={() => { if (map.current) { setReady(false); map.current.once('style.load', () => { setReady(true); setError(''); }); map.current.setStyle(mapServices.style); } }}>Tải lại nền</button></p>}
-    <div className="live-map-frame"><div ref={container} className="route-canvas" role="region" aria-label={route ? `Cung đường ${route.start.label} đến ${route.end.label}` : 'Bản đồ vị trí'}/>{route && <button className="route-fit map-fit-button" type="button" onClick={fit}>Toàn tuyến</button>}</div>
+    <div className="live-map-frame"><div ref={container} className="route-canvas" role="region" aria-label={route ? `Cung đường ${route.start.label} đến ${route.end.label}` : 'Bản đồ vị trí'}/>{(route || places.length>0) && <button className="route-fit map-fit-button" type="button" onClick={fit}>{route?'Toàn tuyến':'Tất cả địa điểm'}</button>}</div>
     {!!route?.legs?.length && <div className="route-stages" aria-label="Các chặng theo lịch trình">{route.legs.map((leg, index) => <button key={index} aria-pressed={activeLeg === index} style={{ borderLeftColor: dayColor(leg.dayNumber) }} onClick={() => { setFollow(false); setActiveLeg(index); if (map.current) fitPoints(map.current, leg.coordinates); }}><small>Ngày {leg.dayNumber}</small><b>{leg.start.label || leg.start.name} → {leg.end.label || leg.end.name}</b><span>{leg.distanceKm.toFixed(1)} km · {Math.round(leg.durationSeconds / 60)} phút</span></button>)}</div>}
   </div>;
 }

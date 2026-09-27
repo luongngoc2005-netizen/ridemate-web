@@ -3,6 +3,7 @@ export { supportTypes, markerTypes, validPoint, routePosition, selectPlaces } fr
 import { createPlaceProcessor } from './places-processor.js';
 import { osrmUrl, parseOsrm, routePoints, itineraryStops } from './osrm-data.js';
 import { provinces, travelDestinations } from './provinces.js';
+import { domesticShapingPoints } from './domestic-routing.js';
 const env = import.meta.env || {};
 export const mapServices = {
   geocode: env.VITE_GEOCODER_URL || 'https://photon.komoot.io/api/',
@@ -59,35 +60,79 @@ export function chooseLocation(features, name = '') {
   return area || exact.find(item => !['highway', 'shop', 'amenity'].includes(item.properties.osm_key)) || candidates[0];
 }
 export async function geocode(name, signal) {
-  const key = `geo:v4:${mapServices.geocode}:${name.trim().toLowerCase()}`;
+  const { vietnam } = await import('./vietnam-guard.js');
+  const key = `geo:v5:${mapServices.geocode}:${name.trim().toLowerCase()}`;
   const saved = cached(key);
-  if (saved && validPoint(saved.coordinates)) return saved;
+  if (saved && vietnam.containsPoint(saved.coordinates)) return saved;
   const url = new URL(mapServices.geocode);
   // Without lang, Photon translates names using the browser's Accept-Language
   // (e.g. Hà Nội -> Hanoi), which breaks matching the Vietnamese select values.
   url.search = new URLSearchParams({ q: name.trim(), lang: 'default', limit: '15', bbox: '102,8,110,24' });
-  const result = chooseLocation((await request(url, { signal })).features, name);
+  const features = (await request(url, { signal })).features || [];
+  const result = chooseLocation(features.filter(item => vietnam.containsPoint(item.geometry?.coordinates)), name);
   if (!result) throw new Error(`Không xác định được “${name}” tại Việt Nam. Hãy nhập tên địa điểm cụ thể hơn.`);
   const properties = result.properties;
   return remember(key, { coordinates: result.geometry.coordinates, label: [...new Set([properties.name, properties.city, properties.state].filter(Boolean))].join(', ') }, 7 * 86400000);
 }
 export async function loadRoute(origin, destination, signal, stops = []) {
-  const key = 'osrm:v2:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
+  const { vietnam, isDomesticRoute, DOMESTIC_ROUTE_ERROR } = await import('./vietnam-guard.js');
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  const key = 'osrm:vn-v1:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
   const saved = cached(key);
-  if (saved) return saved;
+  if (saved && isDomesticRoute(saved)) return saved;
   const start = await geocode(origin, signal), end = await geocode(destination, signal);
   const points = routePoints(start, end, stops);
+  const outside = points.find(point => !vietnam.containsPoint(point.coordinates));
+  if (outside) throw new Error(`Vị trí “${outside.label || outside.name || 'đã chọn'}” nằm ngoài phạm vi Việt Nam. Hãy đổi hoặc xóa vị trí này trong lịch trình.`);
+  async function domesticPart(chunk) {
+    const result = await request(osrmUrl(mapServices.route, chunk, chunk.length === 2), { signal });
+    if (Array.isArray(result.waypoints) && result.waypoints.some(point => !vietnam.containsPoint(point.location))) throw new Error(DOMESTIC_ROUTE_ERROR);
+    let boundaryRejected = false, parseError;
+    for (const candidate of result.routes || []) {
+      try {
+        const parsed = parseOsrm({ ...result, routes: [candidate] }, chunk);
+        if (isDomesticRoute(parsed)) return [parsed];
+        boundaryRejected = true;
+      } catch (error) { parseError = error; }
+    }
+    // OSRM alternatives are supported for two-point requests. A rejected
+    // multi-stop route is retried leg by leg, preserving the itinerary order.
+    if (boundaryRejected && chunk.length > 2) {
+      const legs = [];
+      for (let i = 1; i < chunk.length; i++) legs.push(...await domesticPart(chunk.slice(i - 1, i + 1)));
+      return legs;
+    }
+    if (boundaryRejected) {
+      const via = domesticShapingPoints(chunk[0], chunk.at(-1));
+      if (via.length && via.every(point => vietnam.containsPoint(point.coordinates))) {
+        const shaped = [chunk[0], ...via, chunk.at(-1)];
+        const retry = await request(osrmUrl(mapServices.route, shaped), { signal });
+        if (!retry.waypoints?.some(point => !vietnam.containsPoint(point.location))) {
+          for (const candidate of retry.routes || []) {
+            try {
+              const parsed = parseOsrm({ ...retry, routes: [candidate] }, shaped);
+              if (isDomesticRoute(parsed)) return [{ ...parsed, routingVia: via.map(p => p.label) }];
+            } catch { /* Never display an unverified fallback. */ }
+          }
+        }
+      }
+      throw new Error(DOMESTIC_ROUTE_ERROR);
+    }
+    throw parseError || new Error('OSRM chưa tìm được tuyến qua các điểm đã chọn. Hãy kiểm tra vị trí các điểm hoặc thử lại.');
+  }
   // Bound request size and preserve every stop, including shared chunk endpoints.
   const parts = [];
   for (let i = 0; i < points.length - 1; i += 24) {
     const chunk = points.slice(i, i + 25);
-    parts.push(parseOsrm(await request(osrmUrl(mapServices.route, chunk), { signal }), chunk));
+    parts.push(...await domesticPart(chunk));
   }
-  const route = { ...parts[0], start, end, points,
+  const route = { ...parts[0], start, end, points: parts.flatMap((part, index) => index ? part.points.slice(1) : part.points),
+    routingVia: parts.flatMap(part => part.routingVia || []),
     coordinates: parts.flatMap(p => p.coordinates), legs: parts.flatMap(p => p.legs),
     distanceKm: parts.reduce((n, p) => n + p.distanceKm, 0), durationSeconds: parts.reduce((n, p) => n + p.durationSeconds, 0),
     unresolved: stops.filter(p => !validPoint(p.coordinates)).map(p => ({ id: p.id, name: p.name })),
   };
+  if (!isDomesticRoute(route)) throw new Error(DOMESTIC_ROUTE_ERROR);
   return remember(key, route, 86400000);
 }
 export async function loadTripRoute(trip, signal) {
@@ -139,6 +184,8 @@ export function placeSearchSegments(coordinates) {
 // Completed segments remain cached; retry only fetches failed/expired segments.
 const segmentCache = new Map();
 export async function loadPlaces(route, signal, onProgress = () => {}) {
+  const { vietnam } = await import('./vietnam-guard.js');
+  const domesticPlaces = elements => elements.filter(item => vietnam.containsPoint([item.lon ?? item.center?.lon, item.lat ?? item.center?.lat]));
   const queries = placeSearchSegments(route.coordinates).map(placesQuery);
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   const processor = createPlaceProcessor(route.coordinates, signal);
@@ -152,7 +199,7 @@ export async function loadPlaces(route, signal, onProgress = () => {}) {
       else missing.push(query);
     }
     if (completed) {
-      places = await processor.add(cachedElements.flat());
+      places = await processor.add(domesticPlaces(cachedElements.flat()));
       onProgress(snapshot());
     }
     for (const query of missing) {
@@ -171,7 +218,7 @@ export async function loadPlaces(route, signal, onProgress = () => {}) {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         failed++; onProgress(snapshot()); continue;
       }
-      places = await processor.add(data.elements); completed++;
+      places = await processor.add(domesticPlaces(data.elements)); completed++;
       onProgress(snapshot());
     }
     return snapshot();
@@ -185,6 +232,7 @@ export function pointText(point) {
 }
 export async function searchPlannedCandidates(name, route, signal) {
   if (!name.trim()) return [];
+  const { vietnam } = await import('./vietnam-guard.js');
   const url = new URL(mapServices.geocode);
   const params = new URLSearchParams({ q: name.trim(), lang: 'default', limit: '8', bbox: '102,8,110,24' });
   if (validPoint(route?.end?.coordinates)) {
@@ -193,7 +241,7 @@ export async function searchPlannedCandidates(name, route, signal) {
   url.search = params;
   const hasRoute = route?.coordinates?.length >= 2 && route.coordinates.every(validPoint);
   const result = await request(url, { signal });
-  return (result.features || []).filter(item => validPoint(item.geometry?.coordinates) && item.properties?.countrycode?.toUpperCase() === 'VN').map(item => {
+  return (result.features || []).filter(item => validPoint(item.geometry?.coordinates) && item.properties?.countrycode?.toUpperCase() === 'VN' && vietnam.containsPoint(item.geometry.coordinates)).map(item => {
     const properties = item.properties, coordinates = item.geometry.coordinates;
     return { id: `${properties.osm_type}/${properties.osm_id}`, name: properties.name || name.trim(), coordinates,
       address: [...new Set([properties.housenumber, properties.street, properties.city, properties.state].filter(Boolean))].join(', '),
@@ -204,8 +252,8 @@ export function directionsUrl(origin, destination) {
   return `https://www.google.com/maps/dir/?${new URLSearchParams({ api: '1', origin: pointText(origin), destination: pointText(destination), travelmode: 'driving', avoid: 'highways' })}`;
 }
 export function placeDirectionsUrl(place) {
-  // Omit origin: Maps lets the rider choose their current/start location.
-  return `https://www.google.com/maps/dir/?${new URLSearchParams({ api: '1', destination: pointText(place), travelmode: 'driving', dir_action: 'navigate' })}`;
+  // External Maps recalculates its own route; do not auto-start navigation.
+  return `https://www.google.com/maps/dir/?${new URLSearchParams({ api: '1', destination: pointText(place), travelmode: 'driving', avoid: 'highways' })}`;
 }
 export function placeUrl(place) {
   return `https://www.google.com/maps/search/?${new URLSearchParams({ api: '1', query: `${place.coordinates[1]},${place.coordinates[0]}` })}`;

@@ -15,10 +15,11 @@ export function routePoints(start, end, stops = []) {
   if (!points.at(-1).coordinates.slice(0, 2).every((n, i) => n === end.coordinates[i]) || points.length === 1) points.push({ ...end, dayNumber: points.at(-1).dayNumber });
   return points;
 }
-export function osrmUrl(endpoint, points) {
+export function osrmUrl(endpoint, points, alternatives = false) {
   if (points.length < 2 || points.some(p => !valid(p.coordinates))) throw new Error('Cần ít nhất hai vị trí hợp lệ để tìm tuyến.');
   const url = new URL(`${endpoint.replace(/\/$/, '')}/${points.map(p => p.coordinates.slice(0, 2).join(',')).join(';')}`);
   url.search = new URLSearchParams({ overview: 'full', geometries: 'geojson', steps: 'true' });
+  if (alternatives) url.searchParams.set('alternatives', 'true');
   return url;
 }
 export function parseOsrm(result, points) {

@@ -28,12 +28,12 @@ test('OSRM meters/seconds convert correctly and individual days become colored G
   assert.deepEqual(ring[0], ring.at(-1)); assert.equal(ring.length, 65);
 });
 test('Place loading publishes partial success and retry only requests failed segments', async context => {
-  const route = { coordinates: [[103, 12], [103, 13]] };
+  const route = { coordinates: [[106, 10], [106, 11]] };
   let count = 0, failing = true;
   context.mock.method(globalThis, 'fetch', async () => {
     count++;
     if (count === 2 && failing) return { ok: false, status: 504 };
-    return { ok: true, json: async () => ({ elements: [{ type: 'node', id: count, lon: 103, lat: 12.2, tags: { amenity: 'fuel', name: `Fuel ${count}` } }] }) };
+    return { ok: true, json: async () => ({ elements: [{ type: 'node', id: count, lon: 106, lat: 10.2, tags: { amenity: 'fuel', name: `Fuel ${count}` } }] }) };
   });
   const snapshots = [];
   const first = await loadPlaces(route, undefined, result => snapshots.push(result));
