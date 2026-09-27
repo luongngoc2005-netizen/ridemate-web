@@ -1,3 +1,4 @@
+import {validOriginPoint} from './origin-data.js';
 export const STORAGE_KEY = 'ridemate.trip.v1';
 export const newId = () => globalThis.crypto.randomUUID();
 const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase().trim();
@@ -10,6 +11,7 @@ export const destinations = [
 export const suggestionsFor = destination => destinations.find(item => normalize(destination).includes(normalize(item.name)));
 export const initialDetails = { origin: 'Hà Nội', destination: 'Hà Giang', date: '2026-09-15', days: 4, notes: '', interests: [] };
 export function validDetails(value) {
+  if(value?.originPoint!=null&&!validOriginPoint(value.originPoint))return false;
   return value && typeof value.origin === 'string' && value.origin.trim().length > 0 && typeof value.destination === 'string' && value.destination.trim().length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(value.date) && !Number.isNaN(Date.parse(value.date)) && Number.isInteger(Number(value.days)) && Number(value.days) >= 1 && Number(value.days) <= 30;
 }
 export function dateRange(trip) {

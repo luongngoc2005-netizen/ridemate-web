@@ -7,7 +7,7 @@ export function TripRouteProvider({ trip, children }) {
   const [enabled, setEnabled] = useState(false), [attempt, setAttempt] = useState(0), [placesAttempt, setPlacesAttempt] = useState(0);
   const [state, setState] = useState(initial);
   const enable = useCallback(() => setEnabled(true), []);
-  const key = JSON.stringify([trip?.origin, trip?.destination, trip?.itinerary?.map(day => [day.id, day.places.map(p => [p.id, p.name, p.coordinates])])]);
+  const key = JSON.stringify([trip?.origin, trip?.originPoint, trip?.destination, trip?.itinerary?.map(day => [day.id, day.places.map(p => [p.id, p.name, p.coordinates])])]);
   const tripRef = useRef(trip); tripRef.current = trip;
   useEffect(() => {
     if (!enabled || !tripRef.current) return;

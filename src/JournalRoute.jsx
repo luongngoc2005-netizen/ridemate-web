@@ -1,3 +1,4 @@
+import {tripOrigin} from './origin-data.js';
 import ToolIcon from './ToolIcon.jsx';
 import React, { useEffect, useState } from 'react';
 import RouteMap from './RouteMap.jsx';
@@ -6,16 +7,17 @@ import { loadRoute, directionsUrl } from './route-data.js';
 export default function JournalRoute({ entry, onEdit }) {
   const [state, setState] = useState({}), [retry, setRetry] = useState(0);
   const origin = entry.origin?.trim(), destination = entry.destination?.trim();
-  const key = `${entry.id}:${origin}:${destination}`;
+  const point=tripOrigin(entry);
+  const key = JSON.stringify([entry.id,point,destination]);
   useEffect(() => {
     const controller = new AbortController();
     setState({ key, loading: true });
-    if (origin && destination) loadRoute(origin, destination, controller.signal).then(route => {
+    if (origin && destination) loadRoute(point, destination, controller.signal).then(route => {
       if (!controller.signal.aborted) setState({ key, route });
     }).catch(error => { if (!controller.signal.aborted) setState({ key, error: error.message || 'Chưa tải được bản đồ.' }); });
     return () => controller.abort();
   }, [key, retry]);
   const current = state.key === key ? state : { loading: true };
   // The in-app route is country-validated; external Maps chooses its own roads.
-  return <section className="journal-route"><div className="title"><h3>Bản đồ cung đường</h3>{origin && destination && <a href={directionsUrl(origin, destination)} target="_blank" rel="noreferrer">Google Maps <ToolIcon name="external" className="inline-icon"/></a>}</div>{!origin || !destination ? <div className="route-placeholder"><p>Thêm điểm xuất phát và điểm kết thúc để xem cung đường của hành trình này.</p><button type="button" className="soft" onClick={onEdit}>Thêm cung đường</button></div> : <><p><b>{origin} <ToolIcon name="arrowRight" className="inline-icon"/> {destination}</b></p>{current.route ? <RouteMap route={current.route} /> : <div className="route-placeholder" role="status">{current.loading ? 'Đang tải cung đường…' : current.error}{current.error && <button className="soft" onClick={() => setRetry(n => n + 1)}>Thử tải lại bản đồ</button>}</div>}<p className="muted-copy">Chỉ hiển thị tuyến trong Việt Nam theo ranh giới OpenStreetMap. Google Maps tự tính tuyến riêng; kiểm tra không qua biên giới trước khi đi. Tuyến ô tô OSRM tham khảo (có thể đi cao tốc) dựng từ điểm đi và điểm kết thúc, chưa gồm các điểm ghé và không phải bản ghi GPS. Quãng đường thực tế bạn ghi nhận: {Number(entry.km).toLocaleString('vi-VN')} km.</p></>}</section>;
+  return <section className="journal-route"><div className="title"><h3>Bản đồ cung đường</h3>{origin && destination && <a href={directionsUrl(point, destination)} target="_blank" rel="noreferrer">Google Maps <ToolIcon name="external" className="inline-icon"/></a>}</div>{!origin || !destination ? <div className="route-placeholder"><p>Thêm điểm xuất phát và điểm kết thúc để xem cung đường của hành trình này.</p><button type="button" className="soft" onClick={onEdit}>Thêm cung đường</button></div> : <><p><b>{origin} <ToolIcon name="arrowRight" className="inline-icon"/> {destination}</b></p>{current.route ? <RouteMap route={current.route} /> : <div className="route-placeholder" role="status">{current.loading ? 'Đang tải cung đường…' : current.error}{current.error && <button className="soft" onClick={() => setRetry(n => n + 1)}>Thử tải lại bản đồ</button>}</div>}<p className="muted-copy">Chỉ hiển thị tuyến trong Việt Nam theo ranh giới OpenStreetMap. Google Maps tự tính tuyến riêng; kiểm tra không qua biên giới trước khi đi. Tuyến ô tô OSRM tham khảo (có thể đi cao tốc) dựng từ điểm đi và điểm kết thúc, chưa gồm các điểm ghé và không phải bản ghi GPS. Quãng đường thực tế bạn ghi nhận: {Number(entry.km).toLocaleString('vi-VN')} km.</p></>}</section>;
 }

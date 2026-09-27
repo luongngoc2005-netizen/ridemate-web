@@ -32,7 +32,7 @@ export function createLocalBookings(indexedDB=globalThis.indexedDB) {
 }
 
 const cloudError = error => new Error(['42P01','PGRST202','PGRST205','42883'].includes(error?.code)
-  ? 'Chưa bật đặt phòng demo trên tài khoản. Cần chạy migration đặt phòng trong SUPABASE_SETUP.md; bạn vẫn có thể đăng xuất để thử bản demo trên trình duyệt.'
+  ? 'Dịch vụ đặt phòng tài khoản chưa được khởi tạo. Quản trị viên cần chạy SQL thiết lập đặt phòng trên Supabase; sau đó bấm “Tải lại đơn”. Không cần đăng xuất.'
   : error?.message||'Chưa lưu được đơn. Hãy kiểm tra kết nối và thử lại.');
 export function createCloudBookings(client,userId) {
   return {

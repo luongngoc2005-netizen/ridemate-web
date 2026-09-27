@@ -4,6 +4,7 @@ import { createPlaceProcessor } from './places-processor.js';
 import { osrmUrl, parseOsrm, routePoints, itineraryStops } from './osrm-data.js';
 import { provinces, travelDestinations } from './provinces.js';
 import { domesticShapingPoints } from './domestic-routing.js';
+import { tripOrigin } from './origin-data.js';
 const env = import.meta.env || {};
 export const mapServices = {
   geocode: env.VITE_GEOCODER_URL || 'https://photon.komoot.io/api/',
@@ -74,13 +75,19 @@ export async function geocode(name, signal) {
   const properties = result.properties;
   return remember(key, { coordinates: result.geometry.coordinates, label: [...new Set([properties.name, properties.city, properties.state].filter(Boolean))].join(', ') }, 7 * 86400000);
 }
+export async function resolveRoutePoint(value,signal) {
+  if(typeof value==='string')return geocode(value,signal);
+  const {vietnam}=await import('./vietnam-guard.js');
+  if(!validPoint(value?.coordinates)||!vietnam.containsPoint(value.coordinates))throw new Error('Điểm xuất phát đã chọn không hợp lệ hoặc nằm ngoài Việt Nam. Hãy chọn lại vị trí.');
+  return {coordinates:value.coordinates.slice(0,2),label:value.label||'Vị trí đã chọn'};
+}
 export async function loadRoute(origin, destination, signal, stops = []) {
   const { vietnam, isDomesticRoute, DOMESTIC_ROUTE_ERROR } = await import('./vietnam-guard.js');
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   const key = 'osrm:vn-v1:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
   const saved = cached(key);
   if (saved && isDomesticRoute(saved)) return saved;
-  const start = await geocode(origin, signal), end = await geocode(destination, signal);
+  const start = await resolveRoutePoint(origin, signal), end = await resolveRoutePoint(destination, signal);
   const points = routePoints(start, end, stops);
   const outside = points.find(point => !vietnam.containsPoint(point.coordinates));
   if (outside) throw new Error(`Vị trí “${outside.label || outside.name || 'đã chọn'}” nằm ngoài phạm vi Việt Nam. Hãy đổi hoặc xóa vị trí này trong lịch trình.`);
@@ -136,7 +143,7 @@ export async function loadRoute(origin, destination, signal, stops = []) {
   return remember(key, route, 86400000);
 }
 export async function loadTripRoute(trip, signal) {
-  return loadRoute(trip.origin, trip.destination, signal, itineraryStops(trip));
+  return loadRoute(tripOrigin(trip), trip.destination, signal, itineraryStops(trip));
 }
 export function sampleRoute(coordinates, limit = 100) {
   if (coordinates.length <= limit) return coordinates;

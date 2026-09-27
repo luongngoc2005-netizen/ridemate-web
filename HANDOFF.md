@@ -272,3 +272,18 @@ Kiểm chứng: **67/67 test đạt**, build thành công. Gọi OSRM thật v�
   ghim theo ngày, migration thực trên PGlite và cô lập tài khoản.
 - Chưa push/deploy/chạy migration trên Supabase. Phiên này không có browser CUA
   khả dụng nên chưa xác minh tương tác và ảnh/bản đồ trên trình duyệt thật.
+# Bổ sung — Điểm xuất phát GPS/ghim và chi tiết đơn
+
+- `OriginSelect.jsx`: chọn tỉnh/thành, GPS một lần có sai số, tìm địa chỉ hoặc bấm
+  ghim trong dialog. Chỉ lưu sau xác nhận; kiểm tra ranh giới Việt Nam. Hủy dialog
+  bỏ qua kết quả GPS/tìm kiếm đến muộn. Lưu tọa độ cùng hành trình, không bám GPS
+  để liên tục thay đổi điểm xuất phát.
+- `originPoint` giữ tọa độ, nhãn, nguồn và sai số. `tripOrigin` chỉ dùng điểm khi
+  nhãn còn khớp tên origin; đổi sang tỉnh/thành bỏ tọa độ cũ. loadTripRoute và cache
+  context dùng tọa độ mới; link Google Maps và nhật ký hoàn thành cũng giữ tọa độ.
+- Chỗ nghỉ có nút Xem đơn thường trực, thẻ giá/phòng/đêm, tổng giá và check-in/out
+  có ngày/giờ. Cả xác nhận và danh sách đơn dùng BookingSummary.
+- Migration đặt phòng có thể chạy lại, giữ đơn; thông báo reload schema cho
+  PostgREST. Cần chủ project chạy trên Supabase để sửa lỗi bảng/hàm chưa có.
+- Xác minh: 74/74 unit/integration tests đạt, gồm GPS không geocode lại nhãn,
+  từ chối tọa độ nước ngoài và chạy lại SQL giữ đơn. Chưa xác minh Supabase thật/GPS thiết bị.

@@ -60,6 +60,11 @@ test('booking SQL enforces ownership, canonical prices, stock, retries and cance
     await assert.rejects(cancel(bob,id));
     await book(bob,randomUUID());
     await login(alice);assert.equal((await cancel(alice,id)).status,'cancelled');
+    // Setup can be safely retried without losing existing reservations.
+    await db.exec('reset role');
+    await db.exec(await readFile(new URL('../supabase/migrations/202609270001_demo_bookings.sql',import.meta.url),'utf8'));
+    await login(alice);
+    assert.equal((await db.query('select payload from public.demo_bookings where id=$1',[id])).rows[0].payload.status,'cancelled');
     await book(alice,randomUUID());
     await book(alice,randomUUID(),{...request,checkIn:'2099-01-12',checkOut:'2099-01-13'});
     await assert.rejects(book(alice,randomUUID(),{...request,guests:10}));

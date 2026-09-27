@@ -1,7 +1,7 @@
 -- Demo only: no payments, supplier integration or real reservations.
 -- Inventory is isolated per account so different demo users cannot block one another.
 begin;
-create table public.demo_room_catalog (
+create table if not exists public.demo_room_catalog (
   id text primary key, hotel_id text not null, hotel_name text not null,
   room_name text not null, night_rate integer not null check(night_rate>0),
   capacity integer not null check(capacity>0), stock integer not null check(stock>=0)
@@ -9,6 +9,7 @@ create table public.demo_room_catalog (
 alter table public.demo_room_catalog enable row level security;
 revoke all on public.demo_room_catalog from anon, authenticated;
 grant select on public.demo_room_catalog to authenticated;
+drop policy if exists "Read demo rooms" on public.demo_room_catalog;
 create policy "Read demo rooms" on public.demo_room_catalog for select to authenticated using(true);
 insert into public.demo_room_catalog values
 ('hn-garden-double','hn-garden','Nhà Vườn Phố','Phòng đôi',420000,2,3),
@@ -26,9 +27,10 @@ insert into public.demo_room_catalog values
 ('mv-valley-double','mv-valley','Thung Lũng Stay','Phòng đôi',340000,2,3),
 ('mv-valley-family','mv-valley','Thung Lũng Stay','Phòng gia đình',580000,4,2),
 ('mv-mountain-double','mv-mountain','Nhà Bên Núi','Phòng đôi',490000,2,3),
-('mv-mountain-family','mv-mountain','Nhà Bên Núi','Phòng gia đình',730000,4,2);
+('mv-mountain-family','mv-mountain','Nhà Bên Núi','Phòng gia đình',730000,4,2)
+on conflict(id) do update set hotel_id=excluded.hotel_id,hotel_name=excluded.hotel_name,room_name=excluded.room_name,night_rate=excluded.night_rate,capacity=excluded.capacity,stock=excluded.stock;
 
-create table public.demo_bookings (
+create table if not exists public.demo_bookings (
   user_id uuid not null references auth.users(id) on delete cascade,
   id uuid not null, payload jsonb not null,
   primary key(user_id,id),
@@ -37,9 +39,10 @@ create table public.demo_bookings (
 alter table public.demo_bookings enable row level security;
 revoke all on public.demo_bookings from anon, authenticated;
 grant select on public.demo_bookings to authenticated;
+drop policy if exists "Read own demo bookings" on public.demo_bookings;
 create policy "Read own demo bookings" on public.demo_bookings for select to authenticated using((select auth.uid())=user_id);
 
-create function public.book_demo_stay(expected_user_id uuid, request_id uuid, new_request jsonb)
+create or replace function public.book_demo_stay(expected_user_id uuid, request_id uuid, new_request jsonb)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare
   owner_id uuid := auth.uid(); prior jsonb; result jsonb;
@@ -83,7 +86,7 @@ end $$;
 revoke all on function public.book_demo_stay(uuid,uuid,jsonb) from public, anon;
 grant execute on function public.book_demo_stay(uuid,uuid,jsonb) to authenticated;
 
-create function public.cancel_demo_stay(expected_user_id uuid, booking_id uuid)
+create or replace function public.cancel_demo_stay(expected_user_id uuid, booking_id uuid)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare owner_id uuid := auth.uid(); result jsonb;
 begin
@@ -96,4 +99,5 @@ begin
 end $$;
 revoke all on function public.cancel_demo_stay(uuid,uuid) from public, anon;
 grant execute on function public.cancel_demo_stay(uuid,uuid) to authenticated;
+notify pgrst, 'reload schema';
 commit;

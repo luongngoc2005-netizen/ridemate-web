@@ -99,9 +99,24 @@ thanh toán hay giữ phòng thực tế. Không cần API khách sạn hoặc c
 Để bật lưu đơn theo tài khoản:
 
 1. Mở project tại **Supabase Dashboard → SQL Editor → New query**.
-2. Sao chép toàn bộ `supabase/migrations/202609270001_demo_bookings.sql`, bấm **Run** một lần.
+2. Sao chép toàn bộ `supabase/migrations/202609270001_demo_bookings.sql`, bấm **Run**. Bản SQL mới có thể chạy lại; giữ các đơn hiện có và cập nhật hàm/quyền/catalog mẫu. Chạy bằng tài khoản quản trị project trong SQL Editor.
 3. Tải lại web, đăng nhập, mở **Chỗ nghỉ → Xem phòng → Chọn phòng**.
-4. Dùng **Điền thông tin mẫu**, xác nhận đặt thử rồi kiểm tra **Đơn của tôi**.
+4. Bấm **Tải lại đơn** nếu trước đó đang báo chưa khởi tạo. Dùng **Điền thông tin mẫu**, xác nhận đặt thử rồi kiểm tra **Xem đơn**: đơn giá, tổng giá, ngày và giờ check-in/check-out (giờ Việt Nam).
+
+Nếu vẫn báo chưa khởi tạo, bảo đảm SQL được chạy trên đúng project tương ứng với
+`VITE_SUPABASE_URL` đang cấu hình trên Render. Có thể kiểm tra bằng truy vấn sau;
+cả bốn cột đều cần có giá trị khác `null`:
+
+```sql
+select to_regclass('public.demo_room_catalog') as catalog,
+       to_regclass('public.demo_bookings') as bookings,
+       to_regprocedure('public.book_demo_stay(uuid,uuid,jsonb)') as book_function,
+       to_regprocedure('public.cancel_demo_stay(uuid,uuid)') as cancel_function;
+```
+
+Script đã gửi `notify pgrst, 'reload schema'` để API tải lại schema. Không cần đổi
+API key hoặc đăng xuất để xử lý thiếu bảng/hàm. Không đưa secret/service-role key
+vào mã frontend.
 
 Migration tạo bảng catalog chỉ đọc, bảng đơn với RLS và hai hàm RPC đặt/hủy đơn.
 Server tính lại giá, kiểm tra ngày/sức chứa/số phòng và chống tạo trùng mã yêu cầu.
