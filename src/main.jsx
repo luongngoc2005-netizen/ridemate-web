@@ -1,3 +1,5 @@
+import Plans from './Plans.jsx';
+import {readPlans,savePlans,putPlan} from './plans-data.js';
 import OriginSelect from './OriginSelect.jsx';
 import {tripOrigin} from './origin-data.js';
 import {directionsUrl} from './route-data.js';
@@ -30,7 +32,7 @@ const tools=[['fuel','Cây xăng','gas station'],['repair','Sửa xe','motorcycl
 const searchMaps=q=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,'_blank');
 const directions=(a,b)=>window.open(directionsUrl(a,b),'_blank','noopener,noreferrer');
 
-function Nav({page,setPage,user}){return <header className="nav"><button className="logo" onClick={()=>setPage('home')}><span><ToolIcon name="mountain" className="inline-icon"/></span>RideMate</button><nav>{[['home','Khám phá'],['create','Lên kế hoạch'],['stays','Chỗ nghỉ'],['tools','Công cụ'],['journal','Nhật ký hành trình'],['ai','AI Assistant']].map(([k,v])=><button className={page===k?'active':''} onClick={()=>setPage(k)} key={k}>{v}</button>)}</nav><button className="account-link" title={user ? accountName(user) : undefined} aria-label={user ? `Tài khoản của ${accountName(user)}` : 'Tài khoản'} onClick={()=>setPage('account')}>{user ? accountName(user) : 'Tài khoản'}</button></header>}
+function Nav({page,setPage,user}){return <header className="nav"><button className="logo" onClick={()=>setPage('home')}><span><ToolIcon name="mountain" className="inline-icon"/></span>RideMate</button><nav>{[['home','Khám phá'],['plans','Lên kế hoạch'],['stays','Chỗ nghỉ'],['tools','Công cụ'],['journal','Nhật ký hành trình'],['ai','AI Assistant']].map(([k,v])=><button className={page===k?'active':''} onClick={()=>setPage(k)} key={k}>{v}</button>)}</nav><button className="account-link" title={user ? accountName(user) : undefined} aria-label={user ? `Tài khoản của ${accountName(user)}` : 'Tài khoản'} onClick={()=>setPage('account')}>{user ? accountName(user) : 'Tài khoản'}</button></header>}
 
 function Home({trip: savedTrip,onCreate,setPage}){const [trip,setTrip]=useState(()=>({...initialDetails,...savedTrip}));return <main className="dash"><div className="maincol">
   <section className="hero"><div><small>RIDE MORE · EXPLORE FURTHER</small><h1>Những cung đường<br/>đẹp hơn khi đi cùng<br/>RideMate</h1><p>Lên kế hoạch dễ dàng · Hành trình an toàn hơn · Trải nghiệm nhiều hơn.</p></div>
@@ -51,8 +53,14 @@ function AppContent({account}){
   const bookingData=useBookings();
   const [stayDate,setStayDate]=useState(null);
   const [accountBusy,setAccountBusy] = useState(false);
-  const [loaded] = useState(() => { try { return readTrip(window.localStorage); } catch { return { trip: null, error: 'Trình duyệt không cho phép lưu dữ liệu. Thay đổi chỉ được giữ khi trang còn mở.' }; } });
-  const [trip,setTrip] = useState(loaded.trip);
+  const [loaded]=useState(()=>{try{return readPlans(window.localStorage);}catch{return {plans:[],error:'Không đọc được dữ liệu trình duyệt.'};}});
+  const [plans,setPlans]=useState(loaded.plans);
+  const [activeId,setActiveId]=useState(null);
+  const trip=plans.find(p=>p.id===activeId)||null;
+  const persist=next=>{try{savePlans(window.localStorage,next);setStorageError('');}catch{setStorageError('Chưa lưu được danh sách kế hoạch. Hãy giữ trang mở và thử lại.');}};
+  const plansRef=React.useRef(plans);plansRef.current=plans;
+  const changePlans=updater=>{const next=updater(plansRef.current);persist(next);plansRef.current=next;setPlans(next);};
+  const setTrip=updater=>{const id=activeId;changePlans(current=>current.map(p=>p.id===id?(typeof updater==='function'?updater(p):updater):p));};
   const mapTrip=useMemo(()=>tripWithStays(trip,bookingData.bookings),[trip,bookingData.bookings]);
   const [storageError,setStorageError] = useState(loaded.error);
   const [page,setCurrentPage] = useState('home');
@@ -66,18 +74,17 @@ function AppContent({account}){
     window.addEventListener('beforeunload',warn);
     return ()=>window.removeEventListener('beforeunload',warn);
   },[accountBusy]);
-  useEffect(()=>{ if(!trip)return; try { setStorageError(saveTrip(window.localStorage,trip)); } catch { setStorageError('Trình duyệt không cho phép lưu thay đổi. Hãy giữ trang này mở.'); } },[trip]);
-  const setPage=(next,date=null)=>{if(accountBusy)return;setStayDate(date);setCompletionTrip(null);setView('overview');setCurrentPage(next);setFeedback('');window.scrollTo({top:0,behavior:'instant'});};
+  const setPage=(next,date=null)=>{if(accountBusy)return;if(next==='plans')setActiveId(null);setStayDate(date);setCompletionTrip(null);setView('overview');setCurrentPage(next);setFeedback('');window.scrollTo({top:0,behavior:'instant'});};
   const create=details=>{
     if(!validDetails(details)){setFeedback('Vui lòng nhập điểm đi, điểm đến, ngày đi và số ngày từ 1 đến 30.');return;}
-    if(trip && !window.confirm('Tạo chuyến đi mới sẽ thay thế chuyến đi đang lưu trên trình duyệt này. Bạn có muốn tiếp tục?'))return;
-    setTrip(createTrip(details));setPage('trip');setFeedback('Đã tạo chuyến đi. Bạn có thể chỉnh lịch trình và ghi chú bên dưới.');
+    changePlans(current=>putPlan(current,createTrip(details)));setPage('plans');setFeedback('Đã tạo kế hoạch. Chọn Mở kế hoạch để xem lịch trình và bản đồ.');
   };
   const edit=details=>{if(!validDetails(details)){setFeedback('Vui lòng kiểm tra thông tin chuyến đi.');return;}setTrip(current=>editTripDetails(current,details));setPage('trip');setFeedback('Đã lưu thông tin chuyến đi. Các ngày được giữ lại vẫn có lịch trình và ghi chú của bạn.');};
   const finishTrip=()=>{setPage('journal');setCompletionTrip(trip);};
-  const journalChanged=(entry,deleted=false)=>{setTrip(current=>current && entry.sourceTripId===current.id ? {...current,completedAt:deleted?null:entry.date,journalId:deleted?null:entry.id}:current);};
+  const journalChanged=(entry,deleted=false)=>{changePlans(current=>current.map(p=>entry.sourceTripId===p.id?{...p,completedAt:deleted?null:entry.date,journalId:deleted?null:entry.id}:p));};
   let content;
-  if(page==='account')content=<Account account={account} localError={storageError} onBusy={setAccountBusy} onRestored={restored=>{setTrip(restored);setStorageError('');}}/>;
+  if(page==='account')content=<Account account={account} localError={storageError} onBusy={setAccountBusy} onRestored={()=>{const restored=readPlans(window.localStorage);plansRef.current=restored.plans;setPlans(restored.plans);setActiveId(null);setStorageError(restored.error);}}/>;
+  else if(page==='plans')content=<Plans plans={plans} onCreate={()=>setPage('create')} onOpen={id=>{setActiveId(id);setPage('trip');}}/>;
   else if(page==='home')content=<Home key={trip?.id || 'new'} trip={trip} onCreate={create} setPage={setPage}/>;
   else if(page==='create'||page==='edit')content=<TripForm key={page} trip={page==='edit'&&trip?trip:initialDetails} editing={page==='edit'&&!!trip} onSave={page==='edit'?edit:create} onCancel={()=>setPage(trip?'trip':'home')}/>;
   else if(page==='trip'&&trip)content=<Journey trip={trip} setTrip={setTrip} view={view} setView={setView} onEdit={()=>setPage('edit')} onFinish={finishTrip} setPage={setPage}/>;
@@ -87,6 +94,6 @@ function AppContent({account}){
   else if(page==='tools')content=<Tools setPage={setPage}/>;
   else if(page==='ai')content=<AI trip={trip||initialDetails}/>;
   else content=account.loading ? <main className="page" role="status">Đang mở tài khoản…</main> : <Journal key={account.session?.user.id || "guest"} userId={account.session?.user.id} completionTrip={completionTrip} onEntryChange={journalChanged}/>;
-  return <TripRouteProvider key={`${trip?.id}:${trip?.origin}:${trip?.destination}`} trip={mapTrip}><Nav page={page} setPage={setPage} user={account.session?.user}/><LocationStatus/>{trip && <div className="trip-return"><button onClick={()=>setPage('trip')}><ToolIcon name="arrowLeft" className="inline-icon"/> Tổng quan hành trình</button><span>{trip.origin} <ToolIcon name="arrowRight" className="inline-icon"/> {trip.destination}</span></div>}{storageError?<p className="storage-warning" role="alert">{storageError}</p>:trip?<p className="storage-hint">Chuyến đi được lưu trên trình duyệt này. Mở Tài khoản để lưu hoặc tải bản dữ liệu giữa các thiết bị.</p>:null}{feedback&&<p className="save-feedback app-feedback" role="status">{feedback}</p>}{content}{trip && !accountBusy && <TripCompanion trip={mapTrip} setTrip={setTrip}/>}<footer><b><ToolIcon name="mountain" className="inline-icon"/> RideMate</b><span>Đi xa hơn, an toàn hơn, trải nghiệm nhiều hơn.</span><span>Giới thiệu · Hỗ trợ · Góp ý · Chính sách bảo mật</span></footer></TripRouteProvider>;
+  return <TripRouteProvider key={`${trip?.id}:${trip?.origin}:${trip?.destination}`} trip={mapTrip}><Nav page={page} setPage={setPage} user={account.session?.user}/><LocationStatus/><div className="plans-shortcut"><button className="soft" onClick={()=>setPage('plans')}>Kế hoạch của tôi ({plans.length})</button></div>{trip && <div className="trip-return"><button onClick={()=>setPage('trip')}><ToolIcon name="arrowLeft" className="inline-icon"/> Tổng quan hành trình</button><span>{trip.origin} <ToolIcon name="arrowRight" className="inline-icon"/> {trip.destination}</span></div>}{storageError?<p className="storage-warning" role="alert">{storageError}</p>:trip?<p className="storage-hint">Chuyến đi được lưu trên trình duyệt này. Mở Tài khoản để lưu hoặc tải bản dữ liệu giữa các thiết bị.</p>:null}{feedback&&<p className="save-feedback app-feedback" role="status">{feedback}</p>}{content}{trip && !accountBusy && <TripCompanion trip={mapTrip} setTrip={setTrip}/>}<footer><b><ToolIcon name="mountain" className="inline-icon"/> RideMate</b><span>Đi xa hơn, an toàn hơn, trải nghiệm nhiều hơn.</span><span>Giới thiệu · Hỗ trợ · Góp ý · Chính sách bảo mật</span></footer></TripRouteProvider>;
 }
 createRoot(document.getElementById('root')).render(<LocationProvider><App/></LocationProvider>);

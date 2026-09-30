@@ -295,3 +295,16 @@ Kiểm chứng: **67/67 test đạt**, build thành công. Gọi OSRM thật v�
 - Giữ kiểm tra tuyến trong Việt Nam, thứ tự waypoint và cảnh báo các điểm chưa có tọa độ. Cache mới motorcycle:vn-v2 không dùng tuyến OSRM cũ.
 - Thời gian là giả định lập kế hoạch: max(thời gian dịch vụ, km/40) theo chặng. Cộng nghỉ ngắn 15 phút mỗi 2 giờ chạy; khoảng trên cộng 25% dự phòng chạy xe. Không coi là ETA giao thông thực tế, chưa gồm ăn/tham quan/ngủ.
 - Kiểm tra trực tiếp hai điểm đại diện Hà Nội–Cao Bằng: tuyến thay thế khoảng 346,4 km, 11 giờ 45 phút chạy xe (làm tròn 5 phút), gồm nghỉ khoảng 13 giờ–15 giờ 55 phút. Đây là kết quả provider tại lúc kiểm tra, không phải thời gian thực địa đã đo; điểm xuất phát/đến cụ thể và điểm dừng có thể làm thay đổi kết quả.
+# 30/09/2026 — Nhiều kế hoạch, mở theo lựa chọn
+
+- Lên kế hoạch mở danh sách; tạo mới thêm kế hoạch, không thay kế hoạch cũ. Nút
+  Mở kế hoạch chọn trip hiện hành. Khởi động lại trang và quay về danh sách bỏ
+  lựa chọn; không mount bản đồ hành trình/thời tiết/companion cho từng thẻ.
+- `plans-data.js` lưu `ridemate.plans.v1`; tự đọc chuyến cũ `ridemate.trip.v1`
+  nếu chưa có danh sách. Chỉnh sửa/checklist/ghim chỉ cập nhật ID đang mở.
+- Workspace giữ version 1 và bổ sung `trips` (danh sách); `trip` là bản tương thích
+  cho client cũ. Lưu/tải tài khoản và backup/rollback bao gồm toàn bộ danh sách.
+  Không cần migration Supabase mới (payload JSONB hiện tại chấp nhận trường bổ sung).
+- Đồng bộ kế hoạch vẫn thủ công qua Tài khoản → Lưu các kế hoạch/Tải về trình duyệt.
+  Client cũ chỉ biết một trip; nên cập nhật web trên mọi thiết bị trước khi lưu cloud.
+- Chưa push/deploy và chưa kiểm thử trình duyệt thật trong phiên này.

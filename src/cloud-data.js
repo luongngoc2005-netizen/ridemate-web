@@ -1,4 +1,5 @@
 import { isStoredTrip } from './trip-data.js';
+import {validPlans} from './plans-data.js';
 
 const BUCKET = 'journal-photos';
 const text = value => typeof value === 'string';
@@ -7,6 +8,7 @@ const photoData = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
 const unique = items => new Set(items.map(item => item.id)).size === items.length;
 
 export function validateWorkspace(value, remote = false, userId = '') {
+  if(value?.trips!==undefined&&!validPlans(value.trips))throw new Error('Danh sách kế hoạch không hợp lệ.');
   if (!value || value.version !== 1 || !(value.trip === null || isStoredTrip(value.trip)) || !Array.isArray(value.entries)) throw new Error('Dữ liệu chuyến đi không hợp lệ.');
   for (const entry of value.entries) {
     if (!entry || !id(entry.id) || !text(entry.title) || !entry.title.trim() || !text(entry.date) || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) || Number.isNaN(Date.parse(entry.date)) || typeof entry.km !== 'number' || !Number.isFinite(entry.km) || entry.km < 0 || !text(entry.memory) || !text(entry.story) || !Array.isArray(entry.places) || !entry.places.every(text) || !Array.isArray(entry.photos) || entry.photos.length > 8 || (entry.sourceTripId != null && !id(entry.sourceTripId)) || (entry.origin != null && !text(entry.origin)) || (entry.destination != null && !text(entry.destination))) throw new Error('Dữ liệu nhật ký không hợp lệ.');

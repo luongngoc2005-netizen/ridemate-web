@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { journalStore, readWorkspaceBackup } from '../src/journal-data.js';
 import { applyWorkspace, readLocalWorkspace } from '../src/workspace-data.js';
 import { STORAGE_KEY, createTrip } from '../src/trip-data.js';
+import {savePlans,readPlans,PLANS_KEY} from '../src/plans-data.js';
 
 const storage = () => {
   const values = new Map();
@@ -60,4 +61,20 @@ test('IndexedDB failure rolls back the localStorage trip', async () => {
     await assert.rejects(applyWorkspace({ version: 1, trip: null, entries: [] }, local), /IndexedDB denied/);
     assert.equal(JSON.parse(local.getItem(STORAGE_KEY)).id, trip.id);
   } finally { globalThis.indexedDB = realDatabase; }
+});
+
+test('multi-plan download and undo preserve all plans, including when restoring an old single-trip payload',async()=>{
+  const local=storage();
+  const a=createTrip({origin:'Hà Nội',destination:'Hà Giang',date:'2026-09-30',days:2});
+  const b=createTrip({...a,destination:'Cao Bằng'});
+  savePlans(local,[a,b]);
+  assert.equal((await readLocalWorkspace(local)).trips.length,2);
+  await applyWorkspace({version:1,trip:a,entries:[]},local);
+  assert.equal(readPlans(local).plans.length,1);
+  const backup=await readWorkspaceBackup();assert.equal(backup.trips.length,2);
+  await applyWorkspace(backup,local);
+  assert.deepEqual(readPlans(local).plans.map(p=>p.id),[a.id,b.id]);
+  const before=local.getItem(PLANS_KEY),real=globalThis.indexedDB;
+  globalThis.indexedDB={open:()=>{const r={error:new Error('offline')};queueMicrotask(()=>r.onerror());return r;}};
+  try{await assert.rejects(applyWorkspace({version:1,trip:null,trips:[],entries:[]},local));assert.equal(local.getItem(PLANS_KEY),before);}finally{globalThis.indexedDB=real;}
 });

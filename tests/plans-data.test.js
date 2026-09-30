@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createTrip,STORAGE_KEY} from '../src/trip-data.js';
+import {PLANS_KEY,readPlans,savePlans,putPlan} from '../src/plans-data.js';
+import {validateWorkspace} from '../src/cloud-data.js';
+const storage=()=>{const m=new Map();return {getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)}};
+const trip=()=>createTrip({origin:'Hà Nội',destination:'Hà Giang',date:'2026-09-30',days:3});
+test('legacy trip survives migration and adding a second plan',()=>{const s=storage(),a=trip(),b=trip();s.setItem(STORAGE_KEY,JSON.stringify(a));const loaded=readPlans(s);assert.equal(loaded.plans[0].id,a.id);savePlans(s,putPlan(loaded.plans,b));assert.equal(readPlans(s).plans.length,2);assert.equal(JSON.parse(s.getItem(STORAGE_KEY)).id,a.id);});
+test('editing one plan preserves others and corrupt data is not overwritten',()=>{const a=trip(),b=trip();const next=putPlan([a,b],{...a,notes:'changed'});assert.equal(next[1],b);const s=storage();s.setItem(PLANS_KEY,'broken');assert.ok(readPlans(s).error);assert.equal(s.getItem(PLANS_KEY),'broken');assert.throws(()=>savePlans(s,[a,a]));});
+test('workspace validates optional multi-plan list and accepts old payloads',()=>{const a=trip(),b=trip();assert.equal(validateWorkspace({version:1,trip:a,trips:[a,b],entries:[]}).trips.length,2);assert.ok(validateWorkspace({version:1,trip:a,entries:[]}));assert.throws(()=>validateWorkspace({version:1,trip:a,trips:[a,a],entries:[]}));});

@@ -22,7 +22,7 @@ async function database() {
   });
 }
 // Keep the complete previous workspace in the same IndexedDB transaction.
-export async function replaceJournalEntries(entries, previousTrip) {
+export async function replaceJournalEntries(entries, previousTrip, previousPlans) {
   const db = await database();
   try {
     await new Promise((resolve, reject) => {
@@ -30,7 +30,7 @@ export async function replaceJournalEntries(entries, previousTrip) {
       const store = tx.objectStore('entries');
       const old = store.getAll();
       old.onsuccess = () => {
-        tx.objectStore('backups').put({ version: 1, trip: previousTrip, entries: old.result }, 'before-cloud-load');
+        tx.objectStore('backups').put({ version: 1, trip: previousTrip, ...(previousPlans!==undefined?{trips:previousPlans}:{}), entries: old.result }, 'before-cloud-load');
         store.clear();
         entries.forEach(entry => store.put(entry));
       };

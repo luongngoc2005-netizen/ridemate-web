@@ -78,9 +78,9 @@ export default function Account({ account, onRestored, onBusy, localError }) {
     if (localError) throw new Error('Hãy xử lý lỗi lưu dữ liệu trình duyệt trước khi gửi lên tài khoản.');
     if (cloud === undefined) throw new Error('Hãy kiểm tra bản trên tài khoản trước.');
     const workspace = await readLocalWorkspace(); guard();
-    if (!window.confirm(`Lưu chuyến đang lập lên ${session.user.email}? Nhật ký trên tài khoản được giữ nguyên.`)) return;
+    if (!window.confirm(`Lưu các kế hoạch lên ${session.user.email}? Nhật ký trên tài khoản được giữ nguyên.`)) return;
     await requireUser(supabase, userId);
-    const payload = { version: 1, trip: workspace.trip, entries: cloud?.payload.entries || [] };
+    const payload = { version: 1, trip: workspace.trip, trips: workspace.trips || (workspace.trip?[workspace.trip]:[]), entries: cloud?.payload.entries || [] };
     const { data: revision, error } = await supabase.rpc('save_workspace', { expected_user_id: userId, expected_revision: cloud?.revision || 0, new_payload: payload });
     if (error?.code === '40001') throw new Error('Tài khoản vừa có thay đổi. Hãy kiểm tra bản trên tài khoản rồi lưu lại.');
     if (error) throw error;
@@ -133,10 +133,10 @@ export default function Account({ account, onRestored, onBusy, localError }) {
       <p>Nhật ký tự tải theo tài khoản và lưu trực tiếp khi bạn thêm, sửa hoặc xóa bài. Chuyến đang lập vẫn lưu trên trình duyệt; dùng các nút bên dưới để chuyển chuyến sang thiết bị khác.</p>
       <div className="account-actions">
         <button disabled={busy} className="soft" onClick={inspect}>Kiểm tra bản trên tài khoản</button>
-        <button disabled={busy || cloud === undefined} className="green" onClick={upload}>Lưu chuyến đang lập</button>
+        <button disabled={busy || cloud === undefined} className="green" onClick={upload}>Lưu các kế hoạch</button>
         <button disabled={busy || !cloud} className="soft" onClick={download}>Tải về trình duyệt</button>
       </div>
-      {cloud && <p>Bản {cloud.revision} · {new Date(cloud.updated_at).toLocaleString('vi-VN')} · {cloud.payload.entries.length} bài nhật ký · {cloud.payload.trip ? '1 chuyến đang lập' : 'Chưa có chuyến đang lập'}</p>}
+      {cloud && <p>Bản {cloud.revision} · {new Date(cloud.updated_at).toLocaleString('vi-VN')} · {cloud.payload.entries.length} bài nhật ký · {(cloud.payload.trips || (cloud.payload.trip?[cloud.payload.trip]:[])).length} kế hoạch</p>}
       <p>Nhật ký cũ lưu riêng trên trình duyệt có thể nhập từ trang Nhật ký bằng nút “Nhập nhật ký cũ từ trình duyệt”. Việc lưu chuyến không ghi đè nhật ký.</p>
       <button disabled={busy} className="soft" onClick={() => run(async () => { const { error } = await supabase.auth.signOut({ scope: 'local' }); if (error) throw error; })}>Đăng xuất</button>
       <p className="muted-copy">Đăng xuất giữ nguyên dữ liệu trên trình duyệt. Trên máy dùng chung, dữ liệu đã tải vẫn có thể được xem.</p>
