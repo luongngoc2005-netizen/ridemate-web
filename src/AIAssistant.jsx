@@ -81,6 +81,11 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
     const answer=parseAnswer(pending,message);
     if(answer!==null){saveAnswer(pending,answer,message);return;}
     const action=chatAction(message,{hasTrip:!!trip,hasDraft:!!activeDraft});
+    if(['greeting','thanks','clarify'].includes(action)){
+      append({role:'user',text:message});
+      append({role:'assistant',text:action==='greeting'?'Xin chào! Tôi là RideMate, hỗ trợ lên lịch và chuẩn bị chuyến du lịch bằng xe máy. Bạn muốn đi đâu, xuất phát từ đâu và đi mấy ngày?':action==='thanks'?'Rất vui được hỗ trợ bạn! Khi cần, bạn có thể hỏi thêm về lịch trình hoặc chuẩn bị xe trước chuyến đi.':'Bạn muốn tạo lịch trình, chỉnh bản nháp hay hỏi về chuyến đi? Hãy nói rõ yêu cầu; tôi sẽ không tự tạo hoặc thay đổi lịch khi chưa rõ ý bạn.'});
+      return;
+    }
     if(['draft','newDraft','editDraft'].includes(action)){
       setPending(null);append({role:'user',text:message});
       const previous=action==='newDraft'?null:activeDraft;
