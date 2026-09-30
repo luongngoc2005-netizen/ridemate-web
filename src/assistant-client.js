@@ -16,8 +16,9 @@ export async function requestAssistant(payload,{client,fetchImpl=fetch,signal,ex
       NOT_CONFIGURED:'Máy chủ chưa cấu hình đủ AI. Phần đánh giá cơ bản vẫn hoạt động.',
       AUTH_UNAVAILABLE:'Chưa xác minh được đăng nhập. Bạn hãy thử lại sau.',
       AI_CREDENTIALS_INVALID:'Cấu hình khóa API hoặc quyền truy cập model trên máy chủ chưa hợp lệ.',
-      AI_PROVIDER_LIMIT:'Dịch vụ AI đang giới hạn yêu cầu hoặc tài khoản API chưa đủ hạn mức.',
-      AI_PROVIDER_QUOTA:'Tài khoản OpenAI API của ứng dụng đã hết hạn mức. Người quản trị cần kiểm tra Billing và Limits trên OpenAI Platform; thử gửi lại ngay chưa giải quyết được lỗi này.',
+      AI_PROVIDER_LIMIT:'Nhà cung cấp AI đang giới hạn yêu cầu. Hãy thử lại sau; model miễn phí có hạn mức riêng.',
+      AI_PROVIDER_QUOTA:'Tài khoản API của ứng dụng đã hết hạn mức hoặc số dư. Người quản trị cần kiểm tra hạn mức tại nhà cung cấp AI đang cấu hình.',
+      AI_MODEL_UNAVAILABLE:'Model AI chưa khả dụng hoặc không hỗ trợ định dạng lịch trình yêu cầu. Người quản trị cần kiểm tra model đã chọn.',
     };
     throw new Error(messages[result?.error]||'Chưa kết nối được AI. Bạn vẫn có thể dùng đánh giá cơ bản.');
   }

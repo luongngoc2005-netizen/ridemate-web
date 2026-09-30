@@ -1,5 +1,8 @@
 # AI Assistant — đồng hành du lịch bằng xe máy
 
+Backend hỗ trợ cả OpenAI và OpenRouter. Để thử model miễn phí, xem
+[OPENROUTER_SETUP.md](OPENROUTER_SETUP.md). Chọn bằng `AI_PROVIDER`; key chỉ nằm trên server.
+
 Mở kế hoạch → **Kiểm tra chuyến đi của tôi** mở đánh giá ngay trong AI Assistant.
 Mục AI Assistant trên thanh điều hướng mở cuộc trò chuyện với kế hoạch hiện hành.
 Không cần chọn kế hoạch để chat. Gợi ý lịch trình mới, khám phá điểm đến, chỉnh bản nháp và xác nhận lưu đều nằm trong cùng lịch sử tin nhắn, dùng một ô gửi tin.

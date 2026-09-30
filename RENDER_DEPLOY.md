@@ -124,3 +124,7 @@ Nếu chưa có key, server vẫn phục vụ giao diện ở chế độ cơ b�
 Nguồn: [Render Web Services](https://render.com/docs/web-services),
 [Render Environment](https://render.com/docs/configure-environment-variables),
 [Supabase getUser](https://supabase.com/docs/reference/javascript/auth-getuser).
+# Thử OpenRouter
+
+Hướng dẫn cấu hình provider và model miễn phí: [OPENROUTER_SETUP.md](OPENROUTER_SETUP.md).
+Các bước OpenAI bên dưới áp dụng khi `AI_PROVIDER=openai` (mặc định).

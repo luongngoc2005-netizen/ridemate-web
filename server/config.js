@@ -1,8 +1,10 @@
 import {createSupabaseGate} from './supabase-gate.js';
 
 export function serverConfig(env=process.env,{production=true,fetchImpl}={}){
-  const apiKey=env.OPENAI_API_KEY||'';
-  const model=env.OPENAI_MODEL||'gpt-4.1-mini';
+  const provider=env.AI_PROVIDER?.trim()||'openai';
+  if(!['openai','openrouter'].includes(provider))throw new Error('AI_PROVIDER must be openai or openrouter.');
+  const apiKey=(provider==='openrouter'?env.OPENROUTER_API_KEY:env.OPENAI_API_KEY)||'';
+  const model=provider==='openrouter'?(env.OPENROUTER_MODEL||'openrouter/free'):(env.OPENAI_MODEL||'gpt-4.1-mini');
   const url=env.SUPABASE_URL||env.VITE_SUPABASE_URL||'';
   const key=env.SUPABASE_PUBLISHABLE_KEY||env.VITE_SUPABASE_PUBLISHABLE_KEY||'';
   const originValue=env.APP_ORIGIN||(env.RENDER_EXTERNAL_HOSTNAME?`https://${env.RENDER_EXTERNAL_HOSTNAME}`:'');
@@ -14,6 +16,6 @@ export function serverConfig(env=process.env,{production=true,fetchImpl}={}){
   }
   if(url){const parsed=new URL(url);if(parsed.protocol!=='https:'&&!['localhost','127.0.0.1'].includes(parsed.hostname))throw new Error('Supabase requires HTTPS.');}
   if(production&&apiKey&&(!url||!key||!allowedOrigin))throw new Error('AI requires Supabase URL/publishable key and APP_ORIGIN (or Render hostname).');
-  return {apiKey,model,allowedOrigin,production,requireAuth:true,fetchImpl,
+  return {provider,apiKey,model,allowedOrigin,production,requireAuth:true,fetchImpl,
     authorize:url&&key?createSupabaseGate({url,key,fetchImpl}):null};
 }
