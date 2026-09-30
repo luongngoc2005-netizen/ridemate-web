@@ -4,6 +4,13 @@ Chuyển giao sang máy khác: đọc [HANDOFF.md](./HANDOFF.md) để biết c�
 
 Backend Supabase: đăng nhập email/mật khẩu, tên hiển thị, quên mật khẩu và ảnh riêng tư. Nhật ký đã đăng nhập tự đọc/ghi tài khoản khi lưu và cập nhật giữa các thiết bị; chuyến đang lập vẫn lưu/tải thủ công trong **Tài khoản**. Nhật ký local cũ có nút nhập riêng trong trang Nhật ký. Làm theo [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) để cấu hình. Chưa cấu hình vẫn dùng local. Điểm đi/đến chọn bằng danh sách tỉnh/thành.
 
+## Deploy lên Render
+
+Dùng **Web Service**: Build `npm ci --include=dev && npm run build`, Start
+`npm start`, Health Check `/healthz`. Cấu hình OpenAI key phía server, Supabase
+Auth và migration hạn mức theo [RENDER_DEPLOY.md](./RENDER_DEPLOY.md).
+File `render.yaml` có sẵn cấu hình Blueprint. Bản Static Site không chạy API này.
+
 ## Chạy thử
 1. Cài Node.js 22+ (Supabase SDK yêu cầu Node 22)
 2. Mở Terminal tại thư mục `ridemate-web`
@@ -23,11 +30,11 @@ npm run dev
 - Checklist tương tác
 - Công cụ hỗ trợ mở Google Maps
 - Bản đồ cung đường và các điểm hỗ trợ dọc đường
-- AI Assistant demo cục bộ
+- AI Assistant theo kế hoạch, có backend OpenAI và chế độ đánh giá cơ bản
 - Nhật ký hành trình
 - Responsive cơ bản
 
-Lưu ý: AI hiện là demo logic cục bộ, chưa gọi API thật.
+AI chỉ gọi API sau khi cấu hình máy chủ và đăng nhập. Chưa cấu hình vẫn dùng đánh giá cơ bản. Xem [AI_ASSISTANT.md](./AI_ASSISTANT.md).
 
 ## Hành trình có thể chỉnh sửa
 - Tạo chuyến đi từ Khám phá hoặc Lên kế hoạch; dùng nút **Tổng quan hành trình** để quay lại từ mọi màn hình.

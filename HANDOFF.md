@@ -308,3 +308,43 @@ Kiểm chứng: **67/67 test đạt**, build thành công. Gọi OSRM thật v�
 - Đồng bộ kế hoạch vẫn thủ công qua Tài khoản → Lưu các kế hoạch/Tải về trình duyệt.
   Client cũ chỉ biết một trip; nên cập nhật web trên mọi thiết bị trước khi lưu cloud.
 - Chưa push/deploy và chưa kiểm thử trình duyệt thật trong phiên này.
+
+## 30/09/2026 — AI Assistant đồng hành xe máy
+
+- Thay phần trả lời mẫu bằng hội thoại theo kế hoạch đang mở. CTA Kiểm tra chuyến đi
+  mở đánh giá ngay trong AI Assistant; giữ tên AI Assistant trên điều hướng.
+- Hồ sơ người lái dùng lại trên trình duyệt; hỏi từng dữ liệu còn thiếu, nhận câu trả
+  lời thời gian qua chat. Ngày mai tính theo ngày Việt Nam, không mặc định là ngày 2.
+- Câu trả lời có gợi ý, lý do cá nhân hóa, điểm dừng có nguồn và một câu hỏi tiếp.
+  Không lấy ghim toàn tuyến làm ghim riêng cho ngày chưa xác định được đoạn đường.
+- Xem trước/áp dụng giảm một điểm tham quan sang Để sau; đưa lại cuối lịch trình.
+  Bảo toàn ghim, loại thời gian cũ sau sửa tuyến, chặn áp dụng đề xuất lỗi thời.
+  Không đề xuất bỏ các điểm có loại cây xăng, sửa xe hoặc chỗ nghỉ.
+- Có middleware OpenAI cho Vite dev, secret chỉ phía server. API chỉ hiểu ý định
+  và trích câu trả lời có cấu trúc; dữ liệu, phép tính và sửa lịch do RideMate quản lý.
+  Chưa cấu hình khóa thật, gọi API trả phí hay triển khai backend production.
+  Hướng dẫn và giới hạn: AI_ASSISTANT.md.
+- Xác minh: toàn bộ 95 tests đạt trước kiểm thử bổ sung bảo toàn điểm hỗ trợ;
+  14 tests AI/đánh giá đạt sau thay đổi cuối; production build đạt (cảnh báo bundle
+  lớn có sẵn). Kiểm tra trình duyệt: chọn kế hoạch, nhập giờ qua chat, dùng lại hồ sơ,
+  ngày mai ngoài kế hoạch, vượt thời gian, áp dụng/đưa lại điểm, khóa gợi ý cũ,
+  xuất phát muộn. Kiểm tra chiều rộng 390px không tràn ngang.
+
+## 30/09/2026 — Backend production cho Render Web Service
+
+- Node server phục vụ dist và API cùng nguồn, npm start, bind 0.0.0.0:PORT,
+  health /healthz, shutdown SIGTERM. Không dùng Vite dev/preview khi deploy.
+- Xác minh token Supabase bằng getUser; chặn phiên thiếu/sai/anonymous. Client gửi
+  access token hiện tại và bỏ kết quả khi tài khoản thay đổi. Khách vẫn dùng local.
+- Migration 202609300001_ai_quota.sql thêm bộ đếm bền vững, không lưu nội dung:
+  10/phút và 50/ngày mỗi tài khoản, 500/ngày toàn app (UTC). Cấp lượt atomic;
+  không mất khi restart, dùng chung instance, fail closed nếu migration/quota lỗi.
+- Chỉ phục vụ file trong dist, chặn dotfile/traversal/source, SPA fallback cho
+  navigation; JSON 404 cho API hoặc asset không tồn tại. Giới hạn body32KiB,
+  concurrency8, timeout, origin và thông báo lỗi không lộ provider response/key.
+- Thêm render.yaml và RENDER_DEPLOY.md: build/start/env/migration/auth redirects.
+  Không cần service_role key; backend tái dùng publishable key Supabase hiện có.
+- Xác minh 104/104 tests đạt, build đạt (cảnh báo bundle lớn sẵn có). Máy chủ
+  production thật chạy ở cổng10000: trang200, health ok, trạng thái AI chưa cấu hình.
+  HTTP auth/quota/provider dùng giả lập; migration thực chạy trên PGlite.
+- Chưa push, deploy Render, chạy SQL trên Supabase thật hoặc gọi OpenAI trả phí.
