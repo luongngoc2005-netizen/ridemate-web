@@ -1,5 +1,7 @@
 import {apiError} from './supabase-gate.js';
 
+export const providerTimeout=provider=>provider==='openrouter'?90000:30000;
+
 // Keep the existing Responses contract while adapting OpenRouter Chat Completions.
 export function providerFetch(provider='openai',fetchImpl=fetch){
   if(!['openai','openrouter'].includes(provider))throw new Error('Unsupported AI_PROVIDER');

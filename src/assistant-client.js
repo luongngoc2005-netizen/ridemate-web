@@ -9,6 +9,7 @@ export async function requestAssistant(payload,{client,fetchImpl=fetch,signal,ex
   let result;try{result=await response.json();}catch{throw new Error('Máy chủ AI chưa phản hồi đúng định dạng. Bạn vẫn có thể dùng đánh giá cơ bản.');}
   if(!response.ok){
     const messages={
+      AI_TIMEOUT:'AI phản hồi quá chậm nên yêu cầu đã hết thời gian chờ. Bạn hãy thử lại sau hoặc yêu cầu lịch trình ngắn hơn. Model miễn phí có thể bận.',
       AUTH_REQUIRED:'Phiên đăng nhập hết hạn hoặc chưa hợp lệ. Hãy đăng nhập lại để dùng AI.',
       QUOTA_EXCEEDED:'Đã đạt hạn mức AI của tài khoản hoặc toàn ứng dụng. Hãy thử lại sau; đánh giá cơ bản vẫn hoạt động.',
       SERVER_BUSY:'AI đang xử lý nhiều yêu cầu. Bạn hãy thử lại sau một chút.',

@@ -11,6 +11,17 @@ const answer={intent:'review',dayNumber:1,answer:null};
 const completion=(value,finish_reason='stop')=>new Response(JSON.stringify({choices:[{finish_reason,message:{content:JSON.stringify(value)}}]}));
 const config={provider:'openrouter',apiKey:'test-router-key',model:'openrouter/free'};
 
+test('provider timeout returns a stable error instead of DOMException code 23',async()=>{
+  for(const url of ['/api/assistant','/api/assistant/draft']){
+    const middleware=assistantMiddleware({...config,authorize:async()=>async()=>{},fetchImpl:async()=>{throw new DOMException('Timed out','TimeoutError');}});
+    const req=Readable.from([JSON.stringify(url.endsWith('/draft')?{message:'Plan a trip'}:payload)]);
+    Object.assign(req,{url,method:'POST',headers:{'content-type':'application/json','x-ridemate-assistant':'1'}});
+    let status,body;
+    await middleware(req,{writeHead:n=>{status=n;},end:s=>{body=JSON.parse(s);}},()=>{});
+    assert.equal(status,504);assert.deepEqual(body,{error:'AI_TIMEOUT'});
+  }
+});
+
 test('provider selection never borrows the other provider key and rejects typos',()=>{
   const c=serverConfig({AI_PROVIDER:'openrouter',OPENAI_API_KEY:'other'},{production:false});
   assert.equal(c.apiKey,'');assert.equal(c.model,'openrouter/free');

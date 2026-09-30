@@ -3,7 +3,7 @@ import {intents, parseAnswer} from '../src/assistant-data.js';
 import {cleanProfile,profileQuestions} from '../src/ride-review.js';
 import {apiError} from './supabase-gate.js';
 import {generateDraft,normalizeDraftRequest} from './draft-api.js';
-import {providerFetch} from './ai-provider.js';
+import {providerFetch,providerTimeout} from './ai-provider.js';
 
 export function normalizePayload(payload){
   const text=(value,max,optional=false)=>{
@@ -51,7 +51,7 @@ export async function interpretMessage(payload,{provider='openai',apiKey,model,f
   if(!apiKey||!model)throw new Error('NOT_CONFIGURED');
   payload=normalizePayload(payload);
   const response=await providerFetch(provider,fetchImpl)('https://api.openai.com/v1/responses',{
-    method:'POST',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(25000)]):AbortSignal.timeout(25000),
+    method:'POST',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(providerTimeout(provider))]):AbortSignal.timeout(providerTimeout(provider)),
     headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
     body:JSON.stringify({model,store:false,max_output_tokens:500,instructions,input:JSON.stringify(payload),text:{format:{type:'json_schema',name:'ridemate_intent',strict:true,schema}}}),
   });
@@ -90,7 +90,7 @@ export function assistantMiddleware({provider='openai',apiKey,model,fetchImpl,au
     if(active>=8)return send(429,{error:'SERVER_BUSY'});
     active++;
     const controller=new AbortController();
-    const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(35000)]);
+    const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(providerTimeout(provider)+20000)]);
     const disconnected=()=>{if(!res.writableEnded)controller.abort();};
     req.once?.('aborted',disconnected);res.once?.('close',disconnected);
     try{
@@ -102,7 +102,10 @@ export function assistantMiddleware({provider='openai',apiKey,model,fetchImpl,au
       if(requireAuth){const reserve=await authorize(req.headers.authorization,signal);await reserve();}
       signal.throwIfAborted();
       const result=await (drafting?generateDraft:interpretMessage)(payload,{provider,apiKey,model,fetchImpl,signal});send(200,result);
-    }catch(error){send(error.status||((error.name==='TimeoutError'||signal.aborted)?504:502),{error:error.code||'ASSISTANT_UNAVAILABLE'});}
+    }catch(error){
+      const timedOut=error.name==='TimeoutError'||signal.reason?.name==='TimeoutError';
+      send(timedOut?504:(error.status||502),{error:timedOut?'AI_TIMEOUT':(typeof error.code==='string'?error.code:'ASSISTANT_UNAVAILABLE')});
+    }
     finally{active--;req.removeListener?.('aborted',disconnected);res.removeListener?.('close',disconnected);}
   };
 }

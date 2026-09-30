@@ -28,6 +28,7 @@ hoặc OpenAI khi hết hạn mức. Có thể chọn ID model cụ thể trong 
 nhưng phải kiểm tra giá và hỗ trợ structured output trước.
 
 - `AI_PROVIDER_LIMIT`: nhà cung cấp giới hạn yêu cầu; thử lại sau, không gửi liên tục.
+- `AI_TIMEOUT`: model chưa trả lời trong 90 giây. Thử lại sau hoặc dùng model tương thích khác; backend không tự thử lại để tránh tiêu thụ thêm hạn mức.
 - `AI_PROVIDER_QUOTA`: hết số dư/hạn mức phía nhà cung cấp.
 - `AI_MODEL_UNAVAILABLE`: model/endpoint không khả dụng hoặc không hỗ trợ schema.
 - `AI_CREDENTIALS_INVALID`: kiểm tra key và quyền truy cập model.
