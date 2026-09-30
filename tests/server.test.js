@@ -9,6 +9,7 @@ import {serverConfig} from '../server/config.js';
 import {createSupabaseGate,apiError} from '../server/supabase-gate.js';
 import {normalizePayload} from '../server/assistant-api.js';
 import {requestAssistant} from '../src/assistant-client.js';
+import {basicDraft} from '../src/assistant-draft.js';
 
 const payload={message:'Ngày mai tôi nên đi thế nào?',question:null,context:{days:[{title:'Ngày 1',places:[]}],profile:{bike:'scooter'}}};
 const output={intent:'tomorrow',dayNumber:null,answer:null};
@@ -24,6 +25,17 @@ async function fixture(options,run){
   }finally{if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}await rm(directory,{recursive:true,force:true});}
 }
 const post=(url,body=payload,headers={})=>fetch(`${url}/api/assistant`,{method:'POST',headers:{'content-type':'application/json','x-ridemate-assistant':'1',...headers},body:JSON.stringify(body)});
+test('draft endpoint without a plan still requires authenticated quota and validates context',async()=>{
+ let calls=0,reserved=0;
+ const draft=basicDraft('3N2Đ HN - CB');
+ await fixture({apiKey:'test',model:'test',authorize:async token=>{if(token!=='Bearer valid')throw apiError(401,'AUTH_REQUIRED');return async()=>{reserved++;};},fetchImpl:async()=>{calls++;return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(draft)}]}]}));}},async url=>{
+  const send=(body,token='valid')=>fetch(`${url}/api/assistant/draft`,{method:'POST',headers:{'content-type':'application/json','x-ridemate-assistant':'1',authorization:`Bearer ${token}`},body:JSON.stringify(body)});
+  assert.equal((await send({message:'3N2Đ HN - CB'},'bad')).status,401);
+  assert.equal((await send({message:'sửa',previous:{}})).status,400);
+  const response=await send({message:'3N2Đ HN - CB'});assert.equal(response.status,200);assert.deepEqual((await response.json()).draft,draft);
+  assert.equal(calls,1);assert.equal(reserved,1);
+ });
+});
 
 test('production server serves build, health and SPA routes without exposing secrets or source',async()=>{
   await fixture({},async url=>{

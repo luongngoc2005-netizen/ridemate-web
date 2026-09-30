@@ -2,7 +2,7 @@
 
 Mở kế hoạch → **Kiểm tra chuyến đi của tôi** mở đánh giá ngay trong AI Assistant.
 Mục AI Assistant trên thanh điều hướng mở cuộc trò chuyện với kế hoạch hiện hành.
-Không có kế hoạch được chọn thì trợ lý yêu cầu chọn kế hoạch, không dùng dữ liệu mẫu.
+Không cần chọn kế hoạch để chat. Gợi ý lịch trình mới, khám phá điểm đến, chỉnh bản nháp và xác nhận lưu đều nằm trong cùng lịch sử tin nhắn, dùng một ô gửi tin.
 
 ## Phạm vi bản đầu
 
@@ -44,3 +44,26 @@ Không cần service_role key. OPENAI_API_KEY chỉ ở server, không dùng ti�
 
 Chưa gọi API bằng khóa thật trong phiên viết code. Kiểm thử dùng phản hồi giả lập.
 Tham chiếu: https://developers.openai.com/api/docs/guides/structured-outputs
+# Luồng tạo bản nháp trước kế hoạch
+
+AI Assistant mở một khung chat duy nhất, dùng được khi chưa chọn kế hoạch.
+`POST /api/assistant/draft` dùng chung kiểm tra đăng nhập, origin, kích thước và hạn mức
+với endpoint cũ. Responses Structured Outputs tạo bản nháp 1–7 ngày; gửi bản nháp
+hiện tại khi chỉnh qua hội thoại. Không tự lưu hay đặt dịch vụ. Luồng kiểm tra kế hoạch
+cũ trả lời ngay trong cùng khung chat. Không có tab hay màn hình lên lịch riêng.
+
+Mẫu HN–CB 3N2Đ hoạt động khi chưa đăng nhập hoặc AI không sẵn sàng; được ghi rõ là
+gợi ý cơ bản. Những yêu cầu khác và chỉnh tự do bằng hội thoại cần AI hoạt động.
+Người dùng vẫn sửa trực tiếp nội dung ngày và danh sách điểm trước khi xác nhận.
+
+Giá vé, phòng, nhiên liệu và thời gian tuyến chưa có nguồn cập nhật được hiển thị
+chưa xác minh, không coi là miễn phí và không cộng tổng giả. Nguồn Vietnam Tourism
+chỉ hỗ trợ tên điểm đến, không phải bảng giá. Điểm trên bản đồ là tìm kiếm theo tên.
+
+Xác nhận ngày, giờ, điểm xuất phát và số người/xe tạo kế hoạch mới với đúng các ngày,
+ghi chú và checklist đã duyệt. Hồ sơ xe tùy chọn. Lưu trình duyệt thất bại giữ bản nháp;
+lưu thành công vẫn ở trong chat, có nút Mở kế hoạch khi người dùng muốn chuyển sang xem. Chưa đặt phòng, mua vé hoặc xác minh
+sức chạy. Bản nháp chưa lưu chỉ tồn tại trong phiên màn hình, không tự đồng bộ.
+
+Đã kiểm tra bằng trình duyệt luồng khách không có kế hoạch → bản nháp → xác nhận →
+kế hoạch. API được kiểm thử với provider giả lập; chưa xác minh bằng khóa thật.

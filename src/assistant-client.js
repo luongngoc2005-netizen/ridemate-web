@@ -1,8 +1,8 @@
-export async function requestAssistant(payload,{client,fetchImpl=fetch,signal,expectedUserId}={}){
+export async function requestAssistant(payload,{client,fetchImpl=fetch,signal,expectedUserId,drafting=false}={}){
   if(!client)throw new Error('Cần cấu hình tài khoản trước khi dùng AI. Phần đánh giá cơ bản vẫn hoạt động.');
   const {data,error}=await client.auth.getSession();
   if(error||!data.session?.access_token||!expectedUserId||data.session.user?.id!==expectedUserId)throw new Error('Phiên đăng nhập đã thay đổi. Hãy đăng nhập lại để dùng AI.');
-  const response=await fetchImpl('/api/assistant',{
+  const response=await fetchImpl(drafting?'/api/assistant/draft':'/api/assistant',{
     method:'POST',headers:{'Content-Type':'application/json','X-RideMate-Assistant':'1',Authorization:`Bearer ${data.session.access_token}`},signal,
     body:JSON.stringify(payload),
   });

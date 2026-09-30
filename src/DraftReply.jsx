@@ -1,0 +1,30 @@
+import React,{useRef,useState} from 'react';
+import {cleanDraft,confirmDraft,draftCosts} from './assistant-draft.js';
+import './assistant-planner.css';
+
+export default function DraftReply({draft,mode,active,busy,saved,onChange,onCreatePlan,onOpenPlan}){
+  const [confirm,setConfirm]=useState(false),[error,setError]=useState('');
+  const editDay=(index,key,value)=>{setConfirm(false);onChange({...draft,days:draft.days.map((day,i)=>i===index?{...day,[key]:value}:day)});};
+  return <div className="ai-draft-message">{error&&<p role="alert">{error}</p>}
+    <div className="draft-result"><span className="ai-kicker">{mode} · {saved?"ĐÃ LƯU":"BẢN NHÁP"}</span><h2>{draft.days.length} ngày {Math.max(0,draft.days.length-1)} đêm · {draft.origin} → {draft.destination}</h2><p>{draft.summary}</p>
+      <h3>Giả định của bản nháp</h3><ul>{draft.assumptions.map((x,i)=><li key={i}>{x}</li>)}</ul>
+      {draft.days.map((day,i)=><article className="draft-day" key={i}><h3>Ngày {i+1}: {day.title}</h3><p><b>Sáng: </b>{day.morning}</p><p><b>Chiều: </b>{day.afternoon}</p><p><b>Tối: </b>{day.evening}</p><p><b>Nghỉ đêm: </b>{day.lodging}</p>
+        <ul>{day.stops.map((name,j)=><li key={`${name}:${j}`}>{name} · <a target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name}, ${draft.destination}`)}`}>Tìm trên bản đồ</a></li>)}</ul>
+        <details><summary>Chỉnh sửa ngày này</summary>{[['title','Tên chặng'],['morning','Buổi sáng'],['afternoon','Buổi chiều'],['evening','Buổi tối'],['lodging','Nơi nghỉ dự kiến']].map(([key,label])=><label key={key}>{label}<textarea disabled={busy||!active||!!saved} value={day[key]} maxLength={key==='title'?200:600} onChange={e=>editDay(i,key,e.target.value)}/></label>)}<label>Điểm tham quan (mỗi dòng một điểm, tối đa 5)<textarea disabled={busy||!active||!!saved} value={day.stops.join('\n')} onChange={e=>editDay(i,'stops',e.target.value.split('\n'))}/></label></details>
+      </article>)}
+      <h3>Vé tham quan và ngân sách</h3><p>Chưa có bảng giá hiện hành được xác minh. Không cộng các khoản chưa biết thành tổng chi phí.</p><div className="draft-table"><table><thead><tr><th>Khoản</th><th>Đơn vị</th><th>Giá</th></tr></thead><tbody>{draftCosts(draft).map(f=><tr key={f.name}><td>{f.name}{f.source&&<> · <a href={f.source} target="_blank" rel="noreferrer">Tham khảo điểm đến (không phải bảng giá)</a></>}</td><td>{f.unit}</td><td>{f.value}</td></tr>)}{[['Nghỉ đêm',`${draft.days.length-1} đêm × số phòng`],['Ăn uống',`${draft.days.length} ngày × số người`],['Nhiên liệu','Quãng đường × mức tiêu hao × giá xăng × số xe'],['Dự phòng','Nghỉ thêm, gửi xe, sửa xe']].map(([name,unit])=><tr key={name}><td>{name}</td><td>{unit}</td><td>Chưa xác minh</td></tr>)}</tbody></table></div>
+      <h3>Đồ nên chuẩn bị</h3><ul>{draft.checklist.map((x,i)=><li key={i}>{x}</li>)}</ul><h3>Trước khi chốt</h3><ul>{draft.warnings.map((x,i)=><li key={i}>{x}</li>)}</ul><p>Thời gian, quãng đường, giá vé và điều kiện đường chưa xác minh. Liên kết bản đồ là tìm kiếm theo tên; không phải tuyến xe máy đã kiểm tra.</p>
+      {saved?<p>Đã tạo kế hoạch. <button className="soft" onClick={()=>onOpenPlan(saved.id)}>Mở kế hoạch</button></p>:!active?<p>Bản này đã có phiên bản mới hơn trong cuộc trò chuyện.</p>:!confirm?<button className="green" disabled={busy||!active||!!saved} onClick={()=>{try{cleanDraft(draft);setError('');setConfirm(true);}catch(e){setError(e.message);}}}>Dùng lịch trình này</button>:<fieldset disabled={busy}><Confirmation key={JSON.stringify(draft)} draft={draft} onCancel={()=>setConfirm(false)} onSave={plan=>{onCreatePlan(plan);setConfirm(false);}}/></fieldset>}
+    </div>
+  </div>;
+}
+function Confirmation({draft,onCancel,onSave}){
+  const [error,setError]=useState(''),saving=useRef(false);
+  return <form className="draft-confirm" onSubmit={e=>{e.preventDefault();if(saving.current)return;saving.current=true;try{const details=Object.fromEntries(new FormData(e.currentTarget));const trip=confirmDraft(draft,details);onSave(trip);}catch(failure){setError(failure.message);saving.current=false;}}}>
+    <h3>Xác nhận để tạo kế hoạch</h3><p>Lưu đúng các ngày và điểm đang hiển thị. Thay đổi điểm xuất phát cần tính lại tuyến; bản này chưa xác nhận vừa sức và chưa đặt dịch vụ.</p>
+    <div className="draft-fields"><label>Ngày xuất phát<input name="date" type="date" required/></label><label>Giờ xuất phát<input name="departure" type="time" required/></label><label>Điểm xuất phát cụ thể<input name="origin" defaultValue={draft.origin==='Chưa xác định'?'':draft.origin} maxLength={200} required/></label><label>Số người<input name="people" type="number" min={1} max={30} required/></label><label>Số xe<input name="vehicles" type="number" min={1} max={30} required/></label></div>
+    <details><summary>Xe và sức chạy (có thể bổ sung sau)</summary><div className="draft-fields"><label>Loại xe<select name="bike"><option value="">Chưa cung cấp</option><option value="scooter">Xe ga</option><option value="semi">Xe số</option><option value="manual">Xe côn</option></select></label><label>Kinh nghiệm<select name="experience"><option value="">Chưa cung cấp</option><option value="new">Chưa quen đi xa</option><option value="experienced">Đã quen đi xa</option></select></label><label>Giờ chạy tối đa mỗi ngày<input name="hours" type="number" min={1} max={12}/></label><label>Tránh chạy tối<select name="avoidDark"><option value="">Chưa cung cấp</option><option value="yes">Có</option><option value="no">Không ưu tiên</option></select></label></div><p>Chưa có thời gian tuyến để đối chiếu các giới hạn này. Với người mới hoặc sức chạy thấp, hãy cân nhắc thêm ngày trước khi xác nhận.</p></details>
+    <label className="draft-ack"><input type="checkbox" required/> Tôi đã xem lịch trình và hiểu rằng tuyến, giá vé và nơi nghỉ còn cần kiểm tra.</label>
+    {error&&<p role="alert">{error}</p>}<button className="green" type="submit">Xác nhận tạo kế hoạch</button> <button type="button" className="soft" onClick={onCancel}>Quay lại chỉnh</button>
+  </form>;
+}

@@ -2,6 +2,7 @@
 import {intents, parseAnswer} from '../src/assistant-data.js';
 import {cleanProfile,profileQuestions} from '../src/ride-review.js';
 import {apiError} from './supabase-gate.js';
+import {generateDraft,normalizeDraftRequest} from './draft-api.js';
 
 export function normalizePayload(payload){
   const text=(value,max,optional=false)=>{
@@ -73,7 +74,8 @@ export async function interpretMessage(payload,{apiKey,model,fetchImpl=fetch,sig
 export function assistantMiddleware({apiKey,model,fetchImpl,authorize,allowedOrigin='',requireAuth=true,production=false}={}){
   let active=0;
   return async (req,res,next)=>{
-    if(!['/api/assistant','/api/assistant/status'].includes(req.url?.split('?')[0]))return next();
+    if(!['/api/assistant','/api/assistant/status','/api/assistant/draft'].includes(req.url?.split('?')[0]))return next();
+    const drafting=req.url.split('?')[0]==='/api/assistant/draft';
     const send=(status,data)=>{if(res.destroyed||res.writableEnded)return;res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store',...(status===429?{'Retry-After':'60'}:{})});res.end(JSON.stringify(data));};
     if(req.url.split('?')[0]==='/api/assistant/status')return req.method==='GET'?send(200,{ready:!!(apiKey&&model&&(!requireAuth||authorize)),authRequired:requireAuth}):send(405,{error:'METHOD_NOT_ALLOWED'});
     if(req.method!=='POST')return send(405,{error:'METHOD_NOT_ALLOWED'});
@@ -95,10 +97,10 @@ export function assistantMiddleware({apiKey,model,fetchImpl,authorize,allowedOri
       for await(const chunk of req){const bytes=Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk);size+=bytes.length;if(size>32768)return send(413,{error:'REQUEST_TOO_LARGE'});chunks.push(bytes);}
       data=Buffer.concat(chunks).toString('utf8');
       let payload;try{payload=JSON.parse(data);}catch{return send(400,{error:'INVALID_JSON'});}
-      payload=normalizePayload(payload);
+      payload=drafting?normalizeDraftRequest(payload):normalizePayload(payload);
       if(requireAuth){const reserve=await authorize(req.headers.authorization,signal);await reserve();}
       signal.throwIfAborted();
-      const result=await interpretMessage(payload,{apiKey,model,fetchImpl,signal});send(200,result);
+      const result=await (drafting?generateDraft:interpretMessage)(payload,{apiKey,model,fetchImpl,signal});send(200,result);
     }catch(error){send(error.status||((error.name==='TimeoutError'||signal.aborted)?504:502),{error:error.code||'ASSISTANT_UNAVAILABLE'});}
     finally{active--;req.removeListener?.('aborted',disconnected);res.removeListener?.('close',disconnected);}
   };

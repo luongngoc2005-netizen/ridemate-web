@@ -6,20 +6,22 @@ import {supportTypes} from './places-data.js';
 import {supabase} from './supabase.js';
 import {requestAssistant} from './assistant-client.js';
 import './ai-assistant.css';
+import DraftReply from './DraftReply.jsx';
+import {basicDraft,cleanDraft} from './assistant-draft.js';
+import {chatAction,draftExample} from './assistant-chat.js';
 
 const quickPrompts=['Kiểm tra chuyến đi của tôi','Ngày mai tôi nên đi thế nào?','Tôi xuất phát muộn','Tôi đang mệt','Tôi đang gặp mưa','Chuẩn bị theo xe của tôi'];
 const profileNames={bike:'Loại xe',party:'Người đi cùng',experience:'Kinh nghiệm',hours:'Giờ chạy mỗi ngày',avoidDark:'Tránh chạy tối'};
 
-export default function AIAssistant({trip,setTrip,setPage,initialReview=false,userId=null}) {
-  if(!trip)return <main className="page ai-assistant"><section className="card ai-empty"><span className="ai-kicker">RIDEMATE</span><h1>AI Assistant</h1><h2>Trợ lý đồng hành du lịch bằng xe máy</h2><p>Mở một kế hoạch để tôi đọc chặng đi, các điểm đã chọn và giúp bạn điều chỉnh lịch trình theo người lái.</p><button className="green" onClick={()=>setPage('plans')}>Chọn kế hoạch của tôi</button></section></main>;
-  return <Conversation key={`${trip.id}:${userId||'guest'}`} trip={trip} setTrip={setTrip} initialReview={initialReview} userId={userId} setPage={setPage}/>;
+export default function AIAssistant(props) {
+  return <Conversation key={props.userId||'guest'} {...props}/>;
 }
 
-function Conversation({trip,setTrip,initialReview,userId,setPage}) {
+function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,onOpenPlan}) {
   const routeState=useTripRoute();
   const [profile,setProfile]=useState(()=>{try{return cleanProfile(JSON.parse(localStorage.getItem(PROFILE_KEY)||'{}'));}catch{return {};}});
   const [storageError,setStorageError]=useState('');
-  const [dayId,setDayId]=useState(trip.itinerary[0].id);
+  const [dayId,setDayId]=useState(trip?.itinerary[0]?.id);
   const [intent,setIntent]=useState('review');
   const [messages,setMessages]=useState([]);
   const [pending,setPending]=useState(null);
@@ -30,7 +32,9 @@ function Conversation({trip,setTrip,initialReview,userId,setPage}) {
   const online=service.ready&&(!service.authRequired||!!userId);
   const [showProposal,setShowProposal]=useState(null);
   const sequence=useRef(0), started=useRef(false), messageList=useRef(null), request=useRef(null);
-  const day=trip.itinerary.find(d=>d.id===dayId)||trip.itinerary[0];
+  const day=trip?.itinerary.find(d=>d.id===dayId)||trip?.itinerary[0];
+  const [draftId,setDraftId]=useState(null);
+  const activeDraft=messages.find(m=>m.id===draftId&&!m.saved)?.draft||null;
   const contextRef=useRef();contextRef.current={trip,profile,day,routeState};
   const append=message=>setMessages(current=>[...current,{...message,id:++sequence.current}]);
   useEffect(()=>{
@@ -38,19 +42,21 @@ function Conversation({trip,setTrip,initialReview,userId,setPage}) {
     fetch('/api/assistant/status',{signal:controller.signal}).then(r=>r.ok?r.json():null).then(data=>{if(!controller.signal.aborted)setService({ready:data?.ready===true,authRequired:data?.authRequired!==false});}).catch(()=>{});
     return ()=>{controller.abort();request.current?.abort();};
   },[]);
-  useEffect(()=>{const list=messageList.current;list?.scrollTo({top:list.scrollHeight,behavior:'smooth'});},[messages,busy]);
+  useEffect(()=>{const list=messageList.current;const last=list?.lastElementChild;if(last)list.scrollTo({top:last.offsetTop-list.offsetTop,behavior:'smooth'});},[messages.length,busy]);
 
   const respond=(messageIntent,target=day,currentTrip=trip,currentProfile=profile,intro='',askFollowUp=true)=>{
+    if(!currentTrip||!target)return;
     const reply=buildReply({trip:currentTrip,day:target,profile:currentProfile,route:routeState.route,places:routeState.places,intent:messageIntent,intro,askFollowUp});
     append({role:'assistant',reply});
     setPending(reply.question?{...reply.question,dayId:target.id}:null);
     setIntent(messageIntent);
   };
   useEffect(()=>{
-    if(initialReview&&!started.current){started.current=true;append({role:'user',text:quickPrompts[0]});respond('review');}
+    if(initialReview&&trip&&!started.current){started.current=true;append({role:'user',text:quickPrompts[0]});respond('review');}
   },[initialReview]);
 
   const saveAnswer=(question,value,label=value)=>{
+    if(!trip)return;
     append({role:'user',text:String(label)});setError('');
     if(question.key==='selectDay'){
       const target=trip.itinerary.find(d=>d.id===value);if(!target)return;
@@ -74,11 +80,27 @@ function Conversation({trip,setTrip,initialReview,userId,setPage}) {
     setText('');setError('');
     const answer=parseAnswer(pending,message);
     if(answer!==null){saveAnswer(pending,answer,message);return;}
+    const action=chatAction(message,{hasTrip:!!trip,hasDraft:!!activeDraft});
+    if(['draft','newDraft','editDraft'].includes(action)){
+      setPending(null);append({role:'user',text:message});
+      const previous=action==='newDraft'?null:activeDraft;
+      let next=null,mode='Gợi ý từ dữ liệu có sẵn';
+      if(online){
+        setBusy(true);const controller=new AbortController();request.current=controller;
+        try{const result=await requestAssistant({message,previous},{client:supabase,signal:controller.signal,expectedUserId:userId,drafting:true});next=cleanDraft(result.draft);mode='Bản nháp do AI đề xuất';}
+        catch(failure){if(controller.signal.aborted)return;append({role:'assistant',text:failure.message});}
+        finally{setBusy(false);request.current=null;}
+      }
+      if(!next&&!previous)next=basicDraft(message);
+      if(next){const id=++sequence.current;setMessages(current=>[...current,{id,role:'assistant',draft:next,mode}]);setDraftId(id);}
+      else append({role:'assistant',text:previous?'Tôi chưa xử lý được thay đổi này khi AI không sẵn sàng. Bản nháp vẫn được giữ ở trên; bạn có thể chỉnh từng ngày ngay trong tin nhắn đó.':'Tôi chưa tạo được lịch trình này khi AI không sẵn sàng. Bạn có thể thử “Lịch trình 3N2Đ từ HN đến CB” hoặc đăng nhập khi AI đã cấu hình.'});
+      return;
+    }
     let detected=detectIntent(message), target=day, interpreted=null;
-    const explore=()=>{append({role:'user',text:message});append({role:'assistant',exploration:destinationReply(message,trip)});setPending(null);};
+    const explore=()=>{append({role:'user',text:message});append({role:'assistant',exploration:destinationReply(message,activeDraft||trip||{destination:"điểm đến bạn muốn khám phá"})});setPending(null);};
     // Source-backed destination suggestions also work without a paid AI call.
     if(detected==='explore'){explore();return;}
-    if(online){
+    if(online&&trip){
       setBusy(true);const controller=new AbortController();request.current=controller;
       const snapshot=JSON.stringify([trip,profile]);
       try{
@@ -117,25 +139,25 @@ function Conversation({trip,setTrip,initialReview,userId,setPage}) {
 
   return <main className="page ai-assistant">
     <header className="ai-header"><div><span className="ai-kicker">RIDEMATE · NGƯỜI BẠN TRÊN MỖI CHẶNG</span><h1>AI Assistant</h1><p>Trợ lý đồng hành du lịch bằng xe máy</p></div><span className={`ai-mode ${online?'connected':''}`}>{online?'AI đã cấu hình':service.ready?'Đăng nhập để dùng AI':'Chế độ cơ bản · chưa cấu hình AI'}</span></header>
-    <div className="ai-layout"><aside className="card ai-context"><span className="ai-kicker">KẾ HOẠCH ĐANG MỞ</span><h2>{trip.origin} → {trip.destination}</h2><p>{trip.days} ngày · {trip.date}</p>
+    <section className="card ai-conversation" aria-label="Trò chuyện với AI Assistant">
+    {trip&&<details className="ai-context"><summary>Kế hoạch tham khảo: {trip.origin} → {trip.destination}</summary><span className="ai-kicker">KẾ HOẠCH ĐANG MỞ</span><h2>{trip.origin} → {trip.destination}</h2><p>{trip.days} ngày · {trip.date}</p>
       <label>Chặng đang trao đổi<select value={day.id} disabled={busy} onChange={e=>{setDayId(e.target.value);setPending(null);setIntent('review');setShowProposal(null);setError('');}}>{trip.itinerary.map((d,i)=><option key={d.id} value={d.id}>Ngày {i+1}: {d.title}</option>)}</select></label>
       <ol>{day.places.map(p=><li key={p.id}>{p.name}</li>)}</ol>{!day.places.length&&<p>Chưa có điểm dừng trong ngày này.</p>}
       <details><summary>Hồ sơ người lái</summary><p className="ai-muted">Dùng cho kế hoạch sau trên trình duyệt này, chưa đồng bộ tài khoản.</p><dl>{profileQuestions.map(q=><React.Fragment key={q.key}><dt>{profileNames[q.key]}</dt><dd>{q.options?.find(([v])=>v===profile[q.key])?.[1]||profile[q.key]||'Chưa có'} <button disabled={busy} onClick={()=>{setPending({...q,dayId:day.id});append({role:'assistant',text:q.label});}}>Sửa</button></dd></React.Fragment>)}</dl>{storageError&&<p role="alert">{storageError}</p>}</details>
       <details><summary>Điều chỉnh giờ và thời gian</summary><p className="ai-muted">Chọn thông tin cần cập nhật; trợ lý sẽ hỏi ngay trong cuộc trò chuyện.</p>{[{key:'departure',label:'Bạn dự định xuất phát lúc mấy giờ?',type:'time'},{key:'driving',label:'Bạn dự trù bao nhiêu giờ chạy xe riêng ngày này?',type:'number',min:0,max:24},{key:'visit',label:'Bạn dự trù bao nhiêu phút tham quan?',type:'number',min:0,max:1440},{key:'rest',label:'Bạn dành bao nhiêu phút ăn uống và nghỉ?',type:'number',min:0,max:1440},{key:'finishBy',label:'Bạn muốn kết thúc chạy xe trước mấy giờ?',type:'time'}].map(q=><button className="ai-context-edit" disabled={busy} key={q.key} onClick={()=>{setPending({...q,dayId:day.id});append({role:'assistant',text:q.label});}}>{({departure:'Giờ xuất phát',driving:'Thời gian chạy',visit:'Tham quan',rest:'Ăn và nghỉ',finishBy:'Giờ kết thúc'})[q.key]}: {day.rideReview?.[q.key]??'Chưa có'}</button>)}</details>
       {!!day.deferredPlaces?.length&&<details open><summary>Điểm để sau ({day.deferredPlaces.length})</summary>{day.deferredPlaces.map(p=><div className="ai-deferred" key={p.id}><span>{p.name}</span><button disabled={busy} onClick={()=>{const next=restorePlace(trip,day.id,p.id);setTrip(current=>restorePlace(current,day.id,p.id));respond('review',next.itinerary.find(d=>d.id===day.id),next,profile,`Đã đưa ${p.name} về cuối ngày. Cần tính lại thời gian.`);}}>Đưa lại lịch trình</button></div>)}</details>}
-    </aside>
-    <section className="card ai-conversation" aria-label="Trò chuyện với AI Assistant">
+    </details>}
       <div className="ai-conversation-heading"><b>Đồng hành cùng chuyến đi của bạn</b><span>Dựa trên kế hoạch · hồ sơ người lái · dữ liệu bản đồ</span></div>
       <div className="ai-messages" ref={messageList} aria-live="polite" aria-relevant="additions">
-        <article className="ai-message assistant"><span className="ai-author">RideMate</span><h2>Chuyến đi vừa sức bắt đầu từ một kế hoạch phù hợp.</h2><p>Tôi sẽ cùng bạn xem thời gian chạy, nhịp nghỉ và các điểm dừng. Tôi dùng thông tin đã có và chỉ hỏi thêm một điều cần thiết mỗi lần.</p></article>
-        {messages.map(m=><article key={m.id} className={`ai-message ${m.role}`}><span className="ai-author">{m.role==='user'?'Bạn':'RideMate'}</span>{m.text&&<p>{m.text}</p>}{m.exploration&&<ExplorationReply exploration={m.exploration}/>}{m.reply&&<>
+        <article className="ai-message assistant"><span className="ai-author">RideMate</span><h2>Bạn muốn đi đâu?</h2><p>Hỏi về điểm đến hoặc nói chuyến đi bạn muốn. Tôi sẽ gợi ý lịch trình, cùng bạn chỉnh sửa và chỉ tạo kế hoạch sau khi bạn xác nhận — ngay trong cuộc trò chuyện này.</p></article>
+        {messages.map(m=><article key={m.id} className={`ai-message ${m.role}`}><span className="ai-author">{m.role==='user'?'Bạn':'RideMate'}</span>{m.text&&<p>{m.text}</p>}{m.draft&&<DraftReply draft={m.draft} mode={m.mode} active={m.id===draftId} busy={busy} saved={m.saved} onOpenPlan={onOpenPlan} onChange={draft=>setMessages(current=>current.map(item=>item.id===m.id?{...item,draft}:item))} onCreatePlan={plan=>{onCreatePlan(plan);setMessages(current=>current.map(item=>item.id===m.id?{...item,saved:plan}:item));append({role:'assistant',text:'Đã lưu kế hoạch bạn xác nhận. Bạn có thể tiếp tục trò chuyện hoặc bấm Mở kế hoạch trong tin nhắn trên.'});}}/>}{m.exploration&&<ExplorationReply exploration={m.exploration}/>}{m.reply&&<>
           <span className="ai-day-label">{m.reply.dayTitle}</span>{m.reply.intro&&<p>{m.reply.intro}</p>}
           <h3>Gợi ý cho chặng này</h3><p>{m.reply.suggestion}</p>
           {m.reply.assessment.driving!=null&&<p className="ai-evidence">{m.reply.assessment.source}: {Math.round(m.reply.assessment.driving)} phút chạy xe.{m.reply.assessment.total!=null&&` Tổng ${Math.round(m.reply.assessment.total)} phút gồm tham quan và ăn nghỉ, chưa tính phát sinh.`}</p>}
           <h3>Vì sao phù hợp với bạn</h3><ul>{m.reply.reasons.map(reason=><li key={reason}>{reason}</li>)}</ul>
           <h3>Điểm dừng đề xuất</h3>{m.reply.stops.length?m.reply.stops.map(p=><div className="ai-stop" key={p.id}><b>{p.name}</b><p>{supportTypes[p.type].label} · ứng viên gần đoạn tuyến đã xác định của ngày này, khoảng {Math.round(p.segmentDistance)} m theo đường thẳng. Chưa tính đường đi vòng hoặc xác minh giờ mở cửa.</p><a target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${p.coordinates[1]},${p.coordinates[0]}`}>Xem ghim</a> · <a target="_blank" rel="noreferrer" href={p.source}>Nguồn OpenStreetMap</a></div>):<p>Chưa đủ dữ liệu tuyến của riêng ngày này để chọn điểm nghỉ, đổ xăng, ăn hoặc sửa xe phù hợp. Hãy định vị các điểm trong lịch trình; tôi sẽ không tự đoán địa điểm.</p>}
           <p className="ai-muted">Chưa xác minh thời tiết, lượng xăng còn lại hay khả năng đi xe máy trên toàn tuyến. Dữ liệu bản đồ có thể thiếu; cần đối chiếu biển báo thực tế.</p>
-          {m.reply.proposal&&<div className="ai-proposal"><button className="soft" disabled={busy||daySignature(trip,trip.itinerary.find(d=>d.id===m.reply.dayId)||day)!==m.reply.signature} onClick={()=>setShowProposal(showProposal===m.id?null:m.id)}>Xem phương án điều chỉnh</button>{showProposal===m.id&&<div><p>Chuyển <b>{m.reply.proposal.name}</b> — điểm tham quan cuối còn phù hợp để giảm — sang Để sau để giảm một lượt tham quan. Chưa khẳng định giảm được thời gian chạy; cần tính lại tuyến. Các điểm khác được giữ nguyên.</p><button className="green" disabled={busy} onClick={()=>apply(m.reply,m.reply.proposal)}>Áp dụng: để điểm này lại sau</button></div>}</div>}
+          {m.reply.proposal&&<div className="ai-proposal"><button className="soft" disabled={busy||!trip||!day||daySignature(trip,trip.itinerary.find(d=>d.id===m.reply.dayId)||day)!==m.reply.signature} onClick={()=>setShowProposal(showProposal===m.id?null:m.id)}>Xem phương án điều chỉnh</button>{showProposal===m.id&&<div><p>Chuyển <b>{m.reply.proposal.name}</b> — điểm tham quan cuối còn phù hợp để giảm — sang Để sau để giảm một lượt tham quan. Chưa khẳng định giảm được thời gian chạy; cần tính lại tuyến. Các điểm khác được giữ nguyên.</p><button className="green" disabled={busy} onClick={()=>apply(m.reply,m.reply.proposal)}>Áp dụng: để điểm này lại sau</button></div>}</div>}
           {m.reply.question&&<><h3>Để tư vấn sát hơn (không bắt buộc)</h3><p>{m.reply.question.label}</p></>}
         </>}</article>)}
 
@@ -145,13 +167,12 @@ function Conversation({trip,setTrip,initialReview,userId,setPage}) {
         {service.ready&&service.authRequired&&!userId&&<p className="ai-muted">Bạn vẫn dùng được đánh giá cơ bản. <button className="soft" onClick={()=>setPage('account')}>Đăng nhập để trò chuyện với AI</button></p>}
         {pending&&<button className="soft" disabled={busy} onClick={()=>{setPending(null);append({role:'assistant',text:'Bạn có thể tiếp tục với gợi ý hiện tại hoặc hỏi câu khác. Tôi sẽ để các thông tin chưa có ở trạng thái chưa xác minh.'});}}>Bỏ qua câu hỏi này</button>}
         {pending?.options&&<div className="ai-answer-options" aria-label={pending.label}>{pending.options.map(([value,label])=><button className="soft" disabled={busy} key={value} onClick={()=>saveAnswer(pending,value,label)}>{label}</button>)}</div>}
-        {pending&&!pending.options&&<form className="ai-answer-form" onSubmit={e=>{e.preventDefault();const value=new FormData(e.currentTarget).get('answer');const parsed=parseAnswer(pending,String(value));if(parsed!==null)saveAnswer(pending,parsed,String(value));}} key={`${pending.dayId}:${pending.key}`}><label>{pending.label}<input name="answer" required type={pending.type} min={pending.min} max={pending.max} step={pending.type==='number'?'any':undefined} disabled={busy}/></label><button className="soft" disabled={busy}>Trả lời</button></form>}
-        <div className="ai-quick-prompts">{quickPrompts.map(prompt=><button disabled={busy} key={prompt} onClick={()=>send(prompt)}>{prompt}</button>)}</div>
+        <div className="ai-quick-prompts">{[draftExample,'Cao Bằng có gì chơi?',...(trip?quickPrompts:[])].map(prompt=><button disabled={busy} key={prompt} onClick={()=>send(prompt)}>{prompt}</button>)}</div>
         {error&&<p role="alert" className="ai-error">{error}</p>}
-        <form className="ai-composer" onSubmit={e=>{e.preventDefault();send();}}><label className="ai-sr-only" htmlFor="assistant-message">Tin nhắn cho AI Assistant</label><textarea id="assistant-message" value={text} maxLength={2000} disabled={busy} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();send();}}} placeholder="Hỏi về chặng đi hoặc cho tôi biết điều gì đã thay đổi…" rows={2}/><button className="green" disabled={busy||!text.trim()} type="submit">Gửi</button></form>
+        <form className="ai-composer" onSubmit={e=>{e.preventDefault();send();}}><label className="ai-sr-only" htmlFor="assistant-message">Tin nhắn cho AI Assistant</label><textarea id="assistant-message" value={text} maxLength={2000} disabled={busy} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();send();}}} placeholder="Ví dụ: Cho tôi lịch trình 3N2Đ từ HN–CB…" rows={2}/><button className="green" disabled={busy||!text.trim()} type="submit">Gửi</button></form>
         <small>{online?'Khi gửi, câu hỏi, hồ sơ và tên các điểm trong kế hoạch được gửi tới OpenAI để hiểu yêu cầu.':'Chưa kết nối OpenAI. Các gợi ý hiện tại dựa trên tiêu chí và dữ liệu của RideMate.'} Chỉ thay đổi lịch trình khi bạn bấm Áp dụng.</small>
       </div>
-    </section></div>
+    </section>
   </main>;
 }
 

@@ -13,7 +13,7 @@ export function destinationReply(message,trip){
 }
 export function detectIntent(text) {
   const q=normalize(text);
-  if(/choi gi|di dau choi|tham quan|kham pha|diem du lich|co gi (?:hay|dep)|check.?in/.test(q))return 'explore';
+  if(/choi gi|di dau choi|tham quan|kham pha|diem du lich|co gi (?:choi|hay|dep)|check.?in/.test(q))return 'explore';
   if(/khong (?:bi |thay |con |co )?(met|mua)|chua (met|mua)/.test(q))return 'unknown';
   if(/\b(met|duoi suc|buon ngu)\b/.test(q))return 'tired';
   if(/\b(mua|troi mua)\b/.test(q))return 'rain';
