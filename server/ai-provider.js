@@ -19,11 +19,15 @@ export function providerFetch(provider='openai',fetchImpl=fetch){
     if(!response.ok){
       if(response.status===402)throw apiError(503,'AI_PROVIDER_QUOTA');
       if([400,404,422].includes(response.status))throw apiError(502,'AI_MODEL_UNAVAILABLE');
+      if(response.status>=500)throw apiError(502,'AI_PROVIDER_UNAVAILABLE');
       return response;
     }
-    const body=await response.json();
-    if(body.error)throw apiError(502,'ASSISTANT_UNAVAILABLE');
-    const choice=body.choices?.[0];
+    let body;try{body=await response.json();}catch{throw apiError(502,'AI_INVALID_OUTPUT');}
+    if(body?.error)throw apiError(502,'AI_PROVIDER_UNAVAILABLE');
+    const choice=body?.choices?.[0];
+    if(choice?.finish_reason==='length')throw apiError(502,'AI_OUTPUT_TRUNCATED');
+    if(choice?.message?.refusal||choice?.finish_reason==='content_filter')throw apiError(502,'AI_RESPONSE_REFUSED');
+    if(!choice||typeof choice.message?.content!=='string')throw apiError(502,'AI_INVALID_OUTPUT');
     const complete=choice?.finish_reason==='stop'&&typeof choice.message?.content==='string'&&!choice.message.refusal;
     return {ok:true,json:async()=>({status:complete?'completed':'incomplete',output:complete?
       [{type:'message',content:[{type:'output_text',text:choice.message.content}]}]:[]})};

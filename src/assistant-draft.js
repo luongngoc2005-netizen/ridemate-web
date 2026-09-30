@@ -33,6 +33,12 @@ export function draftCosts(draft){
 export function confirmDraft(draft,details){
   draft=cleanDraft(draft);
   const {date,departure,origin,people,vehicles}=details;
+  const destination=(details.destination??draft.destination).trim();
+  if(!string(origin,200)||origin.trim()==='Chưa xác định')throw new Error('Hãy nhập điểm xuất phát cụ thể.');
+  if(!string(destination,200)||destination==='Chưa xác định')throw new Error('Hãy nhập điểm đến trước khi tạo kế hoạch.');
+  if(!Number.isInteger(+people)||+people<1||+people>30)throw new Error('Số người phải từ 1 đến 30.');
+  if(!Number.isInteger(+vehicles)||+vehicles<1||+vehicles>+people||+people>+vehicles*2)throw new Error('Số xe phải từ 1 đến số người và mỗi xe tối đa 2 người.');
+  draft={...draft,origin:origin.trim(),destination};
   const dateValue=new Date(`${date}T12:00:00Z`);
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(dateValue.getTime())||dateValue.toISOString().slice(0,10)!==date||!/^([01]\d|2[0-3]):[0-5]\d$/.test(departure)||!string(origin,200)||draft.destination==='Chưa xác định'||!Number.isInteger(+people)||+people<1||+people>30||!Number.isInteger(+vehicles)||+vehicles<1||+vehicles>+people||+people>+vehicles*2)throw new Error('Kiểm tra ngày, giờ, điểm đi/đến, số người và số xe (tối đa 2 người/xe).');
   const trip=createTrip({origin,destination:draft.destination,date,days:draft.days.length,interests:[],notes:draft.summary});

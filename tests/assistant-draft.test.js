@@ -5,6 +5,14 @@ import {isStoredTrip} from '../src/trip-data.js';
 import {generateDraft,normalizeDraftRequest} from '../server/draft-api.js';
 const prompt='Cho tôi lịch trình 3N2Đ từ HN - CB gồm điểm chơi nghỉ phí vé đồ chuẩn bị';
 const details={date:'2026-10-15',departure:'06:30',origin:'Hà Nội',people:'2',vehicles:'1'};
+test('confirmation accepts an explicitly supplied missing destination and gives actionable errors',()=>{
+ const draft={...basicDraft(prompt),destination:'Chưa xác định'};
+ assert.throws(()=>confirmDraft(draft,details),/điểm đến/);
+ const trip=confirmDraft(draft,{...details,destination:'Cao Bằng'});
+ assert.equal(trip.destination,'Cao Bằng');assert.equal(trip.aiDraft.destination,'Cao Bằng');
+ assert.ok(isStoredTrip(trip));
+ assert.throws(()=>confirmDraft(draft,{...details,destination:'Cao Bằng',people:'3'}),/mỗi xe tối đa 2 người/);
+});
 test('complete draft works with no existing plan; costs remain unknown',()=>{
  const draft=basicDraft(prompt);assert.ok(validateDraft(draft));assert.equal(draft.days.length,3);
  assert.equal(draft.origin,'Hà Nội');assert.equal(draft.destination,'Cao Bằng');

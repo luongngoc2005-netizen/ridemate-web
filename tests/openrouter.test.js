@@ -52,7 +52,7 @@ test('OpenRouter draft preserves previous draft and validates returned content',
   await assert.rejects(generateDraft({message:'edit'},{...config,fetchImpl:async()=>completion({})}));
 });
 test('OpenRouter errors are sanitized and partial or invalid outputs are rejected',async()=>{
-  for(const [status,code] of [[402,'AI_PROVIDER_QUOTA'],[429,'AI_PROVIDER_LIMIT'],[401,'AI_CREDENTIALS_INVALID'],[404,'AI_MODEL_UNAVAILABLE'],[503,'ASSISTANT_UNAVAILABLE']]){
+  for(const [status,code] of [[402,'AI_PROVIDER_QUOTA'],[429,'AI_PROVIDER_LIMIT'],[401,'AI_CREDENTIALS_INVALID'],[404,'AI_MODEL_UNAVAILABLE'],[503,'AI_PROVIDER_UNAVAILABLE']]){
     await assert.rejects(interpretMessage(payload,{...config,fetchImpl:async()=>new Response(JSON.stringify({error:{message:'private detail'}}),{status})}),e=>e.code===code&&!e.message.includes('private'));
   }
   for(const response of [()=>completion(answer,'length'),()=>completion({...answer,dayNumber:99}),()=>new Response(JSON.stringify({error:{message:'private'}}))]){

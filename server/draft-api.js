@@ -23,7 +23,8 @@ export async function generateDraft(payload,{provider='openai',apiKey,model,fetc
   if(!response.ok){let body;try{body=await response.json();}catch{}
     throw apiError(response.status===429?503:502,response.status===429?(body?.error?.code==='insufficient_quota'?'AI_PROVIDER_QUOTA':'AI_PROVIDER_LIMIT'):[401,403,404].includes(response.status)?'AI_CREDENTIALS_INVALID':'ASSISTANT_UNAVAILABLE');}
   const body=await response.json();
-  if(body.status!=='completed')throw apiError(502,'ASSISTANT_UNAVAILABLE');
+  if(body.status!=='completed')throw apiError(502,'AI_OUTPUT_INCOMPLETE');
   const output=body.output?.flatMap(x=>x.type==='message'?x.content||[]:[]).filter(x=>x.type==='output_text').map(x=>x.text).join('');
-  try{return {draft:cleanDraft(JSON.parse(output))};}catch{throw apiError(502,'ASSISTANT_UNAVAILABLE');}
+  let parsed;try{parsed=JSON.parse(output);}catch{throw apiError(502,'AI_INVALID_OUTPUT');}
+  try{return {draft:cleanDraft(parsed)};}catch{throw apiError(502,'AI_INVALID_DRAFT');}
 }

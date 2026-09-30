@@ -14,6 +14,12 @@ export async function requestAssistant(payload,{client,fetchImpl=fetch,signal,ex
   }
   if(!response.ok){
     const messages={
+      AI_PROVIDER_UNAVAILABLE:'Nhà cung cấp AI đang lỗi hoặc tạm thời không phục vụ được. Hãy thử lại sau.',
+      AI_OUTPUT_TRUNCATED:'AI đã hết giới hạn sinh nội dung trước khi hoàn tất lịch trình. Hãy thử yêu cầu ngắn hơn.',
+      AI_OUTPUT_INCOMPLETE:'AI chưa hoàn tất câu trả lời. Bản nháp hiện có vẫn được giữ; hãy thử lại sau.',
+      AI_INVALID_OUTPUT:'AI trả nội dung không đúng cấu trúc JSON yêu cầu. Hãy thử lại hoặc kiểm tra model đang dùng.',
+      AI_INVALID_DRAFT:'AI trả bản nháp thiếu thông tin hoặc vượt giới hạn cho phép. Bản nháp này chưa được lưu; hãy thử yêu cầu gọn hơn.',
+      AI_RESPONSE_REFUSED:'Model từ chối yêu cầu này. Hãy diễn đạt lại yêu cầu về lịch trình du lịch.',
       AI_TIMEOUT:'AI phản hồi quá chậm nên yêu cầu đã hết thời gian chờ. Bạn hãy thử lại sau hoặc yêu cầu lịch trình ngắn hơn. Model miễn phí có thể bận.',
       AUTH_REQUIRED:'Phiên đăng nhập hết hạn hoặc chưa hợp lệ. Hãy đăng nhập lại để dùng AI.',
       QUOTA_EXCEEDED:'Đã đạt hạn mức AI của tài khoản hoặc toàn ứng dụng. Hãy thử lại sau; đánh giá cơ bản vẫn hoạt động.',
