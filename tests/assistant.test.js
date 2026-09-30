@@ -5,6 +5,20 @@ import {interpretMessage,assistantMiddleware} from '../server/assistant-api.js';
 import {Readable} from 'node:stream';
 
 const trip={origin:'A',destination:'B',date:'2026-09-30',days:3,itinerary:[{id:'d1',title:'Đi',places:[]},{id:'d2',title:'Khám phá',places:[{id:'p1',name:'Điểm A'},{id:'p2',name:'Điểm B'}]},{id:'d3',title:'Về',places:[]}]};
+test('empty profile gets immediate plan advice and only a relevant optional question',()=>{
+ const reply=buildReply({trip,day:trip.itinerary[1],profile:{}});
+ assert.match(reply.suggestion,/Điểm A/);
+ assert.equal(reply.question.key,'departure');
+ assert.equal(buildReply({trip,day:trip.itinerary[1],profile:{},askFollowUp:false}).question,undefined);
+});
+test('stops, fatigue and rain do not trigger the profile questionnaire',()=>{
+ for(const intent of ['stops','tired','rain']) {
+  const reply=buildReply({trip,day:trip.itinerary[1],profile:{},intent});
+  assert.equal(reply.question,undefined);
+  assert.ok(reply.suggestion.length>0);
+ }
+ assert.equal(buildReply({trip,day:trip.itinerary[1],profile:{},intent:'prepare'}).question.key,'bike');
+});
 test('tomorrow follows Vietnam local date, including UTC date rollover and out-of-plan dates',()=>{
  assert.equal(tomorrowDay(trip,new Date('2026-09-29T18:00:00Z')).id,'d2');
  assert.equal(tomorrowDay(trip,new Date('2026-10-02T12:00:00Z')),null);

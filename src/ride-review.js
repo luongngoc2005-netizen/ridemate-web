@@ -26,12 +26,18 @@ export function assessDay(trip, day, profile, route, situation = '') {
   // The existing route does not describe every day's origin/end or overnight stop.
   const routeUsable = trip.itinerary.length === 1 && route?.mode === 'motorcycle' && !route.unresolved?.length && Number.isFinite(route.durationSeconds);
   const driving = numeric(input.driving, 24) ? Number(input.driving)*60 : routeUsable ? route.durationSeconds/60 : null;
-  let question = situation === 'late' ? {key:'departure',label:'À, bạn dự định xuất phát lúc mấy giờ sau thay đổi?',type:'time'} : profileQuestions.find(q => p[q.key] == null);
+  // Ask for information relevant to this request, never walk through the profile.
+  let question;
+  if (situation === 'prepare' && !p.bike) question = profileQuestions.find(q => q.key === 'bike');
+  if (situation === 'late') question = {key:'departure',label:'Bạn dự định xuất phát lúc mấy giờ sau thay đổi?',type:'time'};
+  const reviewSchedule = ['', 'review', 'tomorrow', 'late'].includes(situation);
+  if (reviewSchedule) {
   if (!question && !timeValid(input.departure)) question = {key:'departure',label:'Chặng này bạn dự định xuất phát lúc mấy giờ?',type:'time'};
   if (!question && driving == null) question = {key:'driving',label:'Bạn dự trù bao nhiêu giờ chạy xe cho riêng chặng ngày này (chưa tính dừng)?',type:'number',min:0,max:24};
   if (!question && !numeric(input.visit, 1440)) question = {key:'visit',label:'Bạn dự trù tổng cộng bao nhiêu phút tham quan trong ngày này?',type:'number',min:0,max:1440};
   if (!question && !numeric(input.rest, 1440)) question = {key:'rest',label:'Bạn dành tổng cộng bao nhiêu phút cho ăn uống và nghỉ giữa chặng?',type:'number',min:0,max:1440};
   if (!question && p.avoidDark === 'yes' && !timeValid(input.finishBy)) question = {key:'finishBy',label:'Bạn muốn kết thúc chạy xe trước mấy giờ? (Mốc bạn chọn, chưa phải giờ hoàng hôn.)',type:'time'};
+  }
   const total = driving == null || !numeric(input.visit,1440) || !numeric(input.rest,1440) ? null : driving+Number(input.visit)+Number(input.rest);
   const issues = [];
   if (driving != null && p.hours && driving > Number(p.hours)*60) issues.push('Thời gian chạy xe vượt mức bạn muốn trong một ngày; cân nhắc chia lại chặng hoặc nghỉ sớm.');
@@ -41,7 +47,7 @@ export function assessDay(trip, day, profile, route, situation = '') {
   if (situation === 'tired') issues.push('Ưu tiên dừng ở nơi phù hợp để nghỉ và giảm lịch trình; chưa đủ dữ liệu để chỉ định nơi nghỉ gần vị trí hiện tại.');
   if (situation === 'rain') issues.push('Nếu bạn đang gặp mưa, cân nhắc trú nghỉ và giảm lịch trình. Chưa có dữ liệu để ước tính phần thời gian tăng thêm.');
   const preparation = p.bike === 'scooter' ? 'Xe ga: đối chiếu lịch kiểm tra lốp, phanh và bộ truyền động theo hướng dẫn xe.' : p.bike === 'manual' ? 'Xe côn: thêm kiểm tra côn và bộ truyền động theo hướng dẫn xe.' : p.bike === 'semi' ? 'Xe số: thêm kiểm tra bộ truyền động và thao tác sang số theo hướng dẫn xe.' : 'Cần loại xe để điều chỉnh phần chuẩn bị.';
-  return {question,driving,total,issues,source: numeric(input.driving,24) ? 'Thời gian chạy do bạn dự trù' : routeUsable ? 'Ước tính tuyến Valhalla theo giả định lập kế hoạch của RideMate' : 'Chưa có thời gian chạy cho riêng ngày này',preparation};
+  return {question,driving,total,issues,source: numeric(input.driving,24) ? 'Thời gian chạy do bạn dự trù' : routeUsable ? 'Ước tính tuyến Valhalla theo giả định lập kế hoạch của RideMate' : 'Chưa có thời gian chạy cho riêng ngày này',preparation: p.bike ? preparation : 'Kiểm tra lốp, phanh, đèn và bảo dưỡng theo hướng dẫn xe; bạn có thể bổ sung loại xe khi cần tư vấn cụ thể hơn.'};
 }
 export function deferPlace(trip, dayId, placeId) {
   return {...trip,itinerary:trip.itinerary.map(day => {

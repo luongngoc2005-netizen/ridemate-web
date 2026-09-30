@@ -17,7 +17,7 @@ test('asks one missing question and does not substitute whole route for a day',(
  const route={mode:'motorcycle',durationSeconds:10000,unresolved:[]};
  assert.equal(assessDay(trip,day,profile,route).driving,null);
  assert.equal(assessDay(trip,day,profile,route).question.key,'driving');
- assert.equal(assessDay(trip,day,{},route).question.key,'bike');
+ assert.equal(assessDay(trip,day,{},route).question.key,'driving');
 });
 test('only complete single-day motorcycle route can supply an estimate',()=>{
  const {trip,day}=fixture();trip.itinerary=[day];day.rideReview={};

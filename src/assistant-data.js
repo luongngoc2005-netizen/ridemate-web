@@ -59,18 +59,20 @@ export function dayCandidates(trip,day,route,places,intent){
     return eligible.slice(0,1);
   });
 }
-export function buildReply({trip,day,profile,route,places=[],intent='review',intro=''}){
+export function buildReply({trip,day,profile,route,places=[],intent='review',intro='',askFollowUp=true}){
   const assessment=assessDay(trip,day,profile,route,intent);
   const reasons=[assessment.preparation];
   if(profile.party==='passenger')reasons.push('Bạn chở thêm người: dành nhịp nghỉ phù hợp cho cả hai và đối chiếu giới hạn tải của xe.');
   if(profile.experience==='new')reasons.push('Bạn chưa quen đi xa: giữ lịch linh hoạt để có thể nghỉ thêm hoặc kết thúc chặng sớm.');
   if(profile.hours)reasons.push(`Bạn chọn tối đa ${profile.hours} giờ chạy/ngày; đây là mốc cá nhân để so sánh, không phải giới hạn an toàn chung.`);
   if(profile.avoidDark==='yes')reasons.push('Bạn muốn tránh chạy tối; giờ kết thúc do bạn chọn chưa phải giờ hoàng hôn đã xác minh.');
-  let suggestion=assessment.issues.join(' ') || (assessment.question?'Tôi cần thêm dữ liệu để đánh giá lịch trình có vừa sức. Tôi sẽ giữ nguyên các điểm hiện tại cho đến khi bạn chọn áp dụng thay đổi.':'Lịch chưa vượt các mốc bạn cung cấp. Vẫn cần dự phòng phát sinh; đây chưa phải xác nhận hành trình an toàn.');
+  const overview=day.places.length ? `Chặng này có ${day.places.length} điểm đã lên lịch: ${day.places.slice(0,3).map(p=>p.name).join(', ')}${day.places.length>3?'…':''}. Ưu tiên những điểm bạn muốn giữ nhất, dành thời gian nghỉ giữa chặng và để các điểm còn lại linh hoạt. Chưa đủ cơ sở để kết luận lịch vừa sức nếu thiếu thời gian hoặc giới hạn người lái.` : 'Chặng này chưa có điểm dừng. Hãy chọn điểm đến chính trước, sau đó bổ sung chỗ nghỉ và đổ xăng theo tuyến đã xác định.';
+  let suggestion=assessment.issues.join(' ') || overview;
+  if(intent==='stops')suggestion='Tôi sẽ ưu tiên điểm nghỉ, đổ xăng, ăn và sửa xe gần đoạn tuyến của ngày này. Các ứng viên có dữ liệu bản đồ được liệt kê bên dưới; giờ mở cửa và đường đi vòng vẫn cần kiểm tra.';
   if(intent==='prepare')suggestion='Đối chiếu checklist giấy tờ, lốp, phanh, đèn và bảo dưỡng theo hướng dẫn xe. Phần chuẩn bị cụ thể bên dưới dựa trên hồ sơ của bạn.';
   if(intent==='unknown')suggestion='Ở chế độ cơ bản, tôi chưa hiểu chắc câu này. Bạn có thể chọn “Kiểm tra chuyến đi của tôi”, hỏi về điểm dừng hoặc báo thay đổi hành trình.';
   return {intro,dayId:day.id,dayTitle:`Ngày ${trip.itinerary.indexOf(day)+1}: ${day.title}`,signature:daySignature(trip,day),suggestion,reasons,assessment,
-    question:assessment.question,stops:dayCandidates(trip,day,route,places,intent),
+    question:askFollowUp?assessment.question:undefined,stops:dayCandidates(trip,day,route,places,intent),
     proposal:assessment.issues.length>0?day.places.filter(p=>!p.category||p.category==='attraction').at(-1)||null:null,
     capturedAt:Date.now()};
 }
