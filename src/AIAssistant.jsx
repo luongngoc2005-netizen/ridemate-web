@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {useTripRoute} from './TripRouteContext.jsx';
 import {PROFILE_KEY, cleanProfile, profileQuestions, deferPlace, restorePlace, daySignature} from './ride-review.js';
-import {buildReply, detectIntent, tomorrowDay, parseAnswer, setDayAnswer, nextProfile, isProfileKey} from './assistant-data.js';
+import {buildReply, detectIntent, tomorrowDay, parseAnswer, setDayAnswer, nextProfile, isProfileKey, destinationReply, intents} from './assistant-data.js';
 import {supportTypes} from './places-data.js';
 import {supabase} from './supabase.js';
 import {requestAssistant} from './assistant-client.js';
@@ -75,6 +75,9 @@ function Conversation({trip,setTrip,initialReview,userId,setPage}) {
     const answer=parseAnswer(pending,message);
     if(answer!==null){saveAnswer(pending,answer,message);return;}
     let detected=detectIntent(message), target=day, interpreted=null;
+    const explore=()=>{append({role:'user',text:message});append({role:'assistant',exploration:destinationReply(message,trip)});setPending(null);};
+    // Source-backed destination suggestions also work without a paid AI call.
+    if(detected==='explore'){explore();return;}
     if(online){
       setBusy(true);const controller=new AbortController();request.current=controller;
       const snapshot=JSON.stringify([trip,profile]);
@@ -83,12 +86,16 @@ function Conversation({trip,setTrip,initialReview,userId,setPage}) {
           {client:supabase,signal:controller.signal,expectedUserId:userId});
         if(JSON.stringify([contextRef.current.trip,contextRef.current.profile])!==snapshot){setError('Kế hoạch đã thay đổi trong lúc chờ. Hãy gửi lại để đánh giá dữ liệu mới.');return;}
         if(interpreted.answer&&pending){const value=parseAnswer(pending,interpreted.answer);if(value!==null){saveAnswer(pending,value,message);return;}}
-        if(['review','tomorrow','late','tired','rain','stops','prepare','unknown'].includes(interpreted.intent))detected=interpreted.intent;
+        if(intents.includes(interpreted.intent))detected=interpreted.intent;
         if(Number.isInteger(interpreted.dayNumber)&&trip.itinerary[interpreted.dayNumber-1])target=trip.itinerary[interpreted.dayNumber-1];
       }catch(failure){if(failure.name==='AbortError')return;setError(failure.message);interpreted=null;}
       finally{setBusy(false);request.current=null;}
     }
+    if(detected==='explore'){explore();return;}
     append({role:'user',text:message});
+    if(detected==='unknown'){
+      setPending(null);append({role:'assistant',text:'Tôi chưa hiểu rõ yêu cầu này để trả lời chính xác. Bạn có thể nói cụ thể điều muốn biết, chẳng hạn “Nên chơi gì ở Cao Bằng?” hoặc “Chặng này có quá nhiều điểm không?”.'});return;
+    }
     const explicit=message.match(/ngày\s+(\d+)/i);
     if(explicit){target=trip.itinerary[Number(explicit[1])-1];}
     if(detected==='tomorrow')target=tomorrowDay(trip);
@@ -121,7 +128,7 @@ function Conversation({trip,setTrip,initialReview,userId,setPage}) {
       <div className="ai-conversation-heading"><b>Đồng hành cùng chuyến đi của bạn</b><span>Dựa trên kế hoạch · hồ sơ người lái · dữ liệu bản đồ</span></div>
       <div className="ai-messages" ref={messageList} aria-live="polite" aria-relevant="additions">
         <article className="ai-message assistant"><span className="ai-author">RideMate</span><h2>Chuyến đi vừa sức bắt đầu từ một kế hoạch phù hợp.</h2><p>Tôi sẽ cùng bạn xem thời gian chạy, nhịp nghỉ và các điểm dừng. Tôi dùng thông tin đã có và chỉ hỏi thêm một điều cần thiết mỗi lần.</p></article>
-        {messages.map(m=><article key={m.id} className={`ai-message ${m.role}`}><span className="ai-author">{m.role==='user'?'Bạn':'RideMate'}</span>{m.text&&<p>{m.text}</p>}{m.reply&&<>
+        {messages.map(m=><article key={m.id} className={`ai-message ${m.role}`}><span className="ai-author">{m.role==='user'?'Bạn':'RideMate'}</span>{m.text&&<p>{m.text}</p>}{m.exploration&&<ExplorationReply exploration={m.exploration}/>}{m.reply&&<>
           <span className="ai-day-label">{m.reply.dayTitle}</span>{m.reply.intro&&<p>{m.reply.intro}</p>}
           <h3>Gợi ý cho chặng này</h3><p>{m.reply.suggestion}</p>
           {m.reply.assessment.driving!=null&&<p className="ai-evidence">{m.reply.assessment.source}: {Math.round(m.reply.assessment.driving)} phút chạy xe.{m.reply.assessment.total!=null&&` Tổng ${Math.round(m.reply.assessment.total)} phút gồm tham quan và ăn nghỉ, chưa tính phát sinh.`}</p>}
@@ -131,6 +138,7 @@ function Conversation({trip,setTrip,initialReview,userId,setPage}) {
           {m.reply.proposal&&<div className="ai-proposal"><button className="soft" disabled={busy||daySignature(trip,trip.itinerary.find(d=>d.id===m.reply.dayId)||day)!==m.reply.signature} onClick={()=>setShowProposal(showProposal===m.id?null:m.id)}>Xem phương án điều chỉnh</button>{showProposal===m.id&&<div><p>Chuyển <b>{m.reply.proposal.name}</b> — điểm tham quan cuối còn phù hợp để giảm — sang Để sau để giảm một lượt tham quan. Chưa khẳng định giảm được thời gian chạy; cần tính lại tuyến. Các điểm khác được giữ nguyên.</p><button className="green" disabled={busy} onClick={()=>apply(m.reply,m.reply.proposal)}>Áp dụng: để điểm này lại sau</button></div>}</div>}
           {m.reply.question&&<><h3>Để tư vấn sát hơn (không bắt buộc)</h3><p>{m.reply.question.label}</p></>}
         </>}</article>)}
+
         {busy&&<p role="status" className="ai-thinking">Đang đọc yêu cầu và đối chiếu kế hoạch…</p>}
       </div>
       <div className="ai-compose-area">
@@ -146,3 +154,5 @@ function Conversation({trip,setTrip,initialReview,userId,setPage}) {
     </section></div>
   </main>;
 }
+
+function ExplorationReply({exploration}) { return <div><span className="ai-author">RideMate · Gợi ý từ dữ liệu điểm đến</span><p>{exploration.text}</p><ul>{exploration.places.map(name=><li key={name}>{name} · <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name}, ${exploration.destination}`)}`} target="_blank" rel="noreferrer">Tìm trên bản đồ</a></li>)}</ul>{exploration.source?<a href={exploration.source} target="_blank" rel="noreferrer">Nguồn tham khảo: Vietnam Tourism</a>:<a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`điểm tham quan ${exploration.destination}`)}`} target="_blank" rel="noreferrer">Tìm điểm tham quan trên bản đồ</a>}<p className="ai-muted">Chưa xác minh giờ mở cửa, vé, thời tiết hay điều kiện đường. Liên kết bản đồ là tìm kiếm theo tên, chưa phải ghim tọa độ đã xác minh.</p></div>; }

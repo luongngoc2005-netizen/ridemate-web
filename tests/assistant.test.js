@@ -1,10 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {detectIntent,tomorrowDay,parseAnswer,dayCandidates,buildReply,setDayAnswer} from '../src/assistant-data.js';
+import {detectIntent,tomorrowDay,parseAnswer,dayCandidates,buildReply,setDayAnswer,destinationReply} from '../src/assistant-data.js';
 import {interpretMessage,assistantMiddleware} from '../server/assistant-api.js';
 import {Readable} from 'node:stream';
 
 const trip={origin:'A',destination:'B',date:'2026-09-30',days:3,itinerary:[{id:'d1',title:'Đi',places:[]},{id:'d2',title:'Khám phá',places:[{id:'p1',name:'Điểm A'},{id:'p2',name:'Điểm B'}]},{id:'d3',title:'Về',places:[]}]};
+test('destination questions return sourced attractions without a profile or API',()=>{
+ const message='Tôi nên chơi gì ở Cao Bằng';
+ assert.equal(detectIntent(message),'explore');
+ const reply=destinationReply(message,trip);
+ assert.ok(reply.places.includes('Thác Bản Giốc'));assert.match(reply.source,/vietnam.travel/);
+ assert.equal(destinationReply('Chơi gì ở Đà Lạt?',{...trip,destination:'Cao Bằng'}).places.length,0);
+ assert.equal(destinationReply('Có gì hay?',{...trip,destination:'Cao Bằng'}).destination,'Cao Bằng');
+});
+test('provider quota exhaustion is distinct from throttling and leaks no details',async()=>{
+ const payload={message:'Kiểm tra',context:{days:[{title:'Ngày 1'}]}};
+ await assert.rejects(interpretMessage(payload,{apiKey:'test',model:'test',fetchImpl:async()=>new Response(JSON.stringify({error:{code:'insufficient_quota',message:'secret'}}),{status:429})}),e=>e.code==='AI_PROVIDER_QUOTA'&&!e.message.includes('secret'));
+ await assert.rejects(interpretMessage(payload,{apiKey:'test',model:'test',fetchImpl:async()=>new Response('{}',{status:429})}),e=>e.code==='AI_PROVIDER_LIMIT');
+});
 test('empty profile gets immediate plan advice and only a relevant optional question',()=>{
  const reply=buildReply({trip,day:trip.itinerary[1],profile:{}});
  assert.match(reply.suggestion,/Điểm A/);

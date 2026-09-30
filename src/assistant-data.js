@@ -1,10 +1,19 @@
 import {assessDay, cleanProfile, daySignature, profileQuestions} from './ride-review.js';
 import {routePosition, validPoint} from './places-data.js';
+import {suggestionsFor} from './trip-data.js';
 
 const normalize = text => String(text).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').toLowerCase().trim();
-export const intents = ['review','tomorrow','late','tired','rain','stops','prepare','unknown'];
+export const intents = ['review','tomorrow','late','tired','rain','stops','prepare','explore','unknown'];
+export function destinationReply(message,trip){
+  const explicit=String(message).match(/(?:\sở\s|\stại\s)(.+?)[?!.]*$/i)?.[1]?.trim();
+  const destination=explicit||trip.destination;
+  const catalog=suggestionsFor(destination);
+  return {destination:catalog?.name||destination,places:catalog?.places||[],source:catalog?.source,
+    text:catalog?`Ở ${catalog.name}, bạn có thể cân nhắc ${catalog.places.join(', ')}. Đây là các gợi ý tham quan, chưa phải lịch đi trong một ngày. Với chuyến xe máy, nên chọn điểm muốn đi nhất trước rồi kiểm tra tuyến và thời gian còn lại để ghép lịch.`:`Tôi chưa có danh sách tham quan đã có nguồn cho ${destination}. Bạn có thể tìm trên bản đồ bên dưới; tôi chưa xác minh các kết quả đó.`};
+}
 export function detectIntent(text) {
   const q=normalize(text);
+  if(/choi gi|di dau choi|tham quan|kham pha|diem du lich|co gi (?:hay|dep)|check.?in/.test(q))return 'explore';
   if(/khong (?:bi |thay |con |co )?(met|mua)|chua (met|mua)/.test(q))return 'unknown';
   if(/\b(met|duoi suc|buon ngu)\b/.test(q))return 'tired';
   if(/\b(mua|troi mua)\b/.test(q))return 'rain';

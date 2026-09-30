@@ -17,6 +17,7 @@ export async function requestAssistant(payload,{client,fetchImpl=fetch,signal,ex
       AUTH_UNAVAILABLE:'Chưa xác minh được đăng nhập. Bạn hãy thử lại sau.',
       AI_CREDENTIALS_INVALID:'Cấu hình khóa API hoặc quyền truy cập model trên máy chủ chưa hợp lệ.',
       AI_PROVIDER_LIMIT:'Dịch vụ AI đang giới hạn yêu cầu hoặc tài khoản API chưa đủ hạn mức.',
+      AI_PROVIDER_QUOTA:'Tài khoản OpenAI API của ứng dụng đã hết hạn mức. Người quản trị cần kiểm tra Billing và Limits trên OpenAI Platform; thử gửi lại ngay chưa giải quyết được lỗi này.',
     };
     throw new Error(messages[result?.error]||'Chưa kết nối được AI. Bạn vẫn có thể dùng đánh giá cơ bản.');
   }
