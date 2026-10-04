@@ -5,17 +5,18 @@ import {requestLocation} from './geolocation.js';
 import {chosenOrigin} from './origin-data.js';
 
 export default function DraftIntakeQuestion({question,value,busy,onAnswer,onOrigin,onCancel}){
-  const location=useLocation(),dispose=useRef(null),revision=useRef(0);
+  const location=useLocation(),dispose=useRef(null),revision=useRef(0),lookup=useRef(null);
   const [locating,setLocating]=useState(false),[error,setError]=useState(''),[input,setInput]=useState('');
-  useEffect(()=>()=>{revision.current++;dispose.current?.();},[]);
+  useEffect(()=>()=>{revision.current++;dispose.current?.();lookup.current?.abort();},[]);
   const accept=async(point,version)=>{
+    const controller=new AbortController();lookup.current?.abort();lookup.current=controller;
     try{
-      const originPoint=await chosenOrigin(point.coordinates,{source:'gps',accuracy:point.accuracy});
+      const originPoint=await chosenOrigin(point.coordinates,{source:'gps',accuracy:point.accuracy,resolveArea:true,signal:controller.signal});
       if(version===revision.current){setLocating(false);onOrigin({origin:originPoint.label,originPoint});}
     }catch(e){if(version===revision.current){setError(e.message);setLocating(false);}}
   };
   const gps=()=>{
-    dispose.current?.();const version=++revision.current;setError('');setLocating(true);
+    dispose.current?.();lookup.current?.abort();const version=++revision.current;setError('');setLocating(true);
     const position=location?.position;
     if(position&&Number.isFinite(position.timestamp)&&Date.now()-position.timestamp<=30000){accept(position,version);return;}
     dispose.current=requestLocation({onPosition:point=>accept(point,version),onError:message=>{if(version===revision.current){setError(message);setLocating(false);}}});
@@ -23,8 +24,8 @@ export default function DraftIntakeQuestion({question,value,busy,onAnswer,onOrig
   const disabled=busy||locating;
   return <div className="ai-intake-question"><p><b>{question.label}</b></p>
     {question.type==='origin'&&<>
-      <button type="button" className="green" disabled={disabled} onClick={gps}>{locating?'Đang lấy vị trí…':'Dùng vị trí hiện tại (GPS)'}</button>
-      <p className="ai-muted">GPS dùng làm điểm đi cho bản nháp này. Nếu bị từ chối, nhập địa chỉ trong ô chat hoặc chọn trên bản đồ. Tọa độ chỉ được lưu cùng kế hoạch sau khi xác nhận.</p>
+      <button type="button" className="green" disabled={disabled} onClick={gps}>{locating?'Đang lấy vị trí và nhận diện khu vực…':'Dùng vị trí hiện tại (GPS)'}</button>
+      <p className="ai-muted">GPS dùng làm điểm đi và tra tên khu vực qua Photon/OpenStreetMap. Sau khi nhận diện, trợ lý tự tiếp tục. Nếu bị từ chối, nhập địa chỉ hoặc chọn trên bản đồ. Tọa độ chỉ lưu cùng kế hoạch sau khi xác nhận.</p>
       <fieldset disabled={disabled}><OriginSelect value={{origin:value.origin||'',originPoint:value.originPoint}} onChange={onOrigin}/></fieldset>
     </>}
     {question.options&&<div className="ai-answer-options">{question.options.map(([answer,label])=><button type="button" className="soft" disabled={disabled} key={answer} onClick={()=>onAnswer(answer,label)}>{label}</button>)}</div>}

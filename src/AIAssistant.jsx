@@ -9,10 +9,11 @@ import './ai-assistant.css';
 import DraftReply from './DraftReply.jsx';
 import {basicDraft,cleanDraft} from './assistant-draft.js';
 import {chatAction,draftExample} from './assistant-chat.js';
-import {startIntake,intakeQuestion,answerIntake,intakeContext,attachIntake} from './assistant-intake.js';
+import {startIntake,intakeQuestion,answerIntake,intakeContext,attachIntake,withIntakeOrigin} from './assistant-intake.js';
 import DraftIntakeQuestion from './DraftIntakeQuestion.jsx';
 import {useLocation} from './Location.jsx';
 import {chosenOrigin} from './origin-data.js';
+import {resolveOriginArea} from './origin-area.js';
 
 const quickPrompts=['Kiểm tra chuyến đi của tôi','Ngày mai tôi nên đi thế nào?','Tôi xuất phát muộn','Tôi đang mệt','Tôi đang gặp mưa','Chuẩn bị theo xe của tôi'];
 const profileNames={bike:'Loại xe',party:'Người đi cùng',experience:'Kinh nghiệm',hours:'Giờ chạy mỗi ngày',avoidDark:'Tránh chạy tối'};
@@ -115,8 +116,14 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
   };
   const selectDraftOrigin=async(value)=>{
     if(!intake||busy||!value.origin?.trim())return;
+    if(value.originPoint&&!value.originPoint.area&&!value.originPoint.areaChecked){
+      setBusy(true);
+      try{const point=await resolveOriginArea(value.originPoint);value={...value,origin:point.label,originPoint:point};}
+      finally{setBusy(false);}
+    }
     append({role:'assistant',text:draftQuestion?.label});append({role:'user',text:`Điểm đi: ${value.origin}`});
-    await continueIntake({...intake,origin:value.origin,originPoint:value.originPoint||null,originArea:''});
+    if(value.originPoint?.area)append({role:'assistant',text:`Đã nhận diện điểm xuất phát: ${value.origin} (Photon/OpenStreetMap). Tôi giữ tọa độ GPS để tính tuyến và tiếp tục thông tin còn thiếu.`});
+    await continueIntake(withIntakeOrigin(intake,value));
   };
 
   const send=async raw=>{
@@ -146,8 +153,9 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
         if(!next.origin&&position&&Number.isFinite(position.timestamp)&&Date.now()-position.timestamp<=30000){
           setBusy(true);
           try{
-            const originPoint=await chosenOrigin(position.coordinates,{source:'gps',accuracy:position.accuracy});
-            next={...next,origin:originPoint.label,originPoint};
+            const originPoint=await chosenOrigin(position.coordinates,{source:'gps',accuracy:position.accuracy,resolveArea:true});
+            next=withIntakeOrigin(next,{origin:originPoint.label,originPoint});
+            if(originPoint.area)append({role:'assistant',text:`Đã nhận diện vị trí hiện tại: ${originPoint.label}. Tôi sẽ dùng nơi này làm điểm xuất phát.`});
           }catch(failure){setError(failure.message);}
           finally{setBusy(false);}
         }

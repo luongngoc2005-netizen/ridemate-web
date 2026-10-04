@@ -41,7 +41,7 @@ export function startIntake(message,profile={}){
 }
 export function intakeQuestion(value){
   if(!text(value.origin))return {key:'origin',label:'Bạn chưa nêu điểm đi. Tôi sẽ dùng vị trí hiện tại khi bạn cho phép GPS. Bạn muốn lấy GPS hay nhập địa điểm xuất phát?',type:'origin'};
-  if(validOriginPoint(value.originPoint)&&!text(value.originArea))return {key:'originArea',label:'Bạn đang ở tỉnh/thành hoặc khu vực nào? Tôi đã giữ tọa độ GPS; tên khu vực giúp AI sắp lịch di chuyển đúng nơi.',type:'text'};
+  if(validOriginPoint(value.originPoint)&&!text(value.originArea)&&!text(value.originPoint.area))return {key:'originArea',label:'Đã giữ tọa độ nhưng bản đồ chưa nhận diện được tên khu vực. Bạn đang ở tỉnh/thành hoặc khu vực nào?',type:'text'};
   if(!text(value.destination))return {key:'destination',label:'Bạn muốn đến địa điểm nào?',type:'text'};
   if(!Number.isInteger(value.days)||value.days<1||value.days>7)return {key:'days',label:'Bạn muốn đi bao nhiêu ngày? Hiện trợ lý tạo bản nháp từ 1 đến 7 ngày.',type:'number',min:1,max:7};
   if(!Number.isInteger(value.nights)||value.nights<0||value.nights>value.days)return {key:'nights',label:`Bạn muốn nghỉ bao nhiêu đêm trong ${value.days} ngày?`,type:'number',min:0,max:value.days};
@@ -54,6 +54,10 @@ export function intakeQuestion(value){
   }
   if(value.preferences==null)return {key:'preferences',label:'Bạn thích thiên nhiên, ẩm thực, văn hóa hay nghỉ dưỡng? Có điểm bắt buộc ghé, mức chi dự kiến hoặc yêu cầu chỗ nghỉ nào không?',type:'text',options:[['Thiên nhiên, lịch nhẹ','Thiên nhiên, lịch nhẹ'],['Ẩm thực và văn hóa','Ẩm thực và văn hóa'],['Không có yêu cầu riêng','Không có yêu cầu riêng']]};
   return null;
+}
+export function withIntakeOrigin(current,value){
+  const point=validOriginPoint(value.originPoint)?value.originPoint:null;
+  return {...current,origin:value.origin,originPoint:point,originArea:point?text(point.area)||text(value.originArea):''};
 }
 export function answerIntake(current,question,raw){
   const value=text(String(raw)),q=fold(value);
