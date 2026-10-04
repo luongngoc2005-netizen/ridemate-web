@@ -59,6 +59,21 @@ test('When all options cross the border, routing rejects instead of drawing an u
   await assert.rejects(loadRoute('Hà Nội','Hải Phòng',undefined,[{id:'domestic',name:'Stop',coordinates:hanoi}]), /Tuyến đi qua nước ngoài đã bị chặn/);
 });
 
+test('Alternatives are requested only when the initial route crosses the border', async context => {
+  const start = {label:'Alternative start',coordinates:[105.856,21.03]};
+  const end = {label:'Alternative end',coordinates:[106.689,20.845]};
+  const requests = [];
+  context.mock.method(globalThis, 'fetch', async input => {
+    const payload = JSON.parse(new URL(input).searchParams.get('json'));
+    requests.push(payload.alternates);
+    const coordinates = payload.alternates ? [start.coordinates,end.coordinates] : [start.coordinates,foreign,end.coordinates];
+    return {ok:true,json:async()=>({code:'Ok',routes:[makeRoute(coordinates)]})};
+  });
+  const route = await loadRoute(start, end);
+  assert.deepEqual(requests, [0, 2]);
+  assert.equal(isDomesticRoute(route), true);
+});
+
 test('Domestic corridor retries a long foreign detour without modifying itinerary stops', async context => {
   const donghoi = [106.623,17.469], via = domesticShapingPoints({coordinates:hanoi},{coordinates:donghoi});
   assert.deepEqual(via.map(p=>p.label), ['Vinh']);

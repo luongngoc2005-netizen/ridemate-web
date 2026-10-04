@@ -34,6 +34,11 @@ export default function RouteMap({ route, center, places = emptyPlaces, visible 
   const [ready, setReady] = useState(false), [error, setError] = useState(''), [follow, setFollow] = useState(false), [activeLeg, setActiveLeg] = useState(null);
   const location = useLocation(), position = location?.position;
   useEffect(() => {
+    if (ready) return;
+    const timer = setTimeout(() => setError('Nền bản đồ phản hồi chậm. Kiểm tra kết nối hoặc bấm tải lại nền.'), 20000);
+    return () => clearTimeout(timer);
+  }, [ready]);
+  useEffect(() => {
     let instance;
     try {
       instance = new maplibregl.Map({ container: container.current, style: mapServices.style, center: [106.2, 16.2], zoom: 5, cooperativeGestures: true, attributionControl: { compact: true } });

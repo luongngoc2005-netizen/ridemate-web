@@ -6,6 +6,7 @@ import { provinces, travelDestinations } from './provinces.js';
 import { domesticShapingPoints } from './domestic-routing.js';
 import { tripOrigin } from './origin-data.js';
 import { motorcycleUrl, highwaySteps, exclusionPoints, applyRidingEstimate } from './motorcycle-routing.js';
+import { withRouteDeadline } from './route-deadline.js';
 const env = import.meta.env || {};
 export const mapServices = {
   geocode: env.VITE_GEOCODER_URL || 'https://photon.komoot.io/api/',
@@ -83,12 +84,15 @@ export async function resolveRoutePoint(value,signal) {
   return {coordinates:value.coordinates.slice(0,2),label:value.label||'Vị trí đã chọn'};
 }
 export async function loadRoute(origin, destination, signal, stops = []) {
+  return withRouteDeadline(boundedSignal => calculateRoute(origin, destination, boundedSignal, stops), signal);
+}
+async function calculateRoute(origin, destination, signal, stops) {
   const { vietnam, isDomesticRoute, DOMESTIC_ROUTE_ERROR } = await import('./vietnam-guard.js');
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   const key = 'motorcycle:vn-v3:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
   const saved = cached(key);
   if (saved && isDomesticRoute(saved)) return saved;
-  const start = await resolveRoutePoint(origin, signal), end = await resolveRoutePoint(destination, signal);
+  const [start, end] = await Promise.all([resolveRoutePoint(origin, signal), resolveRoutePoint(destination, signal)]);
   const points = routePoints(start, end, stops);
   const outside = points.find(point => !vietnam.containsPoint(point.coordinates));
   if (outside) throw new Error(`Vị trí “${outside.label || outside.name || 'đã chọn'}” nằm ngoài phạm vi Việt Nam. Hãy đổi hoặc xóa vị trí này trong lịch trình.`);
@@ -104,8 +108,10 @@ export async function loadRoute(origin, destination, signal, stops = []) {
     }
     throw new Error('Tuyến trả về vẫn có đoạn cao tốc nên chưa được hiển thị. Hãy chọn lại điểm hoặc thử lại sau.');
   }
-  async function domesticPart(chunk) {
-    const result = await motorcycleRequest(chunk, chunk.length === 2);
+  async function domesticPart(chunk, alternatives = false) {
+    // Alternative searches can be much slower on long motorcycle routes.
+    // Ask for one route first; only seek alternatives after border rejection.
+    const result = await motorcycleRequest(chunk, alternatives);
     if (Array.isArray(result.waypoints) && result.waypoints.some(point => !vietnam.containsPoint(point.location))) throw new Error(DOMESTIC_ROUTE_ERROR);
     let boundaryRejected = false, parseError;
     for (const candidate of result.routes || []) {
@@ -136,6 +142,7 @@ export async function loadRoute(origin, destination, signal, stops = []) {
           }
         }
       }
+      if (!alternatives) return domesticPart(chunk, true);
       throw new Error(DOMESTIC_ROUTE_ERROR);
     }
     throw parseError || new Error('Dịch vụ bản đồ chưa tìm được tuyến qua các điểm đã chọn. Hãy kiểm tra vị trí các điểm hoặc thử lại.');

@@ -1,8 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import ToolIcon from './ToolIcon.jsx';
 import RouteMap from './RouteMap.jsx';
 import { useTripRoute } from './TripRouteContext.jsx';
-import { supportTypes, directionsUrl, placeDirectionsUrl } from './route-data.js';
+import { supportTypes, directionsUrl, placeDirectionsUrl, validPoint } from './route-data.js';
+import { plannedPlaces } from './planned-places.js';
 import { travelTime } from './motorcycle-routing.js';
 import TripWeather from './TripWeather.jsx';
 
@@ -11,6 +12,8 @@ export default function RouteOverview({ trip, children }) {
   const [selected, setSelected] = useState(null);
   const [visible, setVisible] = useState({});
   const mapSection = useRef(null);
+  const pendingPlaces = useMemo(() => plannedPlaces(trip).filter(place => validPoint(place.coordinates)), [trip]);
+  const pendingCenter = trip.originPoint?.label === trip.origin && validPoint(trip.originPoint?.coordinates) ? trip.originPoint : pendingPlaces[0];
   const select = place => { setVisible(value => ({ ...value, [place.type]: true })); setSelected({ ...place }); mapSection.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   const maps = current.route ? directionsUrl(current.route.start, current.route.end) : null;
   const toggleType = key => { setSelected(null); setVisible(value => ({ ...value, [key]: !value[key] })); };
@@ -26,10 +29,11 @@ export default function RouteOverview({ trip, children }) {
             {Object.entries(supportTypes).map(([key, type]) => <button key={key} aria-pressed={visible[key]} onClick={() => toggleType(key)}><ToolIcon name={type.icon} className="inline-icon"/> {type.label} ({current.places.filter(place => place.type === key).length})</button>)}
           </div>
           <p className="route-caption" role="status">{current.placesLoading ? `Đang tìm điểm hỗ trợ… ${current.progress}` : current.placesError || (Object.values(visible).some(Boolean) ? 'Bấm ghim để xem tên và chọn “Chỉ đường đến đây”.' : 'Chọn loại điểm hỗ trợ để hiện ghim dọc đường.')}</p>
-          {!!current.route.unresolved?.length && <p className="route-message">{current.route.unresolved.length} điểm chưa có tọa độ nên chưa được nối vào tuyến. Mở Hành trình → Lịch trình → Chọn vị trí để bổ sung.</p>}<RouteMap route={current.route} places={current.places} visible={visible} selected={selected} />
+          {!!current.route.unresolved?.length && <p className="route-message">{current.route.unresolved.length} điểm chưa có tọa độ nên chưa được nối vào tuyến. Mở Hành trình → Lịch trình → Chọn vị trí để bổ sung.</p>}
           <p className="route-caption">Điểm đi: {current.route.start.label}. Điểm đến: {current.route.end.label}. Tỉnh/thành được định vị bằng điểm đại diện, không phải địa chỉ cụ thể của bạn.</p>
           <p className="route-caption">Chỉ hiển thị tuyến trong Việt Nam theo ranh giới OpenStreetMap. Đã yêu cầu tránh cao tốc và kiểm tra các đoạn được nhận diện là cao tốc; vẫn cần tuân theo biển báo thực tế. Google Maps tự tính tuyến riêng từ hai đầu tuyến, không áp dụng bộ lọc biên giới của web; hãy kiểm tra trước khi đi. Nếu Google không hỗ trợ chế độ xe máy tại vị trí truy cập, mở ứng dụng Google Maps và chọn xe máy; thời gian ô tô không tương đương.</p>
-        </> : <div className="route-placeholder" role="status">{current.loading ? 'Đang xác định điểm đi–đến và tải cung đường…' : current.error || 'Chưa tải được bản đồ.'}</div>}
+        </> : <p className="route-message" role="status">{current.loading ? 'Đang xác định điểm đi–đến và tải cung đường… Bản đồ vẫn có thể sử dụng trong lúc chờ.' : current.error || 'Chưa tải được cung đường.'}</p>}
+        <RouteMap route={current.route} center={current.route ? undefined : pendingCenter} places={current.route ? current.places : pendingPlaces} visible={current.route ? visible : { planned: true }} selected={selected} />
         {!current.loading && (current.error || current.placesError) && <button className="soft" onClick={current.retry}>Thử tải lại</button>}
         <p className="route-caption">MapLibre · OpenFreeMap / OpenStreetMap · Tuyến xe máy Valhalla · yêu cầu tránh cao tốc; kiểm tra biển báo thực tế</p>
       </section></div>;

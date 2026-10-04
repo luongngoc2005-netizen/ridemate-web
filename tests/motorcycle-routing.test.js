@@ -37,3 +37,21 @@ test('Routing excludes returned highways and rejects persistent highway routes',
   });
   await assert.rejects(loadRoute(a,b),/cao tốc/);assert.equal(calls,3);
 });
+
+test('A valid domestic motorcycle route does not wait for alternative routes', async t => {
+  const a = {label:'Route start',coordinates:[105.855,21.029]};
+  const b = {label:'Route end',coordinates:[106.001,21.001]};
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async input => {
+    calls++;
+    const payload = JSON.parse(new URL(input).searchParams.get('json'));
+    assert.equal(payload.alternates, 0);
+    assert.equal(payload.costing, 'motorcycle');
+    assert.equal(payload.costing_options.motorcycle.exclude_highways, true);
+    const coordinates = [a.coordinates, b.coordinates];
+    return {ok:true,json:async()=>({code:'Ok',routes:[{distance:10000,duration:1200,geometry:{coordinates},legs:[{distance:10000,duration:1200,steps:[{geometry:{coordinates}}]}]}]})};
+  });
+  const route = await loadRoute(a, b);
+  assert.equal(calls, 1);
+  assert.deepEqual(route.coordinates, [a.coordinates,b.coordinates]);
+});
