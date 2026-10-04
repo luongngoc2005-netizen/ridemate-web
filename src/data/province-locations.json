@@ -1,0 +1,376 @@
+[
+  {
+    "name": "An Giang",
+    "coordinates": [
+      105.0432488,
+      10.3188672
+    ],
+    "label": "An Giang",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/1875748",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Bắc Ninh",
+    "coordinates": [
+      106.2051416,
+      21.2877276
+    ],
+    "label": "Bắc Ninh",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/14206414724",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Cà Mau",
+    "coordinates": [
+      105.1508415,
+      9.1762003
+    ],
+    "label": "Cà Mau",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/369486925",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Cần Thơ",
+    "coordinates": [
+      105.7872656,
+      10.0362046
+    ],
+    "label": "Cần Thơ",
+    "kind": "municipality",
+    "source": "https://www.openstreetmap.org/relation/1874283",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Cao Bằng",
+    "coordinates": [
+      106.2587824,
+      22.665781
+    ],
+    "label": "Cao Bằng",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/369486922",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Đà Nẵng",
+    "coordinates": [
+      108.212,
+      16.068
+    ],
+    "label": "Đà Nẵng",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/relation/1891418",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Đắk Lắk",
+    "coordinates": [
+      108.7979302,
+      12.8741856
+    ],
+    "label": "Đắk Lắk",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/1884034",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Điện Biên",
+    "coordinates": [
+      103.2168632,
+      21.6546566
+    ],
+    "label": "Điện Biên",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/1903340",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Đồng Nai",
+    "coordinates": [
+      106.8481538,
+      10.9182878
+    ],
+    "label": "Đồng Nai",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/10297919210",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Đồng Tháp",
+    "coordinates": [
+      105.9271362,
+      10.425183
+    ],
+    "label": "Đồng Tháp",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/1875866",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Gia Lai",
+    "coordinates": [
+      108.6354524,
+      14.0201373
+    ],
+    "label": "Gia Lai",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/1884018",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Hà Nội",
+    "coordinates": [
+      105.854041,
+      21.0283334
+    ],
+    "label": "Hà Nội",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/relation/1903516",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Hà Tĩnh",
+    "coordinates": [
+      105.897779,
+      18.3428502
+    ],
+    "label": "Hà Tĩnh",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/14172975430",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Hải Phòng",
+    "coordinates": [
+      106.6790381,
+      20.8830967
+    ],
+    "label": "Hải Phòng",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/relation/1902682",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Hồ Chí Minh",
+    "coordinates": [
+      106.7166008,
+      10.7737261
+    ],
+    "label": "Hồ Chí Minh",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/relation/1973756",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Huế",
+    "coordinates": [
+      107.5863388,
+      16.4639321
+    ],
+    "label": "Huế",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/relation/1891483",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Hưng Yên",
+    "coordinates": [
+      106.2843471,
+      20.6065846
+    ],
+    "label": "Hưng Yên",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/1901032",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Khánh Hòa",
+    "coordinates": [
+      108.9950386,
+      12.2980751
+    ],
+    "label": "Khánh Hòa",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/1887959",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Lai Châu",
+    "coordinates": [
+      103.4702436,
+      22.3862104
+    ],
+    "label": "Lai Châu",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/369487061",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Lâm Đồng",
+    "coordinates": [
+      108.1335279,
+      11.6614957
+    ],
+    "label": "Lâm Đồng",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/1885367",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Lạng Sơn",
+    "coordinates": [
+      106.6140692,
+      21.8487579
+    ],
+    "label": "Lạng Sơn",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/5522596",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Lào Cai",
+    "coordinates": [
+      103.9655897,
+      22.5003943
+    ],
+    "label": "Lào Cai",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/14109301789",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Nghệ An",
+    "coordinates": [
+      105.060676,
+      19.1976001
+    ],
+    "label": "Nghệ An",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/1898509",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Ninh Bình",
+    "coordinates": [
+      106.1000359,
+      20.2867258
+    ],
+    "label": "Ninh Bình",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/1900963",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Phú Thọ",
+    "coordinates": [
+      105.2228169,
+      21.3983745
+    ],
+    "label": "Phú Thọ",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/369490771",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Quảng Ngãi",
+    "coordinates": [
+      108.803827,
+      15.1232329
+    ],
+    "label": "Quảng Ngãi",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/369486914",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Quảng Ninh",
+    "coordinates": [
+      107.0763212,
+      20.9562629
+    ],
+    "label": "Quảng Ninh",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/relation/1902947",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Quảng Trị",
+    "coordinates": [
+      106.9548246,
+      17.2166964
+    ],
+    "label": "Quảng Trị",
+    "kind": "administrative",
+    "source": "https://www.openstreetmap.org/relation/1895630",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Sơn La",
+    "coordinates": [
+      103.9143842,
+      21.3269601
+    ],
+    "label": "Sơn La",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/369487088",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Tây Ninh",
+    "coordinates": [
+      106.0966969,
+      11.3136555
+    ],
+    "label": "Tây Ninh",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/369487072",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Thái Nguyên",
+    "coordinates": [
+      105.8387735,
+      21.5954257
+    ],
+    "label": "Thái Nguyên",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/14109428753",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Thanh Hóa",
+    "coordinates": [
+      105.4816107,
+      19.9781573
+    ],
+    "label": "Thanh Hóa",
+    "kind": "state",
+    "source": "https://www.openstreetmap.org/relation/1898590",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Tuyên Quang",
+    "coordinates": [
+      105.2174827,
+      21.8199783
+    ],
+    "label": "Tuyên Quang",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/14109370853",
+    "retrievedAt": "2026-10-04"
+  },
+  {
+    "name": "Vĩnh Long",
+    "coordinates": [
+      105.9714673,
+      10.254809
+    ],
+    "label": "Vĩnh Long",
+    "kind": "city",
+    "source": "https://www.openstreetmap.org/node/1527965399",
+    "retrievedAt": "2026-10-04"
+  }
+]

@@ -1,11 +1,14 @@
 import {cleanProfile,profileQuestions} from './ride-review.js';
 import {validOriginPoint} from './origin-data.js';
+import {provinceLocation} from './province-locations.js';
 
 const fold=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase();
 const text=value=>typeof value==='string'?value.trim():'';
 const place=value=>{
-  const s=text(value).replace(/[.!?]+$/,'').trim();
-  return ({hn:'Hà Nội',cb:'Cao Bằng'})[fold(s)]||s;
+  let s=text(value).replace(/[.!?,;]+$/,'').trim();
+  const suffix=fold(s).search(/(?:\s|[,;])+(?:cho (?:toi|minh|em|anh|chi|ban)|giup (?:toi|minh|em)|dum (?:toi|minh)|nhe|nha|voi nhe|duoc khong|duoc chu)(?:\s|[.!?,;]|$)/);
+  if(suffix>=0)s=s.slice(0,suffix).trim();
+  return provinceLocation(s)?.name||s;
 };
 const validDate=value=>{
   if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))return false;
@@ -20,15 +23,22 @@ export function requestedDuration(message){
 }
 export function requestedPlaces(message){
   const q=fold(message);
-  const truncate=value=>place(value.split(/\s+(?=\d+\s*(?:ngày|ngay|n\s*\d))/i)[0].split(/\s+(?:gồm|bao gồm|với|ngày đi|khởi hành|xuất phát lúc)(?:\s|$)/i)[0].split(/[,;]\s*(?:không|có|thích|ưu tiên|gồm|với|ngày|xuất|chỉ|một chiều)/i)[0]);
+  const truncate=value=>{
+    const end=fold(value).search(/\s+(?:(?:trong\s+)?\d+\s*(?:ngay|n\s*\d)|gom\b|bao gom\b|voi\b|ngay di\b|khoi hanh\b|xuat phat luc\b)|[,;]\s*(?:khong|co|thich|uu tien|gom|voi|ngay|xuat|chi|mot chieu)\b/);
+    return place(end>=0?value.slice(0,end):value);
+  };
   const route=q.match(/\btu\s+(.+?)\s*(?:den\b|toi\b|di\b|[-–→])\s*(.+)/);
   if(route){
     const start=route.index+route[0].indexOf(route[1]);
     const end=route.index+route[0].lastIndexOf(route[2]);
     return {origin:truncate(message.slice(start,start+route[1].length)),destination:truncate(message.slice(end))};
   }
-  // Abbreviated explicit routes such as HN–CB remain supported.
-  if(/\bhn\s*[-–→]\s*cb\b/.test(q))return {origin:'Hà Nội',destination:'Cao Bằng'};
+  // Only recognize an unprefixed arrow route when its departure is a known region.
+  const arrow=message.match(/(.+?)\s*[-–→]\s*(.+)/);
+  if(arrow){
+    const origin=arrow[1].replace(/^.*?(?:lịch trình|lich trinh|kế hoạch|ke hoach)\s*/i,'').replace(/^\d+\s*[nN]\s*\d+\s*[đdĐD]\s*/,'').trim();
+    if(provinceLocation(origin))return {origin:place(origin),destination:truncate(arrow[2])};
+  }
   const destination=message.match(/(?:^|\s)(?:ở|tại|đến|tới|đi|o|tai|den)\s+(?:địa điểm\s+)?(.+)/i);
   if(!destination)return {origin:'',destination:''};
   const start=destination.index+destination[0].lastIndexOf(destination[1]);

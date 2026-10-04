@@ -2,10 +2,12 @@ import React,{useRef,useState,useMemo} from 'react';
 import DraftLocations from './DraftLocations.jsx';
 import TripFeasibility from './TripFeasibility.jsx';
 import {cleanDraft,confirmDraft,draftCosts} from './assistant-draft.js';
+import {provinceLocation,provinceMapUrl} from './province-locations.js';
 import './assistant-planner.css';
 
 export default function DraftReply({draft,mode,active,busy,saved,onChange,onCreatePlan,onOpenPlan}){
   const nights=draft.nights??Math.max(0,draft.days.length-1);
+  const regionPins=[...new Map((draft.originPoint?[draft.destination]:[draft.origin,draft.destination]).map(provinceLocation).filter(Boolean).map(p=>[p.name,p])).values()];
   const [confirm,setConfirm]=useState(false),[error,setError]=useState('');
   const preview=useMemo(()=>{try{const trip=confirmDraft(draft,{...draft.details,origin:draft.origin});
     trip.itinerary=trip.itinerary.map((d,i)=>({...d,id:`preview-day-${i}`,places:d.places.map((p,j)=>({...p,id:`preview-${i}-${j}`}))}));return trip;
@@ -15,6 +17,7 @@ export default function DraftReply({draft,mode,active,busy,saved,onChange,onCrea
     <div className="draft-result"><span className="ai-kicker">{mode} · {saved?"ĐÃ LƯU":"BẢN NHÁP"}</span><h2>{draft.days.length} ngày {nights} đêm · {draft.origin} → {draft.destination}</h2><p>{draft.summary}</p>
       {draft.returnToOrigin!=null&&<p>{draft.returnToOrigin?'Có chặng quay về điểm xuất phát vào ngày cuối.':'Hành trình một chiều theo yêu cầu.'}</p>}
       {draft.originPoint&&<p>Điểm đi đã có tọa độ {draft.originPoint.source==='gps'?'GPS':'do bạn chọn'}{Number.isFinite(draft.originPoint.accuracy)?` · sai số khoảng ${Math.round(draft.originPoint.accuracy)} m`:''}. Vị trí được giữ cố định cho kế hoạch này.</p>}
+      {regionPins.length>0&&<p>Đối chiếu khu vực: {regionPins.map((p,i)=><React.Fragment key={p.name}>{i>0?' · ':''}<a href={provinceMapUrl(p)} target="_blank" rel="noopener noreferrer">Xem ghim {p.name}</a></React.Fragment>)}. Đây là ghim đại diện; cần chọn địa chỉ cụ thể khi chốt tuyến.</p>}
       <h3>Giả định của bản nháp</h3><ul>{draft.assumptions.map((x,i)=><li key={i}>{x}</li>)}</ul>
       {draft.days.map((day,i)=><article className="draft-day" key={i}><h3>Ngày {i+1}: {day.title}</h3><p><b>Sáng: </b>{day.morning}</p><p><b>Chiều: </b>{day.afternoon}</p><p><b>Tối: </b>{day.evening}</p><p><b>Nghỉ đêm: </b>{day.lodging}</p>
         <ul>{day.stops.map((name,j)=><li key={`${name}:${j}`}>{name} · <a target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name}, ${draft.destination}`)}`}>Tìm trên bản đồ</a></li>)}</ul>

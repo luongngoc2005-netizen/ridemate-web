@@ -5,8 +5,9 @@ import { vietnam, isDomesticRoute } from '../src/vietnam-guard.js';
 import { osrmUrl, parseOsrm } from '../src/osrm-data.js';
 import { loadRoute, loadPlaces, searchPlannedCandidates } from '../src/route-data.js';
 import { domesticShapingPoints } from '../src/domestic-routing.js';
+import {provinceLocation} from '../src/province-locations.js';
 
-const hanoi = [105.854, 21.028], haiphong = [106.688, 20.844], foreign = [102.63, 17.97];
+const hanoi = provinceLocation('Hà Nội').coordinates, haiphong = provinceLocation('Hải Phòng').coordinates, foreign = [102.63, 17.97];
 const makeRoute = coordinates => ({ distance: 100000, duration: 3600, geometry: { coordinates }, legs: [{ distance: 100000, duration: 3600, steps: [{ geometry: { coordinates } }] }] });
 const geocodeResponse = name => ({ features: [{ properties: { name, countrycode: 'VN', osm_key: 'place', osm_value: 'city' }, geometry: { coordinates: name === 'Hà Nội' ? hanoi : haiphong } }] });
 
@@ -146,5 +147,5 @@ test('A cached route is revalidated and a cached foreign detour is discarded', a
   });
   const fresh=await import('../src/route-data.js?domestic-cache-regression');
   const route=await fresh.loadRoute('Hà Nội','Hải Phòng');
-  assert.equal(requests,3); assert.deepEqual(route.coordinates,[hanoi,haiphong]);
+  assert.equal(requests,1); assert.deepEqual(route.coordinates,[hanoi,haiphong]);
 });

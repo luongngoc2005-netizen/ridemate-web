@@ -3,6 +3,8 @@ import {destinations} from '../src/trip-data.js';
 import {apiError} from './supabase-gate.js';
 import {providerFetch,providerTimeout,providerConfigured} from './ai-provider.js';
 import {cleanProfile} from '../src/ride-review.js';
+import {requestedPlaces} from '../src/assistant-intake.js';
+import {provinceLocation} from '../src/province-locations.js';
 
 const text={type:'string',maxLength:600,minLength:1};
 const list={type:'array',items:text,maxItems:15};
@@ -21,7 +23,7 @@ export function normalizeDraftRequest(payload){
     for(const [key,max] of [['origin',200],['destination',200],['date',10],['departure',5],['preferences',600]]){
       const value=payload.context[key];if(value==null||value==='')continue;
       if(typeof value!=='string'||value.length>max||!value.trim())throw apiError(400,'INVALID_REQUEST');
-      context[key]=value.trim();
+      context[key]=['origin','destination'].includes(key)?provinceLocation(value)?.name||value.trim():value.trim();
     }
     for(const [key,min,max] of [['days',1,7],['nights',0,7],['people',1,30],['vehicles',1,30]]){
       const value=payload.context[key];if(value==null)continue;
@@ -31,6 +33,10 @@ export function normalizeDraftRequest(payload){
     if(context.days!=null&&context.nights>context.days||context.people!=null&&context.vehicles!=null&&(context.vehicles>context.people||context.people>context.vehicles*2))throw apiError(400,'INVALID_REQUEST');
     if(payload.context.returnToOrigin!=null){if(typeof payload.context.returnToOrigin!=='boolean')throw apiError(400,'INVALID_REQUEST');context.returnToOrigin=payload.context.returnToOrigin;}
     Object.assign(context,cleanProfile(payload.context));
+  }
+  if(!previous){
+    const places=requestedPlaces(payload.message);
+    for(const key of ['origin','destination'])if(places[key]&&!context?.[key])context={...context,[key]:places[key]};
   }
   return {message:payload.message.trim(),previous,...(context?{context}:{})};
 }

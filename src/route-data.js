@@ -3,6 +3,7 @@ export { supportTypes, markerTypes, validPoint, routePosition, selectPlaces } fr
 import { createPlaceProcessor } from './places-processor.js';
 import { parseOsrm, routePoints, itineraryStops } from './osrm-data.js';
 import { provinces, travelDestinations } from './provinces.js';
+import {provinceLocation} from './province-locations.js';
 import { domesticShapingPoints } from './domestic-routing.js';
 import { tripOrigin } from './origin-data.js';
 import { motorcycleUrl, highwaySteps, exclusionPoints, applyRidingEstimate } from './motorcycle-routing.js';
@@ -54,15 +55,21 @@ export function chooseLocation(features, name = '') {
   const normalize = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/đ/g, 'd').replace(/^(tinh|thanh pho|tp\.?)\s+/, '').trim();
   const target = normalize(name);
   const exact = candidates.filter(item => normalize(item.properties.name || '') === target);
+  const province = provinces.some(value => normalize(value) === target);
   // Require a geographic area, not just a matching name or OSM value.
   const area = exact.find(({ properties: p }) =>
-    (p.osm_key === 'place' && ['city', 'town', 'state', 'province', 'island', 'village', 'district', 'county'].includes(p.osm_value)) ||
-    (p.osm_key === 'boundary' && p.osm_value === 'administrative'));
+    (p.osm_key === 'place' && (province ? ['city', 'state', 'province', 'municipality'] : ['city', 'town', 'state', 'province', 'municipality', 'island', 'village', 'district', 'county']).includes(p.osm_value)) ||
+    (p.osm_key === 'boundary' && p.osm_value === 'administrative' && (!province || ['4', '6'].includes(String(p.extra?.admin_level)))));
   const known = [...provinces, ...travelDestinations].some(value => normalize(value) === target);
   if (known) return area;
   return area || exact.find(item => !['highway', 'shop', 'amenity'].includes(item.properties.osm_key)) || candidates[0];
 }
 export async function geocode(name, signal) {
+  if(signal?.aborted)throw new DOMException('Aborted','AbortError');
+  const known=provinceLocation(name);
+  // Bundled pins are source-backed and checked against the country geometry in tests.
+  // Avoid loading the large boundary file merely to center a province's map.
+  if(known)return {...known,representative:true};
   const { vietnam } = await import('./vietnam-guard.js');
   const key = `geo:v5:${mapServices.geocode}:${name.trim().toLowerCase()}`;
   const saved = cached(key);
@@ -89,7 +96,7 @@ export async function loadRoute(origin, destination, signal, stops = []) {
 async function calculateRoute(origin, destination, signal, stops) {
   const { vietnam, isDomesticRoute, DOMESTIC_ROUTE_ERROR } = await import('./vietnam-guard.js');
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-  const key = 'motorcycle:vn-v3:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
+  const key = 'motorcycle:vn-v4:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
   const saved = cached(key);
   if (saved && isDomesticRoute(saved)) return saved;
   const [start, end] = await Promise.all([resolveRoutePoint(origin, signal), resolveRoutePoint(destination, signal)]);

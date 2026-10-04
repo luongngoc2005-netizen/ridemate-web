@@ -61,6 +61,7 @@ test('Province matches reject railway, buildings and other non-area features', (
     assert.equal(chooseLocation([feature(key, value)], 'Hà Nội'), undefined);
   }
   const boundary = feature('boundary', 'administrative', 'Thành phố Hà Nội');
+  boundary.properties.extra={admin_level:'4'};
   assert.equal(chooseLocation([feature('railway', 'station'), boundary], 'Hà Nội'), boundary);
   const island = feature('place', 'island', 'Cát Bà');
   assert.equal(chooseLocation([island], 'Cát Bà'), island);
@@ -103,8 +104,8 @@ test('Old geocoding and route caches cannot preserve a wrong endpoint after the 
   });
   const { loadRoute } = await import('../src/route-data.js?cache-regression');
   const result = await loadRoute('Hà Nội', 'Hải Phòng');
-  assert.equal(requests, 3);
-  assert.deepEqual(result.start.coordinates, [105.85, 21.03]);
+  assert.equal(requests, 1);
+  assert.deepEqual(result.start.coordinates, [105.854041, 21.0283334]);
   assert.equal(result.wrong, undefined);
 });
 test('Directions reuse the exact overview endpoints without latitude/longitude reversal', () => {

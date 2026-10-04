@@ -12,5 +12,5 @@ export default function DestinationMap({ name }) {
     return () => controller.abort();
   }, [name]);
   const current = state.name === name ? state : {};
-  return <div className="destination-map">{current.error && <p className="route-caption">Chưa xác định được điểm đến. Bạn vẫn có thể bật định vị.</p>}<RouteMap center={current.center}/></div>;
+  return <div className="destination-map">{current.error && <p className="route-caption">Chưa xác định được điểm đến. Bạn vẫn có thể bật định vị.</p>}{current.center?.representative&&<p className="route-caption">Ghim đại diện {current.center.label}; chưa phải địa chỉ lưu trú hay điểm tham quan.</p>}<RouteMap center={current.center}/></div>;
 }
