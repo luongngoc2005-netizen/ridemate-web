@@ -1,72 +1,48 @@
-# AI Assistant — đồng hành du lịch bằng xe máy
+# AI Assistant — trợ lý du lịch bằng xe máy
 
-Backend hỗ trợ cả OpenAI và OpenRouter. Để thử model miễn phí, xem
-[OPENROUTER_SETUP.md](OPENROUTER_SETUP.md). Chọn bằng `AI_PROVIDER`; key chỉ nằm trên server.
+Backend hỗ trợ `AI_PROVIDER=vllm|openrouter|openai`. Xem [vLLM](./VLLM_SETUP.md), [OpenRouter](./OPENROUTER_SETUP.md) và [deploy](./RENDER_DEPLOY.md). Khóa chỉ nằm ở server. API AI yêu cầu đăng nhập Supabase và migration hạn mức; không cần service-role key.
 
-Mở kế hoạch → **Kiểm tra chuyến đi của tôi** mở đánh giá ngay trong AI Assistant.
-Mục AI Assistant trên thanh điều hướng mở cuộc trò chuyện với kế hoạch hiện hành.
-Không cần chọn kế hoạch để chat. Gợi ý lịch trình mới, khám phá điểm đến, chỉnh bản nháp và xác nhận lưu đều nằm trong cùng lịch sử tin nhắn, dùng một ô gửi tin.
+## Hội thoại và bản nháp
 
-## Phạm vi bản đầu
+AI Assistant dùng một ô chat, có thể mở khi chưa chọn kế hoạch. “Kiểm tra chuyến đi của tôi” mở đánh giá kế hoạch đang chọn. Lời chào/cảm ơn không tự tạo lịch trình; yêu cầu chưa rõ không tự sửa kế hoạch.
 
-- Chat, gợi ý câu hỏi, trả lời một thông tin còn thiếu mỗi lượt. Nhận các câu đơn giản
-  về ngày mai, xuất phát muộn, mệt, mưa, điểm dừng và chuẩn bị xe. Câu không hiểu được
-  được báo rõ, không giả một câu trả lời AI.
-- Hồ sơ xe ga/số/côn, người đi cùng, kinh nghiệm, giới hạn thời gian và tránh tối
-  lưu riêng trong trình duyệt (`ridemate.rider.v1`), chưa đồng bộ tài khoản.
-- Thời gian từng ngày lưu trong kế hoạch. Không chia tổng thời gian tuyến cho số
-  ngày, không tự suy ra các điểm ngủ đêm. Ngày mai tính theo lịch Việt Nam, không
-  đồng nghĩa ngày thứ hai. Không phân tích tự động các giờ viết tự do trong ghi chú.
-- Câu trả lời có bốn phần: gợi ý, lý do cá nhân hóa, điểm dừng, thông tin còn thiếu.
-- Gợi ý giảm lịch trình có bản xem trước; chỉ nút Áp dụng mới chuyển điểm cuối ngày
-  sang Để sau. Có thể đưa lại cuối lịch trình. Thời gian cần tính lại sau thay đổi;
-  gợi ý cũ không được áp dụng lên lịch đã đổi. Không tự thay lịch khi chat.
-- Ghim chỉ lấy từ OpenStreetMap có tọa độ và nguồn, gần đoạn tuyến đã xác định
-  của ngày được hỏi. Chuyến nhiều ngày chưa có đủ tọa độ thì không dùng ghim toàn
-  tuyến thay thế. Khoảng cách là đường thẳng, chưa xác minh đường đi vòng/giờ mở cửa.
-- Thời tiết, độ phù hợp đường và lượng nhiên liệu không được suy đoán. Tình huống
-  mưa là điều người dùng báo, không phải dự báo mới từ trợ lý.
-- Nội dung hội thoại là ảnh chụp đánh giá tại thời điểm trả lời và chỉ giữ trong
-  phiên màn hình. Đổi kế hoạch tách ngữ cảnh. Kiểm tra lại để dùng dữ liệu mới.
+Ví dụ: “Lập lịch trình 3 ngày 2 đêm ở Cao Bằng”. Trợ lý hỏi từng thông tin còn thiếu: vị trí, điểm đến, ngày/đêm, ngày/giờ đi, người/xe, loại xe, kinh nghiệm, giới hạn giờ chạy, tránh tối và sở thích. Không mặc định Hà Nội khi thiếu điểm đi. GPS mới cần thao tác cho phép; vị trí sống đã bật và còn mới có thể được dùng cho điểm xuất phát.
 
-## Backend production và OpenAI
+Mặc định có chặng về ngày cuối; yêu cầu một chiều bỏ chặng về. Giữ số đêm đã yêu cầu. Bản nháp AI giới hạn 1–7 ngày; form kế hoạch thủ công hỗ trợ tới 30 ngày. Tọa độ GPS giữ ở frontend, chỉ tên khu vực được gửi cho model. Đổi tên điểm đi trong form xác nhận bỏ tọa độ xuất phát cũ.
 
-Backend Node phục vụ cả giao diện đã build và API cùng nguồn. Dùng `npm start`
-trên Render Web Service. Xem đầy đủ bước cấu hình, biến môi trường, migration
-hạn mức, cách kiểm tra và xử lý lỗi tại [RENDER_DEPLOY.md](RENDER_DEPLOY.md).
+Model tạo bản nháp theo schema; người dùng sửa nội dung/ngày/điểm trước khi xác nhận. Mẫu cơ bản Hà Nội–Cao Bằng 3 ngày 2 đêm có thể dùng khi AI không hoạt động, chỉ khi yêu cầu phù hợp mẫu. Không giả vờ chỉnh tự do bằng model khi offline.
 
-OpenAI chỉ chuyển ngôn ngữ thành ý định, ngày được chỉ định và câu trả lời cho
-thông tin còn thiếu. Đầu vào được lọc và đầu ra được kiểm tra; RideMate tự tính
-thời gian, tạo ghim từ nguồn bản đồ và chỉ sửa lịch khi người dùng bấm áp dụng.
-Không có khóa hoặc API lỗi: đánh giá cơ bản vẫn hoạt động, có thông báo rõ.
+## Tọa độ và quỹ thời gian
 
-Cả Vite dev và backend production đều yêu cầu đăng nhập Supabase cho API AI.
-Hạn mức bền vững trong Supabase: 10 lần/phút và 50 lần/ngày/tài khoản,
-500 lần/ngày/toàn ứng dụng. Lỗi xác thực/hạn mức không được gọi OpenAI.
-Không cần service_role key. OPENAI_API_KEY chỉ ở server, không dùng tiền tố VITE_.
+Bản nháp có phần tra cứu điểm tham quan và kiểm tra từng ngày. Xem [PLANNING_SYNC](./PLANNING_SYNC.md) để biết cách chọn ghim, đối chiếu Google Maps, nhập tọa độ và chọn nơi nghỉ.
 
-Chưa gọi API bằng khóa thật trong phiên viết code. Kiểm thử dùng phản hồi giả lập.
-Tham chiếu: https://developers.openai.com/api/docs/guides/structured-outputs
-# Luồng tạo bản nháp trước kế hoạch
+Tọa độ không do model tự sinh. Kết quả không duy nhất hoặc thiếu khu vực cần người dùng chọn. Phần kiểm tra từng ngày báo thiếu tọa độ/lỗi tuyến thay vì công bố thời gian đầy đủ. Thời gian ăn, tham quan, nơi nghỉ và mốc kết thúc chưa có dữ liệu được ghi là giả định; người dùng chỉnh trước khi kết luận lịch phù hợp.
 
-AI Assistant mở một khung chat duy nhất, dùng được khi chưa chọn kế hoạch.
-`POST /api/assistant/draft` dùng chung kiểm tra đăng nhập, origin, kích thước và hạn mức
-với endpoint cũ. Responses Structured Outputs tạo bản nháp 1–7 ngày; gửi bản nháp
-hiện tại khi chỉnh qua hội thoại. Không tự lưu hay đặt dịch vụ. Luồng kiểm tra kế hoạch
-cũ trả lời ngay trong cùng khung chat. Không có tab hay màn hình lên lịch riêng.
+Giá vé, phòng, nhiên liệu và giờ mở cửa chưa xác minh không được cộng thành tổng chi phí. Catalog Vietnam Tourism hỗ trợ tên điểm đến, không phải bảng giá. Chỗ nghỉ của web hiện là demo.
 
-Mẫu HN–CB 3N2Đ hoạt động khi chưa đăng nhập hoặc AI không sẵn sàng; được ghi rõ là
-gợi ý cơ bản. Những yêu cầu khác và chỉnh tự do bằng hội thoại cần AI hoạt động.
-Người dùng vẫn sửa trực tiếp nội dung ngày và danh sách điểm trước khi xác nhận.
+## Xác nhận và lưu
 
-Giá vé, phòng, nhiên liệu và thời gian tuyến chưa có nguồn cập nhật được hiển thị
-chưa xác minh, không coi là miễn phí và không cộng tổng giả. Nguồn Vietnam Tourism
-chỉ hỗ trợ tên điểm đến, không phải bảng giá. Điểm trên bản đồ là tìm kiếm theo tên.
+Form xác nhận điền sẵn câu trả lời về ngày, giờ, điểm đi/đến và người/xe. Chỉ sau xác nhận mới tạo kế hoạch chứa lịch trình, checklist, tọa độ và thông tin lập kế hoạch đã duyệt. Lưu cache thất bại giữ bản nháp; lưu thành công có nút Mở kế hoạch ngay trong chat.
 
-Xác nhận ngày, giờ, điểm xuất phát và số người/xe tạo kế hoạch mới với đúng các ngày,
-ghi chú và checklist đã duyệt. Hồ sơ xe tùy chọn. Lưu trình duyệt thất bại giữ bản nháp;
-lưu thành công vẫn ở trong chat, có nút Mở kế hoạch khi người dùng muốn chuyển sang xem. Chưa đặt phòng, mua vé hoặc xác minh
-sức chạy. Bản nháp chưa lưu chỉ tồn tại trong phiên màn hình, không tự đồng bộ.
+Kế hoạch đã lưu tự đồng bộ khi đăng nhập. Hội thoại và bản nháp chưa xác nhận chỉ giữ trong phiên màn hình, không tự đồng bộ. Không tự đặt phòng, mua vé hoặc đổi lịch để xử lý cảnh báo quá tải.
 
-Đã kiểm tra bằng trình duyệt luồng khách không có kế hoạch → bản nháp → xác nhận →
-kế hoạch. API được kiểm thử với provider giả lập; chưa xác minh bằng khóa thật.
+## Đánh giá kế hoạch trong chat
+
+- Dùng hồ sơ xe ga/số/côn, kinh nghiệm, người đi cùng, giới hạn giờ chạy và tránh tối.
+- Hồ sơ chung lưu trên trình duyệt; hồ sơ xác nhận trong kế hoạch đi cùng dữ liệu kế hoạch.
+- Chat hỏi thông tin thời gian còn thiếu, không chia tổng tuyến cho số ngày hoặc phân tích giờ viết tự do trong ghi chú.
+- Gợi ý giảm lịch có bản xem trước; chỉ bấm Áp dụng mới chuyển điểm sang Để sau. Có thể đưa lại lịch; dữ liệu đã đổi làm gợi ý cũ hết hiệu lực.
+- Ghim gợi ý từ OSM, có nguồn và tọa độ gần đoạn tuyến đã xác định; không lấy ghim toàn tuyến thay cho chặng ngày chưa rõ.
+- Mưa/mệt là tình huống người dùng báo, không phải dữ liệu thời tiết mới do model xác minh.
+
+Phần kiểm tra từng ngày trong bản nháp/chi tiết kế hoạch tính tuyến riêng, có nơi nghỉ và chặng về. Luồng đánh giá cơ bản trong chat hiện chỉ tự lấy thời gian tổng tuyến khi kế hoạch một ngày và đủ tọa độ; chuyến nhiều ngày vẫn hỏi thời gian ngày được đánh giá.
+
+## API và lỗi
+
+- `GET /api/assistant/status`: đủ cấu hình hay chưa, có yêu cầu đăng nhập. Không kiểm tra model đang bật.
+- `POST /api/assistant`: nhận diện ý định/ngày/thông tin trả lời.
+- `POST /api/assistant/draft`: tạo hoặc chỉnh bản nháp, dùng chung Auth, origin và quota.
+
+OpenAI dùng Responses Structured Outputs; OpenRouter/vLLM dùng Chat Completions với JSON Schema. Đầu vào/đầu ra được kiểm tra, không chuyển provider hoặc tự thử lại khi lỗi. Timeout OpenAI 30 giây; OpenRouter/vLLM 90 giây. Model offline, sai schema, output thiếu hoặc hết quota được báo rõ; bản nháp đang có được giữ.
+
+Chi tiết hạn mức và cấu hình production: [RENDER_DEPLOY](./RENDER_DEPLOY.md). Kiểm thử provider giả lập và smoke test trực tiếp tới model không thay thế nghiệm thu đầy đủ Auth/quota trên bản deploy.

@@ -2,7 +2,9 @@ export function motorcycleUrl(endpoint, points, alternatives = false, exclusions
   const url = new URL(endpoint);
   url.searchParams.set('json', JSON.stringify({
     locations: points.map(p => ({ lon: p.coordinates[0], lat: p.coordinates[1], type: 'break' })),
-    costing: 'motorcycle', costing_options: { motorcycle: { exclude_highways: true, use_highways: 0, use_trails: 0, use_tolls: 0, top_speed: 60 } },
+    // Neutral preferences keep legal trunk/national roads usable. A zero highway
+    // preference penalizes trunk roads too; motorway exclusion is separate.
+    costing: 'motorcycle', costing_options: { motorcycle: { exclude_highways: true, use_highways: 0.5, use_trails: 0, use_tolls: 0.5, top_speed: 60 } },
     format: 'osrm', shape_format: 'geojson', units: 'kilometers', alternates: alternatives ? 2 : 0,
     exclude_locations: exclusions.map(([lon, lat]) => ({ lon, lat })),
   }));
@@ -27,11 +29,11 @@ export function ridingEstimate(km, providerSeconds) {
 }
 export function applyRidingEstimate(route) {
   const legs = route.legs.map(leg => ({ ...leg, providerDurationSeconds: leg.durationSeconds,
-    durationSeconds: ridingEstimate(leg.distanceKm, leg.durationSeconds).moving }));
-  const moving = legs.reduce((sum, leg) => sum + leg.durationSeconds, 0);
+    planningDurationSeconds: ridingEstimate(leg.distanceKm, leg.durationSeconds).moving }));
+  const moving = legs.reduce((sum, leg) => sum + leg.planningDurationSeconds, 0);
   const estimate = ridingEstimate(route.distanceKm, moving);
   return { ...route, provider: 'Valhalla', mode: 'motorcycle', legs, providerDurationSeconds: route.durationSeconds,
-    durationSeconds: moving, estimate };
+    estimate };
 }
 export function travelTime(seconds) {
   const minutes = Math.ceil(seconds / 300) * 5;

@@ -85,7 +85,7 @@ export async function resolveRoutePoint(value,signal) {
 export async function loadRoute(origin, destination, signal, stops = []) {
   const { vietnam, isDomesticRoute, DOMESTIC_ROUTE_ERROR } = await import('./vietnam-guard.js');
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-  const key = 'motorcycle:vn-v2:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
+  const key = 'motorcycle:vn-v3:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
   const saved = cached(key);
   if (saved && isDomesticRoute(saved)) return saved;
   const start = await resolveRoutePoint(origin, signal), end = await resolveRoutePoint(destination, signal);
@@ -264,16 +264,18 @@ export async function searchPlannedCandidates(name, route, signal) {
   return (result.features || []).filter(item => validPoint(item.geometry?.coordinates) && item.properties?.countrycode?.toUpperCase() === 'VN' && vietnam.containsPoint(item.geometry.coordinates)).map(item => {
     const properties = item.properties, coordinates = item.geometry.coordinates;
     return { id: `${properties.osm_type}/${properties.osm_id}`, name: properties.name || name.trim(), coordinates,
+      source: `https://www.openstreetmap.org/${({N:'node',W:'way',R:'relation'})[properties.osm_type] || properties.osm_type}/${properties.osm_id}`,
+      kind: properties.osm_key, subtype: properties.osm_value,
       address: [...new Set([properties.housenumber, properties.street, properties.city, properties.state].filter(Boolean))].join(', '),
       distanceMeters: hasRoute ? routePosition(coordinates, route.coordinates).distance : null };
   }).sort((a, b) => hasRoute ? a.distanceMeters - b.distanceMeters : 0);
 }
 export function directionsUrl(origin, destination) {
-  return `https://www.google.com/maps/dir/?${new URLSearchParams({ api: '1', origin: pointText(origin), destination: pointText(destination), travelmode: 'driving', avoid: 'highways' })}`;
+  return `https://www.google.com/maps/dir/?${new URLSearchParams({ api: '1', origin: pointText(origin), destination: pointText(destination), travelmode: 'two-wheeler', avoid: 'highways' })}`;
 }
 export function placeDirectionsUrl(place) {
   // External Maps recalculates its own route; do not auto-start navigation.
-  return `https://www.google.com/maps/dir/?${new URLSearchParams({ api: '1', destination: pointText(place), travelmode: 'driving', avoid: 'highways' })}`;
+  return `https://www.google.com/maps/dir/?${new URLSearchParams({ api: '1', destination: pointText(place), travelmode: 'two-wheeler', avoid: 'highways' })}`;
 }
 export function placeUrl(place) {
   return `https://www.google.com/maps/search/?${new URLSearchParams({ api: '1', query: `${place.coordinates[1]},${place.coordinates[0]}` })}`;

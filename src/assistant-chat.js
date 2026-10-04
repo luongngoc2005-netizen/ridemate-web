@@ -7,6 +7,7 @@ export function chatAction(message,{hasTrip=false,hasDraft=false}={}){
   if(/^(?:cam on(?:\s+ban)?|thanks|thank you)[!.\s]*$/.test(q.trim()))return 'thanks';
   const newDraft=/\b\d+\s*(?:n\s*\d+\s*d|ngay)\b/.test(q)&&/lich trinh|ke hoach|tu |di |hn|cb/.test(q)||/lap lich|len lich|tao (?:lich trinh|ke hoach)|lich trinh moi/.test(q);
   const editDraft=hasDraft&&/bo |bot |them |doi |sua |giam |nhe hon|nghi hon|homestay|chi co|neu chi|thay /.test(q);
+  if(editDraft&&!/lich trinh moi|ke hoach moi/.test(q))return 'editDraft';
   if(newDraft)return 'newDraft';
   if(editDraft)return 'editDraft';
   if(intent==='explore')return 'explore';

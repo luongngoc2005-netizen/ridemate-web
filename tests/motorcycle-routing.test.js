@@ -7,6 +7,8 @@ test('Motorcycle request preserves stop order and requests highway avoidance', (
   const payload = JSON.parse(motorcycleUrl('https://example.com/route', points).searchParams.get('json'));
   assert.equal(payload.costing,'motorcycle');assert.equal(payload.costing_options.motorcycle.exclude_highways,true);
   assert.equal(payload.costing_options.motorcycle.top_speed,60);
+  assert.equal(payload.costing_options.motorcycle.use_highways,0.5);
+  assert.equal(payload.costing_options.motorcycle.use_tolls,0.5);
   assert.deepEqual(payload.locations.map(p=>[p.lon,p.lat]),points.map(p=>p.coordinates));
 });
 test('Fast provider estimates cannot imply a planning average above 40 km/h',()=>{
@@ -16,6 +18,10 @@ test('Fast provider estimates cannot imply a planning average above 40 km/h',()=
   assert.equal(ridingEstimate(0,0).rest,0);
   const result=applyRidingEstimate({distanceKm:280,durationSeconds:100,legs:[{distanceKm:100,durationSeconds:20},{distanceKm:180,durationSeconds:80}]});
   assert.equal(result.durationSeconds,result.legs.reduce((s,l)=>s+l.durationSeconds,0));
+  assert.equal(result.durationSeconds,100,'Provider ETA must not be overwritten by planning assumptions');
+  assert.equal(result.legs[0].durationSeconds,20);
+  assert.equal(result.legs[0].planningDurationSeconds,9000);
+  assert.equal(result.estimate.moving,7*3600);
   assert.equal(travelTime(3599),'1 giờ 0 phút');
 });
 test('Highway detection covers name, ref and motorway classification',()=>{

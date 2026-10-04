@@ -27,7 +27,7 @@ export function useAccount() {
   return { session, loading, recovery, setRecovery, error };
 }
 
-export default function Account({ account, onRestored, onBusy, localError }) {
+export default function Account({ account, onRestored, onBusy, localError, planSync }) {
   const { session, loading, recovery, setRecovery } = account;
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
@@ -130,18 +130,19 @@ export default function Account({ account, onRestored, onBusy, localError }) {
         <label>Tên hiển thị<input required maxLength={80} autoComplete="name" value={profileName} onChange={e => setProfileName(e.target.value)} /></label>
         <button className="soft" type="submit">Lưu tên</button>
       </fieldset></form>
-      <p>Nhật ký tự tải theo tài khoản và lưu trực tiếp khi bạn thêm, sửa hoặc xóa bài. Chuyến đang lập vẫn lưu trên trình duyệt; dùng các nút bên dưới để chuyển chuyến sang thiết bị khác.</p>
+      <p>Kế hoạch, lịch trình, ghi chú và checklist tự đồng bộ theo tài khoản. Khi mất mạng, bản sửa được giữ trên thiết bị để gửi lại. Nhật ký lưu trực tiếp theo tài khoản.</p>
+      {planSync&&<button className="soft" disabled={busy||planSync.loading} onClick={()=>run(async()=>{if(window.confirm('Nhập các kế hoạch khách trên trình duyệt này vào tài khoản hiện tại? Kế hoạch trùng ID được giữ theo tài khoản.'))planSync.importGuest();})}>Nhập kế hoạch khách từ trình duyệt</button>}
       <div className="account-actions">
         <button disabled={busy} className="soft" onClick={inspect}>Kiểm tra bản trên tài khoản</button>
-        <button disabled={busy || cloud === undefined} className="green" onClick={upload}>Lưu các kế hoạch</button>
-        <button disabled={busy || !cloud} className="soft" onClick={download}>Tải về trình duyệt</button>
+        {!planSync&&<><button disabled={busy || cloud === undefined} className="green" onClick={upload}>Lưu các kế hoạch</button>
+        <button disabled={busy || !cloud} className="soft" onClick={download}>Tải về trình duyệt</button></>}
       </div>
       {cloud && <p>Bản {cloud.revision} · {new Date(cloud.updated_at).toLocaleString('vi-VN')} · {cloud.payload.entries.length} bài nhật ký · {(cloud.payload.trips || (cloud.payload.trip?[cloud.payload.trip]:[])).length} kế hoạch</p>}
       <p>Nhật ký cũ lưu riêng trên trình duyệt có thể nhập từ trang Nhật ký bằng nút “Nhập nhật ký cũ từ trình duyệt”. Việc lưu chuyến không ghi đè nhật ký.</p>
       <button disabled={busy} className="soft" onClick={() => run(async () => { const { error } = await supabase.auth.signOut({ scope: 'local' }); if (error) throw error; })}>Đăng xuất</button>
-      <p className="muted-copy">Đăng xuất giữ nguyên dữ liệu trên trình duyệt. Trên máy dùng chung, dữ liệu đã tải vẫn có thể được xem.</p>
+      <p className="muted-copy">Đăng xuất quay về kế hoạch khách. Bản dự phòng của mỗi tài khoản được giữ riêng trên thiết bị; không tự nhập sang tài khoản khác.</p>
     </>}
-    <div className="account-actions"><button disabled={busy} className="soft" onClick={undo}>Khôi phục bản trước khi tải</button></div>
+    {!planSync&&<div className="account-actions"><button disabled={busy} className="soft" onClick={undo}>Khôi phục bản trước khi tải</button></div>}
     {busy && <p role="status">Đang xử lý dữ liệu… Hãy giữ trang này mở.</p>}
     {(error || account.error) && <p role="alert" className="storage-warning">{error || account.error}</p>}
     {message && <p role="status" className="save-feedback">{message}</p>}

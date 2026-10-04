@@ -14,6 +14,7 @@ export async function requestAssistant(payload,{client,fetchImpl=fetch,signal,ex
   }
   if(!response.ok){
     const messages={
+      AI_MODEL_OFFLINE:'Model AI hiện chưa hoạt động hoặc chưa kết nối được. Hãy bật model trên server và thử lại; bản nháp hiện có vẫn được giữ.',
       AI_PROVIDER_UNAVAILABLE:'Nhà cung cấp AI đang lỗi hoặc tạm thời không phục vụ được. Hãy thử lại sau.',
       AI_OUTPUT_TRUNCATED:'AI đã hết giới hạn sinh nội dung trước khi hoàn tất lịch trình. Hãy thử yêu cầu ngắn hơn.',
       AI_OUTPUT_INCOMPLETE:'AI chưa hoàn tất câu trả lời. Bản nháp hiện có vẫn được giữ; hãy thử lại sau.',

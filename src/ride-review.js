@@ -25,7 +25,7 @@ export function assessDay(trip, day, profile, route, situation = '') {
   if(input.visitSignature!==signature) input.visit='';
   // The existing route does not describe every day's origin/end or overnight stop.
   const routeUsable = trip.itinerary.length === 1 && route?.mode === 'motorcycle' && !route.unresolved?.length && Number.isFinite(route.durationSeconds);
-  const driving = numeric(input.driving, 24) ? Number(input.driving)*60 : routeUsable ? route.durationSeconds/60 : null;
+  const driving = numeric(input.driving, 24) ? Number(input.driving)*60 : routeUsable ? (route.estimate?.moving ?? route.durationSeconds)/60 : null;
   // Ask for information relevant to this request, never walk through the profile.
   let question;
   if (situation === 'prepare' && !p.bike) question = profileQuestions.find(q => q.key === 'bike');

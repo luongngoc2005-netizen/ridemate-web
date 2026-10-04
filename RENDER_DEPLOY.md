@@ -1,130 +1,85 @@
-# Triển khai RideMate và AI Assistant trên Render
+# Triển khai RideMate trên Render
 
-Backend production đã được thêm. Một **Web Service** phục vụ cả thư mục build
-`dist/` và `/api/assistant`, không cần tách tên miền frontend/backend.
+Dùng **Web Service Node** để phục vụ frontend `dist` và API AI cùng nguồn. Static Site không chạy API AI. Trước khi deploy, code cần có trên nhánh Git mà Render đọc; sửa local không tự cập nhật Render.
 
-## 1. Cập nhật Supabase
+## Chuẩn bị
 
-Mở Supabase project đang dùng → **SQL Editor** → chạy toàn bộ tệp:
+Áp dụng các migration cần thiết theo [SUPABASE_SETUP](./SUPABASE_SETUP.md). AI cần migration quota; chỗ nghỉ demo cần migration riêng.
 
-`supabase/migrations/202609300001_ai_quota.sql`
-
-Có thể chạy lại tệp này; bộ đếm hiện có được giữ nguyên. Migration không sửa dữ
-liệu kế hoạch hoặc nhật ký. Chỉ lưu ID người dùng và bộ đếm; không lưu hội thoại.
-
-Hạn mức mặc định: **10 lần/phút, 50 lần/ngày/tài khoản**, **500 lần/ngày/toàn ứng
-dụng**. Ngày tính theo UTC, phút là cửa sổ phút cố định. Một yêu cầu hợp lệ đã
-được cấp lượt vẫn tính lượt nếu OpenAI trả lỗi. Câu trả lời được xử lý cục bộ
-không tính lượt. Bộ đếm không mất khi Render restart và dùng chung giữa các
-instance. Muốn đổi hạn mức, sửa các ngưỡng trong hàm SQL bằng tài khoản quản trị.
-Các giới hạn này chặn số lượt, không phải mức chi tiêu USD chính xác.
-
-## 2. Tạo hoặc cấu hình Render Web Service
-
-Code cần có trên nhánh Git mà Render đọc. Phiên thay đổi code này chưa push hoặc
-tạo dịch vụ trên tài khoản của bạn.
-
-Nếu dịch vụ cũ là **Static Site**, tạo **New → Web Service** với cùng repository.
-Giữ site cũ cho đến khi kiểm tra dịch vụ mới thành công. Nếu đã là **Web Service**,
-cập nhật build/start command tại Settings.
-
-| Mục | Giá trị |
+| Cấu hình | Giá trị |
 |---|---|
-| Runtime | Node |
-| Root Directory | Để trống nếu `package.json` ở gốc repo `ridemate-web` |
-| Build Command | `npm ci --include=dev && npm run build` |
-| Start Command | `npm start` |
-| Health Check Path | `/healthz` |
-| Node version | `22` |
+| Build | `npm ci --include=dev && npm run build` |
+| Start | `npm start` |
+| Health Check | `/healthz` |
+| Node | 22+ |
 
-File `render.yaml` cung cấp cấu hình Blueprint tương đương. Không dùng Vite dev
-server hoặc `npm run preview` làm Start Command. Server lắng nghe `0.0.0.0` và
-cổng Render cấp qua `PORT`.
+`render.yaml` có cấu hình Web Service và provider mặc định OpenAI. Có thể cấu hình service qua Dashboard, chọn provider khác bằng Environment.
 
-## 3. Environment trong Render
+## Environment
 
-| Key | Value |
-|---|---|
-| `NODE_ENV` | `production` |
-| `NODE_VERSION` | `22` |
-| `VITE_SUPABASE_URL` | URL Supabase project hiện tại |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Publishable key hoặc anon key của project |
-| `OPENAI_API_KEY` | API key OpenAI, chỉ đặt tại Render |
-| `OPENAI_MODEL` | `gpt-4.1-mini` hoặc model có quyền dùng và hỗ trợ Responses Structured Outputs |
+Cấu hình chung:
 
-Backend dùng lại hai biến Supabase công khai, không cần `service_role` key. Nếu
-đặt `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` riêng, chúng phải trỏ cùng project
-với frontend. Không đặt API key OpenAI vào bất kỳ biến `VITE_*` nào, mã nguồn,
-Blueprint, tin nhắn chat hoặc tệp nằm trong `dist/`.
-
-Render cấp sẵn `RENDER_EXTERNAL_HOSTNAME`; backend dùng nó làm nguồn web được
-phép gọi API. Nếu dùng tên miền riêng, đặt thêm:
-
-```env
-APP_ORIGIN=https://ten-mien-cua-ban.example
+```dotenv
+NODE_ENV=production
+NODE_VERSION=22
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
 ```
 
-Khi đó hãy truy cập bằng đúng tên miền đó. Cấu hình hiện chỉ cho một origin; các
-trang khác không được gọi AI bằng trình duyệt. Các API không bật CORS.
+Backend dùng lại Supabase project của frontend. Render cung cấp `RENDER_EXTERNAL_HOSTNAME` cho kiểm tra origin; nếu dùng domain riêng, đặt `APP_ORIGIN=https://DOMAIN_CUA_BAN` và truy cập đúng origin này. Origin không có path/query. Backend không bật CORS cho API AI.
 
-Chọn **Save, rebuild, and deploy**. Biến `VITE_*` cần rebuild để cập nhật frontend.
-Trong Supabase **Authentication → URL Configuration**, cập nhật Site URL và
-Redirect URLs theo địa chỉ Render/tên miền mới để các luồng đăng nhập qua email
-và khôi phục mật khẩu trở về đúng web.
+Chọn một provider:
 
-## 4. Kiểm tra sau deploy
+| Provider | Các biến server |
+|---|---|
+| vLLM tự host | `AI_PROVIDER=vllm`, `VLLM_BASE_URL`, `VLLM_MODEL`, tùy chọn `VLLM_API_KEY` |
+| OpenRouter | `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` |
+| OpenAI | `AI_PROVIDER=openai`, `OPENAI_API_KEY`, `OPENAI_MODEL` |
 
-1. Mở `/healthz`: nhận `{"status":"ok"}`. Endpoint này kiểm tra tiến trình web,
-   không gọi OpenAI và không tiêu lượt.
-2. Mở `/api/assistant/status`: nhận `ready: true, authRequired: true` nếu các cấu
-   hình cần thiết đã có. Đây **không phải** bằng chứng khóa/model/migration đã
-   hoạt động; lần chat có đăng nhập mới xác minh được toàn bộ kết nối.
-3. Đăng nhập tài khoản RideMate bình thường, mở kế hoạch → AI Assistant → gửi
-   một câu hỏi. Backend kiểm tra token với Supabase, đặt chỗ hạn mức bằng SQL,
-   rồi mới gọi OpenAI. Tài khoản anonymous của Supabase không được dùng API trả phí.
-4. Đăng xuất: AI Assistant trở lại đánh giá cơ bản, hiển thị nút đăng nhập. Không
-   gửi yêu cầu trả phí khi chưa có phiên. Các yêu cầu giả/phiên hết hạn bị từ chối.
+Xem [vLLM](./VLLM_SETUP.md) hoặc [OpenRouter](./OPENROUTER_SETUP.md). OpenAI mặc định dùng `gpt-4.1-mini` qua Responses Structured Outputs; chỉ dùng model tương thích và tài khoản có quyền truy cập.
+
+Khóa AI chỉ đặt ở server, không dùng tiền tố `VITE_`, không commit hoặc đưa vào `dist`. Không cần service-role key. Đổi biến frontend `VITE_*` cần rebuild; biến server cần restart/redeploy. Trong Supabase, cập nhật Site URL/Redirect URLs theo địa chỉ web mới.
+
+## Kiểm tra sau deploy
+
+1. `/healthz` trả `{"status":"ok"}`: chỉ xác nhận tiến trình web, không gọi model.
+2. `/api/assistant/status` có `ready:true, authRequired:true`: chỉ xác nhận cấu hình, không xác minh model đang bật, khóa hợp lệ hoặc migration đã hoạt động.
+3. Đăng nhập, tạo bản nháp AI, chỉnh bản nháp và xác nhận. Kiểm tra tọa độ và quỹ thời gian từng ngày.
+4. Kiểm tra đồng bộ kế hoạch/checklist trên hai thiết bị, lỗi mạng và xung đột. Kiểm tra nhật ký/ảnh và đơn demo nếu dùng.
+5. Với vLLM, tắt model nhưng giữ tunnel: web báo lỗi model, giữ bản nháp để thử lại.
+6. Đăng xuất: không gửi API model khi chưa có phiên; đánh giá cơ bản vẫn dùng được.
+
+## Hạn mức và vận hành AI
+
+Quota mặc định: 10 lượt/phút, 50 lượt/ngày/tài khoản và 500 lượt/ngày/toàn ứng dụng. Cửa sổ ngày tính theo UTC trong SQL. Lượt đã được cấp vẫn tính khi provider lỗi; trả lời cục bộ không tính lượt. Quota không phải giới hạn chi phí tiền tệ.
+
+API kiểm tra dữ liệu, token Supabase và quota trước khi gọi model. Giới hạn 32 KiB/request và 8 yêu cầu AI đồng thời mỗi tiến trình. Không log khóa/token/nội dung hội thoại/phản hồi thô. Không tự thử lại hoặc đổi provider khi lỗi.
+
+Tắt AI: bỏ cấu hình bắt buộc của provider đang chọn (`VLLM_BASE_URL` hoặc API key tương ứng), rồi restart/redeploy. Frontend và đánh giá cơ bản vẫn hoạt động. Đổi domain không tự chuyển dữ liệu khách; chờ kế hoạch tài khoản đồng bộ trước khi dùng origin mới.
 
 ## Lỗi thường gặp
 
-- **NOT_CONFIGURED / ready=false:** thiếu khóa hoặc cấu hình Supabase.
-- **Startup failed:** chưa build `dist/index.html`, sai origin/cổng, hoặc đã đặt
-  khóa AI nhưng chưa có URL/key Supabase và origin production.
-- **AUTH_REQUIRED:** đăng nhập lại, kiểm tra frontend/backend cùng project.
-- **QUOTA_UNAVAILABLE:** chạy migration ở bước 1; kiểm tra Supabase hoạt động.
-- **QUOTA_EXCEEDED:** đã đạt một trong ba hạn mức; chờ cửa sổ hạn mức tiếp theo.
-- **AI_CREDENTIALS_INVALID:** kiểm tra khóa, model và quyền project OpenAI.
-- **AI_PROVIDER_LIMIT:** kiểm tra hạn mức/tín dụng/rate limit của project OpenAI.
-- **ORIGIN_REJECTED:** kiểm tra `APP_ORIGIN` và tên miền đang truy cập.
+| Lỗi | Kiểm tra |
+|---|---|
+| `NOT_CONFIGURED` | Provider, endpoint/key, Supabase và origin |
+| Startup failed | `dist/index.html`, port/origin, cấu hình production |
+| `AUTH_REQUIRED` | Phiên đăng nhập; frontend/backend cùng project |
+| `QUOTA_UNAVAILABLE` | Migration quota và dịch vụ Supabase |
+| `QUOTA_EXCEEDED` | Hạn mức RideMate |
+| `ORIGIN_REJECTED` | Domain truy cập và `APP_ORIGIN` |
+| `AI_MODEL_OFFLINE` | vLLM, cloudflared, endpoint và gateway |
+| `AI_CREDENTIALS_INVALID` | Khóa và quyền model |
+| `AI_MODEL_UNAVAILABLE` | Model/schema tương thích |
+| `AI_TIMEOUT` | Model không trả lời trong thời gian chờ |
+| `AI_PROVIDER_LIMIT` / `AI_PROVIDER_QUOTA` | Hạn mức của nhà cung cấp |
 
-## Chạy production trên máy để kiểm tra
+## Production local
 
-```sh
+Điền `.env.local`, gồm `APP_ORIGIN=http://localhost:10000` nếu truy cập địa chỉ này:
+
+```powershell
 npm run build
-node --env-file=.env server/index.js
+node --env-file=.env.local server/index.js
 ```
 
-Nếu `.env` có API key, cần Supabase và `APP_ORIGIN=http://localhost:10000`.
-Nếu chưa có key, server vẫn phục vụ giao diện ở chế độ cơ bản. Trong Render,
-`npm start` đọc biến môi trường được đặt trên Dashboard, không cần upload `.env`.
-
-## Giới hạn và vận hành
-
-- Không log khóa, token, nội dung hội thoại hoặc phản hồi thô từ nhà cung cấp.
-- Tối đa 32 KiB/request, kiểm tra dữ liệu trước khi cấp lượt; tối đa 8 yêu cầu AI
-  đồng thời mỗi tiến trình. Lỗi auth/quota không được bỏ qua để gọi OpenAI.
-- Tắt AI bằng cách xóa `OPENAI_API_KEY` rồi deploy lại; web cơ bản vẫn hoạt động.
-- Backend hiện dùng OpenAI để hiểu yêu cầu có cấu trúc. Các phép tính, lời khuyên
-  theo tiêu chí và thao tác áp dụng kế hoạch vẫn do RideMate quyết định.
-- Đổi sang domain/origin mới không tự chuyển các kế hoạch đang lưu trong trình
-  duyệt ở domain cũ: lưu các kế hoạch lên tài khoản trước, rồi tải ở domain mới.
-- Chưa triển khai trên tài khoản Render/Supabase hoặc gọi OpenAI bằng khóa thật
-  trong phiên viết code này; kiểm thử HTTP và SQL dùng dữ liệu thử, API giả lập.
-
-Nguồn: [Render Web Services](https://render.com/docs/web-services),
-[Render Environment](https://render.com/docs/configure-environment-variables),
-[Supabase getUser](https://supabase.com/docs/reference/javascript/auth-getuser).
-# Thử OpenRouter
-
-Hướng dẫn cấu hình provider và model miễn phí: [OPENROUTER_SETUP.md](OPENROUTER_SETUP.md).
-Các bước OpenAI bên dưới áp dụng khi `AI_PROVIDER=openai` (mặc định).
+Server mặc định port 10000; khi đổi `PORT`, đổi origin tương ứng. Trên Render, `npm start` đọc Environment của Dashboard, không upload `.env.local`.

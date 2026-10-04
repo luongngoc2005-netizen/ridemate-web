@@ -1,6 +1,7 @@
 import AIAssistant from './AIAssistant.jsx';
 import Plans from './Plans.jsx';
-import {readPlans,savePlans,putPlan} from './plans-data.js';
+import usePlanSync from './usePlanSync.js';
+import {putPlan} from './plans-data.js';
 import OriginSelect from './OriginSelect.jsx';
 import {tripOrigin} from './origin-data.js';
 import {directionsUrl} from './route-data.js';
@@ -54,16 +55,15 @@ function AppContent({account}){
   const [stayDate,setStayDate]=useState(null);
   const [reviewRequested,setReviewRequested]=useState(false);
   const [accountBusy,setAccountBusy] = useState(false);
-  const [loaded]=useState(()=>{try{return readPlans(window.localStorage);}catch{return {plans:[],error:'Không đọc được dữ liệu trình duyệt.'};}});
-  const [plans,setPlans]=useState(loaded.plans);
+  const sync=usePlanSync(account),plans=sync.plans;
   const [activeId,setActiveId]=useState(null);
   const trip=plans.find(p=>p.id===activeId)||null;
-  const persist=next=>{try{savePlans(window.localStorage,next);setStorageError('');}catch{setStorageError('Chưa lưu được danh sách kế hoạch. Hãy giữ trang mở và thử lại.');}};
   const plansRef=React.useRef(plans);plansRef.current=plans;
-  const changePlans=updater=>{const next=updater(plansRef.current);persist(next);plansRef.current=next;setPlans(next);};
-  const setTrip=updater=>{const id=activeId;changePlans(current=>current.map(p=>p.id===id?(typeof updater==='function'?updater(p):updater):p));};
+  const changePlans=updater=>{try{sync.changePlans(updater);setStorageError('');return true;}catch(e){setStorageError(e.message);return false;}};
+  const setTrip=updater=>{const id=activeId;return changePlans(current=>current.map(p=>p.id===id?(typeof updater==='function'?updater(p):updater):p));};
   const mapTrip=useMemo(()=>tripWithStays(trip,bookingData.bookings),[trip,bookingData.bookings]);
-  const [storageError,setStorageError] = useState(loaded.error);
+  const [storageError,setStorageError] = useState('');
+  useEffect(()=>{setActiveId(null);setStorageError('');},[sync.owner]);
   const [page,setCurrentPage] = useState('home');
   const [completionTrip,setCompletionTrip] = useState(null);
   const [view,setView] = useState('overview');
@@ -78,20 +78,19 @@ function AppContent({account}){
   const setPage=(next,date=null)=>{if(accountBusy)return;setReviewRequested(next==='ai-review');if(next==='ai-review')next='ai';if(next==='plans')setActiveId(null);setStayDate(date);setCompletionTrip(null);setView('overview');setCurrentPage(next);setFeedback('');window.scrollTo({top:0,behavior:'instant'});};
   const create=details=>{
     if(!validDetails(details)){setFeedback('Vui lòng nhập điểm đi, điểm đến, ngày đi và số ngày từ 1 đến 30.');return;}
-    changePlans(current=>putPlan(current,createTrip(details)));setPage('plans');setFeedback('Đã tạo kế hoạch. Chọn Mở kế hoạch để xem lịch trình và bản đồ.');
+    if(!changePlans(current=>putPlan(current,createTrip(details))))return;setPage('plans');setFeedback('Đã tạo kế hoạch. Chọn Mở kế hoạch để xem lịch trình và bản đồ.');
   };
-  const edit=details=>{if(!validDetails(details)){setFeedback('Vui lòng kiểm tra thông tin chuyến đi.');return;}setTrip(current=>editTripDetails(current,details));setPage('trip');setFeedback('Đã lưu thông tin chuyến đi. Các ngày được giữ lại vẫn có lịch trình và ghi chú của bạn.');};
+  const edit=details=>{if(!validDetails(details)){setFeedback('Vui lòng kiểm tra thông tin chuyến đi.');return;}if(!setTrip(current=>editTripDetails(current,details)))return;setPage('trip');setFeedback('Đã lưu thông tin chuyến đi. Các ngày được giữ lại vẫn có lịch trình và ghi chú của bạn.');};
   const createFromAssistant=plan=>{
     if(accountBusy)throw new Error('Đang đồng bộ tài khoản. Hãy thử lưu lại sau.');
     const next=putPlan(plansRef.current,plan);
     // Commit to storage before navigating: a failed write must leave the draft intact.
-    try{savePlans(window.localStorage,next);}catch{throw new Error('Chưa lưu được kế hoạch trên trình duyệt. Bản nháp vẫn được giữ; hãy thử lại.');}
-    plansRef.current=next;setPlans(next);setStorageError('');
+    sync.changePlans(next);setStorageError('');
   };
   const finishTrip=()=>{setPage('journal');setCompletionTrip(trip);};
   const journalChanged=(entry,deleted=false)=>{changePlans(current=>current.map(p=>entry.sourceTripId===p.id?{...p,completedAt:deleted?null:entry.date,journalId:deleted?null:entry.id}:p));};
   let content;
-  if(page==='account')content=<Account account={account} localError={storageError} onBusy={setAccountBusy} onRestored={()=>{const restored=readPlans(window.localStorage);plansRef.current=restored.plans;setPlans(restored.plans);setActiveId(null);setStorageError(restored.error);}}/>;
+  if(page==='account')content=<Account account={account} planSync={sync} localError={storageError} onBusy={setAccountBusy} onRestored={()=>{setActiveId(null);sync.retry();}}/>;
   else if(page==='plans')content=<Plans plans={plans} onCreate={()=>setPage('create')} onOpen={id=>{setActiveId(id);setPage('trip');}}/>;
   else if(page==='home')content=<Home key={trip?.id || 'new'} trip={trip} onCreate={create} setPage={setPage}/>;
   else if(page==='create'||page==='edit')content=<TripForm key={page} trip={page==='edit'&&trip?trip:initialDetails} editing={page==='edit'&&!!trip} onSave={page==='edit'?edit:create} onCancel={()=>setPage(trip?'trip':'home')}/>;
@@ -102,6 +101,6 @@ function AppContent({account}){
   else if(page==='tools')content=<Tools setPage={setPage}/>;
   else if(page==='ai')content=<AIAssistant trip={trip} setTrip={setTrip} setPage={setPage} onCreatePlan={createFromAssistant} onOpenPlan={id=>{setActiveId(id);setPage('trip');}} initialReview={reviewRequested} userId={account.session?.user.id}/>;
   else content=account.loading ? <main className="page" role="status">Đang mở tài khoản…</main> : <Journal key={account.session?.user.id || "guest"} userId={account.session?.user.id} completionTrip={completionTrip} onEntryChange={journalChanged}/>;
-  return <TripRouteProvider key={`${trip?.id}:${trip?.origin}:${trip?.destination}`} trip={mapTrip}><Nav page={page} setPage={setPage} user={account.session?.user}/><LocationStatus/><div className="plans-shortcut"><button className="soft" onClick={()=>setPage('plans')}>Kế hoạch của tôi ({plans.length})</button></div>{trip && <div className="trip-return"><button onClick={()=>setPage('trip')}><ToolIcon name="arrowLeft" className="inline-icon"/> Tổng quan hành trình</button><span>{trip.origin} <ToolIcon name="arrowRight" className="inline-icon"/> {trip.destination}</span><button onClick={()=>setPage('ai-review')}>Kiểm tra chuyến đi của tôi</button></div>}{storageError?<p className="storage-warning" role="alert">{storageError}</p>:trip?<p className="storage-hint">Chuyến đi được lưu trên trình duyệt này. Mở Tài khoản để lưu hoặc tải bản dữ liệu giữa các thiết bị.</p>:null}{feedback&&<p className="save-feedback app-feedback" role="status">{feedback}</p>}{content}{trip && !accountBusy && <TripCompanion trip={mapTrip} setTrip={setTrip}/>}<footer><b><ToolIcon name="mountain" className="inline-icon"/> RideMate</b><span>Đi xa hơn, an toàn hơn, trải nghiệm nhiều hơn.</span><span>Giới thiệu · Hỗ trợ · Góp ý · Chính sách bảo mật</span></footer></TripRouteProvider>;
+  return <TripRouteProvider key={`${trip?.id}:${trip?.origin}:${trip?.destination}`} trip={mapTrip}><Nav page={page} setPage={setPage} user={account.session?.user}/><LocationStatus/><div className="plans-shortcut"><button className="soft" onClick={()=>setPage('plans')}>Kế hoạch của tôi ({plans.length})</button></div>{trip && <div className="trip-return"><button onClick={()=>setPage('trip')}><ToolIcon name="arrowLeft" className="inline-icon"/> Tổng quan hành trình</button><span>{trip.origin} <ToolIcon name="arrowRight" className="inline-icon"/> {trip.destination}</span><button onClick={()=>setPage('ai-review')}>Kiểm tra chuyến đi của tôi</button></div>}{sync.error&&<div className="storage-warning" role="alert"><p>{sync.error}</p><button onClick={()=>sync.retry()}>Thử đồng bộ lại</button>{sync.conflict&&<><button onClick={()=>{if(window.confirm("Chọn bản trên thiết bị cho những nội dung bị xung đột?"))sync.retry("local");}}>Giữ bản trên thiết bị</button><button onClick={()=>{if(window.confirm("Chọn bản tài khoản cho những nội dung bị xung đột?"))sync.retry("remote");}}>Giữ bản tài khoản</button></>}</div>}{storageError?<p className="storage-warning" role="alert">{storageError}</p>:trip?<p className="storage-hint">{account.session ? (sync.status==="synced"?"Kế hoạch đã đồng bộ tài khoản.":"Kế hoạch được giữ trên thiết bị; đang chờ đồng bộ tài khoản.") : "Kế hoạch khách lưu trên trình duyệt này. Đăng nhập để tự đồng bộ; nhập kế hoạch khách tại Tài khoản."}</p>:null}{feedback&&<p className="save-feedback app-feedback" role="status">{feedback}</p>}{sync.loading&&page!=="account"?<main className="page" role="status">Đang mở kế hoạch theo tài khoản…</main>:content}{trip && !accountBusy && <TripCompanion trip={mapTrip} setTrip={setTrip}/>}<footer><b><ToolIcon name="mountain" className="inline-icon"/> RideMate</b><span>Đi xa hơn, an toàn hơn, trải nghiệm nhiều hơn.</span><span>Giới thiệu · Hỗ trợ · Góp ý · Chính sách bảo mật</span></footer></TripRouteProvider>;
 }
 createRoot(document.getElementById('root')).render(<LocationProvider><App/></LocationProvider>);

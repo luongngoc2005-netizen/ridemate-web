@@ -44,6 +44,7 @@ test('Google Maps links encode Vietnamese addresses and coordinates safely', () 
   const url = new URL(directionsUrl('Hà Nội & hồ', 'Hà Giang'));
   assert.equal(url.searchParams.get('origin'), 'Hà Nội & hồ');
   assert.equal(url.searchParams.get('avoid'), 'highways');
+  assert.equal(url.searchParams.get('travelmode'), 'two-wheeler');
   assert.equal(new URL(placeUrl({ coordinates: [105, 21] })).searchParams.get('query'), '21,105');
 });
 test('Known provinces never fall back to an unrelated result or a same-name shop', () => {
@@ -116,6 +117,7 @@ test('Directions reuse the exact overview endpoints without latitude/longitude r
   assert.equal(place.pathname, '/maps/dir/');
   assert.equal(place.searchParams.get('destination'), '22.82,104.98');
   assert.equal(place.searchParams.has('origin'), false);
+  assert.equal(place.searchParams.get('travelmode'), 'two-wheeler');
   assert.equal(place.searchParams.has('dir_action'), false);
 });
 test('Corridor searches preserve route bends and cover continuous segments end to end', () => {

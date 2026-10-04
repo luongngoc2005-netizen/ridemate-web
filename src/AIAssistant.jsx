@@ -9,6 +9,10 @@ import './ai-assistant.css';
 import DraftReply from './DraftReply.jsx';
 import {basicDraft,cleanDraft} from './assistant-draft.js';
 import {chatAction,draftExample} from './assistant-chat.js';
+import {startIntake,intakeQuestion,answerIntake,intakeContext,attachIntake} from './assistant-intake.js';
+import DraftIntakeQuestion from './DraftIntakeQuestion.jsx';
+import {useLocation} from './Location.jsx';
+import {chosenOrigin} from './origin-data.js';
 
 const quickPrompts=['Kiểm tra chuyến đi của tôi','Ngày mai tôi nên đi thế nào?','Tôi xuất phát muộn','Tôi đang mệt','Tôi đang gặp mưa','Chuẩn bị theo xe của tôi'];
 const profileNames={bike:'Loại xe',party:'Người đi cùng',experience:'Kinh nghiệm',hours:'Giờ chạy mỗi ngày',avoidDark:'Tránh chạy tối'};
@@ -18,6 +22,7 @@ export default function AIAssistant(props) {
 }
 
 function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,onOpenPlan}) {
+  const location=useLocation();
   const routeState=useTripRoute();
   const [profile,setProfile]=useState(()=>{try{return cleanProfile(JSON.parse(localStorage.getItem(PROFILE_KEY)||'{}'));}catch{return {};}});
   const [storageError,setStorageError]=useState('');
@@ -34,6 +39,8 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
   const sequence=useRef(0), started=useRef(false), messageList=useRef(null), request=useRef(null);
   const day=trip?.itinerary.find(d=>d.id===dayId)||trip?.itinerary[0];
   const [draftId,setDraftId]=useState(null);
+  const [intake,setIntake]=useState(null);
+  const draftQuestion=intake?intakeQuestion(intake):null;
   const activeDraft=messages.find(m=>m.id===draftId&&!m.saved)?.draft||null;
   const contextRef=useRef();contextRef.current={trip,profile,day,routeState};
   const append=message=>setMessages(current=>[...current,{...message,id:++sequence.current}]);
@@ -75,30 +82,89 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
     respond(nextIntent,nextTrip.itinerary.find(d=>d.id===target.id),nextTrip,next,'Đã cập nhật thông tin bạn vừa cung cấp.',false);
   };
 
+  const generatePlan=async(message,previous=null,details=null)=>{
+    setPending(null);
+    let next=null,mode='Gợi ý từ dữ liệu có sẵn';
+    if(online){
+      setBusy(true);const controller=new AbortController();request.current=controller;
+      try{
+        const result=await requestAssistant({message,previous,...(details?{context:intakeContext(details)}:{})},{client:supabase,signal:controller.signal,expectedUserId:userId,drafting:true});
+        next=cleanDraft(result.draft);mode='Bản nháp do AI đề xuất';
+      }catch(failure){if(controller.signal.aborted)return;append({role:'assistant',text:failure.message});return;}
+      finally{setBusy(false);request.current=null;}
+    }else if(!previous){
+      const basic=basicDraft(message);
+      if(basic&&(!details||details.days===3&&details.nights===2&&details.returnToOrigin))next=basic;
+    }
+    if(next){
+      if(details)next=attachIntake(next,details);
+      const id=++sequence.current;setMessages(current=>[...current,{id,role:'assistant',draft:next,mode}]);setDraftId(id);setIntake(null);
+    }else append({role:'assistant',text:previous?'Tôi chưa xử lý được thay đổi này khi AI không sẵn sàng. Bản nháp vẫn được giữ ở trên.':'Thông tin chuyến đi đã được giữ trong cuộc trò chuyện. Hãy đăng nhập và cấu hình AI để tạo lịch trình theo yêu cầu, rồi bấm Thử tạo lịch trình.'});
+  };
+  const continueIntake=async(next)=>{
+    setIntake(next);setError('');
+    if(!intakeQuestion(next))await generatePlan(next.message,null,next);
+  };
+  const answerDraft=async(value,label=value)=>{
+    if(!intake||!draftQuestion||busy)return;
+    try{
+      const next=answerIntake(intake,draftQuestion,String(value));
+      append({role:'assistant',text:draftQuestion.label});append({role:'user',text:String(label)});
+      await continueIntake(next);
+    }catch(failure){setError(failure.message);}
+  };
+  const selectDraftOrigin=async(value)=>{
+    if(!intake||busy||!value.origin?.trim())return;
+    append({role:'assistant',text:draftQuestion?.label});append({role:'user',text:`Điểm đi: ${value.origin}`});
+    await continueIntake({...intake,origin:value.origin,originPoint:value.originPoint||null,originArea:''});
+  };
+
   const send=async raw=>{
     const message=String(raw??text).trim();if(!message||busy)return;
     setText('');setError('');
+    const intakeAction=chatAction(message,{hasTrip:!!trip,hasDraft:!!activeDraft});
+    if(intake&&/^(hủy|huỷ|huy|dừng|dung)(?:\s+yêu cầu)?[.!]?$/i.test(message)){
+      setIntake(null);append({role:'user',text:message});append({role:'assistant',text:'Đã hủy yêu cầu đang trao đổi. Các kế hoạch và bản nháp đã có vẫn được giữ.'});return;
+    }
+    if(intake&&draftQuestion&&!['newDraft','greeting','thanks'].includes(intakeAction)){
+      await answerDraft(message);return;
+    }
     const answer=parseAnswer(pending,message);
     if(answer!==null){saveAnswer(pending,answer,message);return;}
     const action=chatAction(message,{hasTrip:!!trip,hasDraft:!!activeDraft});
     if(['greeting','thanks','clarify'].includes(action)){
       append({role:'user',text:message});
-      append({role:'assistant',text:action==='greeting'?'Xin chào! Tôi là RideMate, hỗ trợ lên lịch và chuẩn bị chuyến du lịch bằng xe máy. Bạn muốn đi đâu, xuất phát từ đâu và đi mấy ngày?':action==='thanks'?'Rất vui được hỗ trợ bạn! Khi cần, bạn có thể hỏi thêm về lịch trình hoặc chuẩn bị xe trước chuyến đi.':'Bạn muốn tạo lịch trình, chỉnh bản nháp hay hỏi về chuyến đi? Hãy nói rõ yêu cầu; tôi sẽ không tự tạo hoặc thay đổi lịch khi chưa rõ ý bạn.'});
+      append({role:'assistant',text:action==='greeting'?'Xin chào! Tôi là RideMate, hỗ trợ lên lịch và chuẩn bị chuyến du lịch bằng xe máy. Bạn muốn đi đâu và đi mấy ngày? Nếu chưa nêu điểm đi, tôi sẽ hỏi để dùng vị trí hiện tại.':action==='thanks'?'Rất vui được hỗ trợ bạn! Khi cần, bạn có thể hỏi thêm về lịch trình hoặc chuẩn bị xe trước chuyến đi.':'Bạn muốn tạo lịch trình, chỉnh bản nháp hay hỏi về chuyến đi? Hãy nói rõ yêu cầu; tôi sẽ không tự tạo hoặc thay đổi lịch khi chưa rõ ý bạn.'});
       return;
     }
     if(['draft','newDraft','editDraft'].includes(action)){
       setPending(null);append({role:'user',text:message});
       const previous=action==='newDraft'?null:activeDraft;
-      let next=null,mode='Gợi ý từ dữ liệu có sẵn';
-      if(online){
-        setBusy(true);const controller=new AbortController();request.current=controller;
-        try{const result=await requestAssistant({message,previous},{client:supabase,signal:controller.signal,expectedUserId:userId,drafting:true});next=cleanDraft(result.draft);mode='Bản nháp do AI đề xuất';}
-        catch(failure){if(controller.signal.aborted)return;append({role:'assistant',text:failure.message});}
-        finally{setBusy(false);request.current=null;}
+      if(!previous){
+        let next=startIntake(message,profile);
+        const position=location?.position;
+        if(!next.origin&&position&&Number.isFinite(position.timestamp)&&Date.now()-position.timestamp<=30000){
+          setBusy(true);
+          try{
+            const originPoint=await chosenOrigin(position.coordinates,{source:'gps',accuracy:position.accuracy});
+            next={...next,origin:originPoint.label,originPoint};
+          }catch(failure){setError(failure.message);}
+          finally{setBusy(false);}
+        }
+        append({role:'assistant',text:next.returnToOrigin?'Tôi sẽ hỏi từng thông tin còn thiếu rồi tạo bản nháp. Lịch mặc định gồm chặng đi và quay về điểm xuất phát vào ngày cuối; bạn có thể yêu cầu đổi.':'Tôi sẽ hỏi từng thông tin còn thiếu rồi tạo bản nháp một chiều theo yêu cầu của bạn.'});
+        await continueIntake(next);
+      }else{
+        // Edits retain confirmed metadata unless the user explicitly changes it.
+        const parsed=startIntake(message);
+        const details={...previous.details,originPoint:previous.originPoint,origin:previous.origin,destination:previous.destination,nights:previous.nights??previous.days.length-1,days:previous.days.length,returnToOrigin:previous.returnToOrigin!==false};
+        if(parsed.origin){details.origin=parsed.origin;details.originPoint=null;}
+        if(parsed.destination&&/(?:^|\s)(?:ở|tại|đến|tới)\s/i.test(message))details.destination=parsed.destination;
+        if(parsed.days!=null)details.days=parsed.days;
+        if(parsed.nights!=null)details.nights=parsed.nights;
+        if(/không (?:quay )?về|một chiều/i.test(message))details.returnToOrigin=false;
+        if(/(?:có|thêm) (?:chặng )?(?:quay )?về/i.test(message))details.returnToOrigin=true;
+        await generatePlan(message,previous,details);
       }
-      if(!next&&!previous)next=basicDraft(message);
-      if(next){const id=++sequence.current;setMessages(current=>[...current,{id,role:'assistant',draft:next,mode}]);setDraftId(id);}
-      else append({role:'assistant',text:previous?'Tôi chưa xử lý được thay đổi này khi AI không sẵn sàng. Bản nháp vẫn được giữ ở trên; bạn có thể chỉnh từng ngày ngay trong tin nhắn đó.':'Tôi chưa tạo được lịch trình này khi AI không sẵn sàng. Bạn có thể thử “Lịch trình 3N2Đ từ HN đến CB” hoặc đăng nhập khi AI đã cấu hình.'});
       return;
     }
     let detected=detectIntent(message), target=day, interpreted=null;
@@ -169,13 +235,15 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
         {busy&&<p role="status" className="ai-thinking">Đang đọc yêu cầu và đối chiếu kế hoạch…</p>}
       </div>
       <div className="ai-compose-area">
+        {intake&&draftQuestion&&<DraftIntakeQuestion key={draftQuestion.key} question={draftQuestion} value={intake} busy={busy} onAnswer={answerDraft} onOrigin={selectDraftOrigin} onCancel={()=>{setIntake(null);setError('');append({role:'assistant',text:'Đã hủy yêu cầu tạo lịch trình. Chưa lưu kế hoạch mới.'});}}/>}
+        {intake&&!draftQuestion&&!busy&&<button className="green" onClick={()=>generatePlan(intake.message,null,intake)}>Thử tạo lịch trình</button>}
         {service.ready&&service.authRequired&&!userId&&<p className="ai-muted">Bạn vẫn dùng được đánh giá cơ bản. <button className="soft" onClick={()=>setPage('account')}>Đăng nhập để trò chuyện với AI</button></p>}
         {pending&&<button className="soft" disabled={busy} onClick={()=>{setPending(null);append({role:'assistant',text:'Bạn có thể tiếp tục với gợi ý hiện tại hoặc hỏi câu khác. Tôi sẽ để các thông tin chưa có ở trạng thái chưa xác minh.'});}}>Bỏ qua câu hỏi này</button>}
         {pending?.options&&<div className="ai-answer-options" aria-label={pending.label}>{pending.options.map(([value,label])=><button className="soft" disabled={busy} key={value} onClick={()=>saveAnswer(pending,value,label)}>{label}</button>)}</div>}
         <div className="ai-quick-prompts">{[draftExample,'Cao Bằng có gì chơi?',...(trip?quickPrompts:[])].map(prompt=><button disabled={busy} key={prompt} onClick={()=>send(prompt)}>{prompt}</button>)}</div>
         {error&&<p role="alert" className="ai-error">{error}</p>}
         <form className="ai-composer" onSubmit={e=>{e.preventDefault();send();}}><label className="ai-sr-only" htmlFor="assistant-message">Tin nhắn cho AI Assistant</label><textarea id="assistant-message" value={text} maxLength={2000} disabled={busy} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();send();}}} placeholder="Ví dụ: Cho tôi lịch trình 3N2Đ từ HN–CB…" rows={2}/><button className="green" disabled={busy||!text.trim()} type="submit">Gửi</button></form>
-        <small>{online?'Khi gửi, câu hỏi, hồ sơ và tên các điểm trong kế hoạch được gửi tới OpenAI để hiểu yêu cầu.':'Chưa kết nối OpenAI. Các gợi ý hiện tại dựa trên tiêu chí và dữ liệu của RideMate.'} Chỉ thay đổi lịch trình khi bạn bấm Áp dụng.</small>
+        <small>{online?'Khi tạo bản nháp, yêu cầu và thông tin chuyến đi được gửi tới model AI đã cấu hình. Tọa độ GPS được giữ để vẽ tuyến, không gửi trong thông tin tạo lịch trình.':'Chưa kết nối AI. Thông tin bạn trả lời vẫn được giữ trong phiên chat để tiếp tục.'} Chỉ lưu kế hoạch khi bạn xác nhận.</small>
       </div>
     </section>
   </main>;

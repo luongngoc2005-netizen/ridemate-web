@@ -1,69 +1,71 @@
-# RideMate Web Demo
+# RideMate
 
-Chuyển giao sang máy khác: đọc [HANDOFF.md](./HANDOFF.md) để biết cách chạy, trạng thái hiện tại, các phần còn thiếu và lưu ý chuyển dữ liệu.
+Ứng dụng lập kế hoạch du lịch bằng xe máy: nhiều kế hoạch, AI tạo bản nháp, bản đồ, kiểm tra quỹ thời gian, checklist và nhật ký. Chỗ nghỉ hiện là tính năng demo.
 
-Backend Supabase: đăng nhập email/mật khẩu, tên hiển thị, quên mật khẩu và ảnh riêng tư. Nhật ký đã đăng nhập tự đọc/ghi tài khoản khi lưu và cập nhật giữa các thiết bị; chuyến đang lập vẫn lưu/tải thủ công trong **Tài khoản**. Nhật ký local cũ có nút nhập riêng trong trang Nhật ký. Làm theo [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) để cấu hình. Chưa cấu hình vẫn dùng local. Điểm đi/đến chọn bằng danh sách tỉnh/thành.
+## Bắt đầu
 
-## Deploy lên Render
+Cần Node.js 22+. Chạy tại thư mục `Web/ridemate-web`:
 
-Dùng **Web Service**: Build `npm ci --include=dev && npm run build`, Start
-`npm start`, Health Check `/healthz`. Cấu hình OpenAI key phía server, Supabase
-Auth và migration hạn mức theo [RENDER_DEPLOY.md](./RENDER_DEPLOY.md).
-File `render.yaml` có sẵn cấu hình Blueprint. Bản Static Site không chạy API này.
-
-## Chạy thử
-1. Cài Node.js 22+ (Supabase SDK yêu cầu Node 22)
-2. Mở Terminal tại thư mục `ridemate-web`
-3. Chạy:
-
-```bash
+```powershell
 npm ci
+Copy-Item .env.example .env.local
 npm run dev
 ```
 
-4. Mở địa chỉ Vite hiện ra, thường là `http://localhost:5173`
+Chỉ sao chép `.env.example` khi chưa có `.env.local`. Điền cấu hình rồi khởi động lại Vite. Địa chỉ truy cập là URL Vite in ra, thường `http://localhost:5173`.
 
-## Demo có sẵn
-- Home
-- Tạo chuyến
-- Chi tiết chuyến
-- Checklist tương tác
-- Công cụ hỗ trợ mở Google Maps
-- Bản đồ cung đường và các điểm hỗ trợ dọc đường
-- AI Assistant theo kế hoạch, có backend OpenAI và chế độ đánh giá cơ bản
-- Nhật ký hành trình
-- Responsive cơ bản
+- Không cấu hình Supabase: dùng kế hoạch và nhật ký khách trên trình duyệt.
+- Có Supabase: đăng nhập email/mật khẩu, đồng bộ kế hoạch/checklist và nhật ký theo tài khoản.
+- Có provider AI và migration hạn mức: đăng nhập để tạo/chỉnh bản nháp bằng model. Đánh giá cơ bản vẫn dùng được khi AI không hoạt động.
 
-AI chỉ gọi API sau khi cấu hình máy chủ và đăng nhập. Chưa cấu hình vẫn dùng đánh giá cơ bản. Xem [AI_ASSISTANT.md](./AI_ASSISTANT.md).
+## Tài liệu
 
-## Hành trình có thể chỉnh sửa
-- Tạo chuyến đi từ Khám phá hoặc Lên kế hoạch; dùng nút **Tổng quan hành trình** để quay lại từ mọi màn hình.
-- **Chỉnh sửa** thay đổi điểm đi, điểm đến, ngày khởi hành, số ngày, sở thích và ghi chú. Những ngày được giữ lại không mất lịch trình đã tự sửa. Giảm số ngày cần xác nhận trước khi bỏ các ngày cuối.
-- **Lịch trình** cho phép đổi tiêu đề ngày, thêm/xóa/đổi thứ tự điểm tham quan và ghi chú từng ngày. Bấm **Lưu ngày** để áp dụng, hoặc **Hủy chỉnh sửa** để bỏ bản nháp.
-- Gợi ý tham quan cho Hà Giang, Cao Bằng, Mộc Châu và Cát Bà có nguồn Vietnam Tourism ngay trong giao diện. Đây là khung tham khảo, chưa tính quãng đường hoặc thời gian di chuyển; các điểm đến khác hỗ trợ tự nhập và tìm trên Google Maps.
-- Tab **Ghi chú** lưu tự động nội dung chung và ghi chú từng ngày. Checklist cũng được lưu khi đổi màn hình.
-- Hiện lưu **một chuyến đi** bằng localStorage trên trình duyệt của từng người dùng. Tạo chuyến mới cần xác nhận thay thế chuyến cũ. Dữ liệu giữ được sau khi tải lại trang nhưng chưa đồng bộ tài khoản/thiết bị và không còn nếu xóa dữ liệu trình duyệt. Khi trình duyệt từ chối lưu, app hiển thị cảnh báo.
+| Tài liệu | Nội dung |
+|---|---|
+| [HANDOFF.md](./HANDOFF.md) | Bàn giao, kiến trúc, giới hạn và nghiệm thu |
+| [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) | Tài khoản, dữ liệu, ảnh, migration |
+| [VLLM_SETUP.md](./VLLM_SETUP.md) | Model tự host và Cloudflare Tunnel |
+| [OPENROUTER_SETUP.md](./OPENROUTER_SETUP.md) | Provider OpenRouter tùy chọn |
+| [RENDER_DEPLOY.md](./RENDER_DEPLOY.md) | Deploy frontend và API Node cùng nguồn |
+| [AI_ASSISTANT.md](./AI_ASSISTANT.md) | Luồng hội thoại, bản nháp và xác nhận |
+| [PLANNING_SYNC.md](./PLANNING_SYNC.md) | Tọa độ, đánh giá từng ngày và đồng bộ kế hoạch |
 
-## Kiểm tra
-`npm test` kiểm tra tạo lịch trình, sửa số ngày giữ dữ liệu, định dạng ngày và xử lý lưu trữ lỗi.
-`npm run build` tạo bản triển khai trong `dist`.
+## Các luồng hiện có
 
-## Bản đồ tổng quan hành trình
-- Thời tiết tại điểm đến dùng [Open-Meteo](https://open-meteo.com/en/docs), theo từng ngày của chuyến đi: trạng thái trời, nhiệt độ thấp/cao, xác suất mưa và gió tối đa. Dùng múi giờ Việt Nam và cửa sổ 16 ngày kể từ hôm nay; ngày đã qua hoặc quá xa được ghi rõ, không thay bằng dự báo ngày khác. Cache trong bộ nhớ 30 phút; nút tải lại lấy dữ liệu mới. Dữ liệu là dự báo tại điểm đến, không phải toàn tuyến. API miễn phí dùng cho demo phi thương mại; cần xem [điều khoản dịch vụ](https://open-meteo.com/en/terms) trước khi triển khai thương mại.
-- MapLibre GL JS + OpenFreeMap hiển thị bản đồ vector, marker, GPS, xoay/zoom/fullscreen. Photon tìm tọa độ bằng tên địa phương. Valhalla (motorcycle) nối điểm xuất phát → các điểm lịch trình có tọa độ theo thứ tự ngày → điểm đến, kèm km/phút và màu theo ngày. Bấm chặng để highlight/phóng tới. Điểm cũ chỉ có tên cần Chọn vị trí trong bảng Hành trình. Yêu cầu tránh cao tốc; kiểm tra tên, mã CT và phân loại motorway trả về, loại tuyến chưa đạt sau tối đa 3 lần. Dữ liệu bản đồ vẫn có thể thiếu; cần kiểm tra biển báo thực tế.
-- Overpass tìm cây xăng, quán ăn, đồ uống, sửa xe và điểm nghỉ theo từng đoạn liên tục dọc tuyến, lọc trong khoảng 1,5 km theo đường thẳng và chọn tối đa 30 điểm mỗi loại. Hiện ghim khi từng đoạn tải xong; đoạn lỗi không xóa kết quả đã có và có thể thử lại riêng. Đây là một số gợi ý, không phải danh sách đầy đủ. Dữ liệu lấy từ OpenStreetMap, không xác minh giờ mở cửa.
-- Các điểm có ghim trên bản đồ và danh sách bên dưới Thông tin nhanh. Nếu nguồn dữ liệu lỗi, cung đường vẫn hiển thị khi đã tải được; app cung cấp thử lại và liên kết tìm trên Google Maps.
-- Các dịch vụ công cộng hiện dùng cho demo, không cần API key và không đảm bảo tính sẵn sàng. Trước khi mở rộng cần chọn nhà cung cấp/hạ tầng phù hợp và kiểm tra chính sách sử dụng. Có thể đổi endpoint bằng `VITE_GEOCODER_URL`, `VITE_MOTORCYCLE_ROUTER_URL`, `VITE_PLACES_URL`, `VITE_MAP_STYLE_URL` khi build.
-- Cache tọa độ 7 ngày và tuyến 24 giờ, tối đa 8 mục trong trình duyệt; điểm hỗ trợ cache từng đoạn trong RAM 6 giờ, tối đa 150 đoạn. Không tải trước bản đồ offline. Tính năng này không bổ sung backend hay database.
-- Nguồn và chính sách: [MapLibre](https://maplibre.org/), [Photon](https://github.com/komoot/photon), [OSRM](https://project-osrm.org/docs/), [OpenFreeMap](https://openfreemap.org/quick_start/).
+- Tạo nhiều kế hoạch từ Khám phá, form hoặc bản nháp AI. Chọn kế hoạch trước khi mở lịch trình, bản đồ và checklist; không tự mở kế hoạch khi đăng nhập.
+- Sửa thông tin chuyến, ngày, thứ tự điểm ghé, ghi chú và checklist. Giảm số ngày cần xác nhận trước khi bỏ ngày cuối.
+- AI hỏi từng thông tin còn thiếu, hiển thị bản nháp để sửa và xác nhận. Không tự lưu kế hoạch hoặc đặt dịch vụ.
+- Tìm tọa độ điểm tham quan từ Photon/OpenStreetMap. Kết quả không rõ cần người dùng chọn; có Google Maps để đối chiếu và nhập tọa độ thủ công đã xác nhận.
+- Kiểm tra từng ngày qua điểm ghé và nơi nghỉ; cảnh báo vượt giới hạn giờ chạy hoặc mốc kết thúc. Giả định chưa xác minh được ghi rõ và chỉnh được.
+- Kế hoạch/checklist tự đồng bộ theo tài khoản, có cache riêng khi mất mạng và xử lý xung đột. Kế hoạch khách chỉ nhập vào tài khoản khi người dùng chọn.
+- Hoàn thành chuyến mở form nhật ký; chỉ đánh dấu hoàn thành sau khi lưu thành công. Nhật ký gồm km thực tế, điểm đã đến, nội dung, ảnh và thống kê theo năm.
+- Chỗ nghỉ có tìm phòng, đặt/hủy và liên kết ghim với hành trình **bằng dữ liệu demo**; không thu tiền hoặc giữ phòng thật.
 
-## Nhật ký và thành tựu theo năm
-- Trong Tổng quan hành trình, **Hoàn thành chuyến đi** mở nhật ký với tên chuyến, hai đầu tuyến và ghi chú có sẵn. Người dùng xác nhận ngày kết thúc, km thực tế và các điểm thực sự đã đến. Chỉ sau khi lưu nhật ký thành công mới đánh dấu hoàn thành. Nút chuyển thành **Xem nhật ký chuyến đi**, không tạo thêm bản trùng; xóa bài nhật ký liên kết sẽ bỏ trạng thái hoàn thành.
-- “Tạo bài mới” và “Thêm bài viết” tạo một bản ghi cho một chuyến đi đã hoàn thành. Người dùng nhập ngày kết thúc, km thực tế, các điểm đã đến, kỷ niệm và nhật ký; có thể chỉnh sửa hoặc xóa sau khi lưu.
-- Chọn năm để xem tổng km, số chuyến và số điểm đã đến. Điểm trùng tên (không phân biệt chữ hoa/thường) chỉ tính một lần trong năm; nên nhập kèm tỉnh/thành. Chuyến đang lên kế hoạch không tự tính vào thành tựu.
-- Mỗi chuyến có tối đa 8 ảnh JPG/PNG/WebP, tối đa 10 MB mỗi ảnh; ảnh được thu nhỏ cạnh dài tối đa 1600px và lưu JPEG. Có thể chọn ảnh bìa, bỏ ảnh và mở ảnh lớn trong chi tiết hành trình.
-- Nhật ký và ảnh được lưu cục bộ bằng IndexedDB, độc lập với chuyến đang lập kế hoạch. Chưa upload lên server hoặc đồng bộ tài khoản. Xóa dữ liệu trình duyệt sẽ mất nhật ký; lỗi lưu được báo ngay và giữ nguyên bản nháp để thử lại.
-- Nhật ký có thể nhập thêm điểm xuất phát và điểm kết thúc để xem bản đồ trong chi tiết. Bản đồ dựng tuyến xe máy tham khảo qua Valhalla, chưa gồm điểm ghé và không phải đường GPS đã ghi lại; không thay đổi số km thực tế tự nhập. Nhật ký cũ có nút Thêm cung đường, ảnh và nội dung vẫn được giữ nguyên.
-- Thông tin nhanh nhóm cây xăng/quán ăn/điểm nghỉ trong khung màu riêng. Mỗi địa điểm hiển thị một dòng; bấm tên mở ghim và địa chỉ trên bản đồ, bấm mũi tên mở Google Maps.
+## Bản đồ và thời gian
 
-Thời gian lập kế hoạch: mỗi chặng lấy giá trị lớn hơn giữa thời gian dịch vụ và quãng đường / 40 km/h. Không nâng tốc độ nếu dịch vụ dự báo chậm hơn. Nghỉ 15 phút sau mỗi 2 giờ chạy (không cộng nghỉ tại đích), khoảng dự phòng thêm 25% thời gian chạy. Chưa gồm ăn uống, tham quan, ngủ hoặc ùn tắc thực tế. Cache tuyến mới tách khỏi dữ liệu OSRM cũ.
+MapLibre/OpenFreeMap hiển thị bản đồ; Photon tìm địa điểm; Valhalla dùng profile `motorcycle`, yêu cầu tránh cao tốc và kiểm tra các đoạn cao tốc trả về; Overpass tìm cây xăng, quán ăn, đồ uống, sửa xe và điểm nghỉ dọc tuyến. Dịch vụ công cộng có thể lỗi hoặc thiếu dữ liệu. Các endpoint cấu hình tại `.env.example`.
+
+Tuyến tổng quan nối điểm đi → các điểm có tọa độ theo thứ tự lịch trình → điểm đến. **Tuyến này chưa tự dùng `returnToOrigin` để thêm chặng về.** Phần kiểm tra từng ngày tính riêng nơi bắt đầu/kết thúc, nơi nghỉ và chặng về khi được yêu cầu. Không dùng tổng tuyến tổng quan làm tổng km/thời gian của chuyến khứ hồi.
+
+ETA Valhalla giữ riêng với dự trù lập kế hoạch. Dự trù lấy giá trị lớn hơn giữa ETA và quãng đường/40 km/h, cộng nghỉ 15 phút sau mỗi 2 giờ chạy. Tổng quan có khoảng dự phòng thêm 25% thời gian chạy; kiểm tra từng ngày cộng thời gian tham quan và ăn uống do người dùng chỉnh. Chưa có giao thông trực tiếp hoặc ETA Google tự động.
+
+Google Maps tính tuyến riêng; link yêu cầu xe máy và tránh cao tốc. Nếu vị trí truy cập không hỗ trợ xe máy, chọn xe máy trong ứng dụng Google Maps. Thời gian ô tô không tương đương thời gian xe máy.
+
+Thời tiết Open-Meteo theo điểm đến và ngày chuyến đi trong cửa sổ 16 ngày, không phải toàn tuyến. Ngày quá khứ/quá xa được báo thiếu dự báo. GPS dùng quyền của trình duyệt, cần HTTPS hoặc localhost; vị trí sống chỉ giữ trong RAM, vị trí xuất phát đã xác nhận có thể lưu cùng kế hoạch.
+
+## Kiểm tra và deploy
+
+```powershell
+npm test
+npm run build
+npm run check:route
+node --env-file=.env.local scripts/check-vllm.js
+```
+
+Hai lệnh cuối gọi dịch vụ thật; `check:vllm` gửi hai yêu cầu mẫu trực tiếp đến model, không kiểm tra Auth/quota của web. `check:route` mặc định kiểm tra chặng một chiều Hà Nội–Cao Bằng.
+
+Deploy Render **Web Service**: Build `npm ci --include=dev && npm run build`, Start `npm start`, Health Check `/healthz`. Static Site không phục vụ API AI. Xem [hướng dẫn deploy](./RENDER_DEPLOY.md).
+
+## Giới hạn
+
+Chưa có dẫn đường từng ngã rẽ, bản đồ offline, xác minh giờ mở cửa/phòng trống/giá vé, đánh giá thời tiết toàn tuyến hoặc đặt phòng thật. Nhật ký chưa có hàng đợi lưu offline và dọn ảnh cloud không còn sử dụng. Hội thoại và bản nháp chưa xác nhận chỉ giữ trong phiên màn hình. Kiểm thử local không thay thế nghiệm thu HTTPS, GPS, Supabase và deploy thật.

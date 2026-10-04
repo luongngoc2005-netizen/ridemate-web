@@ -1,6 +1,7 @@
 import {fileURLToPath} from 'node:url';
 import {createApp} from './app.js';
 import {serverConfig} from './config.js';
+import {providerConfigured} from './ai-provider.js';
 
 try{
   const port=Number(process.env.PORT||10000);
@@ -8,7 +9,7 @@ try{
   const config=serverConfig();
   const server=await createApp({...config,distDirectory:fileURLToPath(new URL('../dist',import.meta.url))});
   server.on('error',()=>{console.error('RideMate could not bind to its port.');process.exitCode=1;});
-  server.listen(port,'0.0.0.0',()=>console.log(`RideMate listening on port ${port}; AI ${config.apiKey?'configured (login and quota required)':'disabled'}.`));
+  server.listen(port,'0.0.0.0',()=>console.log(`RideMate listening on port ${port}; AI ${providerConfigured(config)?'configured (login and quota required)':'disabled'}.`));
   const shutdown=()=>{server.close(()=>process.exit(0));setTimeout(()=>{server.closeAllConnections();process.exit(0);},40000).unref();};
   process.once('SIGTERM',shutdown);process.once('SIGINT',shutdown);
 }catch(error){

@@ -22,4 +22,5 @@ test('follow-up edits stay attached to the draft, sightseeing does not replace i
  assert.equal(chatAction('Cao Bằng có gì chơi?',{hasDraft:true}),'explore');
  assert.equal(chatAction('Kiểm tra chuyến đi của tôi',{hasTrip:true,hasDraft:true}),'review');
  assert.equal(chatAction('Tạo lịch trình mới đi Mộc Châu',{hasDraft:true}),'newDraft');
+ assert.equal(chatAction('Sửa lịch trình thành 4 ngày 3 đêm',{hasDraft:true}),'editDraft');
 });
