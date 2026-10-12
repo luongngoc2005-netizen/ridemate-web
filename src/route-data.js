@@ -1,4 +1,4 @@
-import { validPoint, routePosition } from './places-data.js';
+import { validPoint, routePosition, selectPlaces } from './places-data.js';
 export { supportTypes, markerTypes, validPoint, routePosition, selectPlaces } from './places-data.js';
 import { createPlaceProcessor } from './places-processor.js';
 import { parseOsrm, routePoints, itineraryStops } from './osrm-data.js';
@@ -293,4 +293,20 @@ export function placeDirectionsUrl(place) {
 }
 export function placeUrl(place) {
   return `https://www.google.com/maps/search/?${new URLSearchParams({ api: '1', query: `${place.coordinates[1]},${place.coordinates[0]}` })}`;
+}
+
+// Nearby searches use an explicit GPS snapshot, never the destination or route.
+export async function loadNearbyPlaces(point, category, signal) {
+  if (!validPoint(point)) throw new Error('Cần vị trí hiện tại để tìm quanh bạn.');
+  const filters = {
+    fuel: '[amenity=fuel]',
+    rest: '[tourism~"^(hotel|guest_house|motel)$"]',
+    repair: '[shop~"^(motorcycle_repair|motorcycle|tyres)$"]',
+  };
+  if (!filters[category]) throw new Error('Loại địa điểm không hợp lệ.');
+  const [lon, lat] = point;
+  const query = `[out:json][timeout:20];nwr${filters[category]}(around:1500,${lat},${lon});out body center;`;
+  const data = await request(mapServices.places, { signal, method: 'POST', body: new URLSearchParams({ data: query }) });
+  if (!Array.isArray(data.elements) || data.remark) throw new Error('Chưa tải đủ điểm gần bạn. Vui lòng thử lại.');
+  return selectPlaces(data.elements, [point, point], 30).filter(place => place.type === category).sort((a, b) => a.distanceMeters - b.distanceMeters);
 }

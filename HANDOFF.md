@@ -51,3 +51,12 @@ Khi đổi máy/origin, chờ kế hoạch báo đã đồng bộ trước khi m
 - Kiểm tra chỗ nghỉ demo và migration riêng; không dùng đơn demo làm xác nhận phòng thật.
 
 Lượt triển khai gần nhất đã có 152 kiểm thử đạt, kiểm thử phần sửa cuối và build đạt. Tra cứu địa điểm và tuyến từng ngày Cao Bằng đã thử bằng dịch vụ thật. UI local bị timeout; chưa nghiệm thu Supabase trên hai thiết bị thật hoặc xác nhận deploy bản mới. Các số này là kết quả kiểm tra tại thời điểm ghi tài liệu, không phải trạng thái dịch vụ hiện tại.
+
+## Mobile journey update — 2026-10-12
+- Journey now has Prepare / Riding / Journal navigation. Prepare groups map/weather, overnight stays and notes into expandable sections; itinerary/location editing is separate.
+- Start trip opens a dedicated map view and requests foreground GPS. Riding displays the planned route only, never a recorded GPS track. The view preference is session-only and keyed by trip id.
+- Fuel / lodging / repair searches run on demand around a GPS snapshot (1.5 km), with nearest-first straight-line distances, empty/error/retry states and provider attribution. Results are not inferred from the destination or from route-corridor results.
+- Completion remains at the bottom; opening completion stops foreground location tracking. Journal saving remains the completion confirmation.
+- Removed the daily time-budget component from Journey as requested; its underlying planning logic remains for other existing features.
+- Checked Chrome mobile viewports 360/390/430, GPS granted/denied, mocked nearby results, completion form and overflow. Existing 166 tests plus 3 nearby tests pass. Build passes (existing large-bundle warning).
+- Still needed: Safari/iPhone hardware validation, outdoor GPS accuracy testing, and live map/nearby provider availability checks. Automated nearby UI checks used fixtures, not verified businesses. WebKit runtime unavailable on this machine.

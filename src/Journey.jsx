@@ -5,7 +5,8 @@ import ProvinceSelect from './ProvinceSelect.jsx';
 import React, { useRef, useState } from 'react';
 import { dateRange, suggestionsFor, newId } from './trip-data.js';
 import RouteOverview from './RouteOverview.jsx';
-import TripFeasibility from './TripFeasibility.jsx';
+import RidingView from './RidingView.jsx';
+import { useLocation } from './Location.jsx';
 import TripLocations from './TripLocations.jsx';
 import {mergeValue} from './plan-sync.js';
 import { renamePlannedPlace, mergeEditedDay } from './planned-places.js';
@@ -56,9 +57,29 @@ function ChecklistProgress({ done, total }) {
 }
 
 export function Journey({ trip, setTrip, view, setView, onEdit, onFinish, setPage }) {
+  const location = useLocation();
+  const [riding, setRiding] = useState(() => { try { return sessionStorage.getItem(`ridemate.riding.${trip.id}`) === 'yes' && !trip.completedAt; } catch { return false; } });
+  const changePhase = value => { setRiding(value); setView('overview'); try { sessionStorage.setItem(`ridemate.riding.${trip.id}`, value ? 'yes' : 'no'); } catch {} };
   const completed = trip.checklist.filter(item => item.done).length;
   const places = trip.itinerary.reduce((total, day) => total + day.places.length, 0);
-  return <main className="page"><div className="title trip-heading"><div><h1>{trip.origin} <ToolIcon name="arrowRight" className="inline-icon"/> {trip.destination}</h1><p>{dateRange(trip)} · {trip.days} ngày</p></div><button className="green" onClick={onEdit}>Chỉnh sửa</button></div><nav className="subnav" aria-label="Các phần hành trình">{[['overview', 'Tổng quan'], ['itinerary', 'Lịch trình'], ['checklist', 'Checklist'], ['notes', 'Ghi chú']].map(([key, label]) => <button key={key} aria-current={view === key ? 'page' : undefined} onClick={() => key === 'checklist' ? setPage('checklist') : setView(key)}>{label}</button>)}</nav>{view === 'notes' ? <section className="card trip-notes"><h2>Ghi chú chuyến đi</h2><p className="muted-copy">Thay đổi được lưu tự động trên trình duyệt này.</p><label>Ghi chú chung<textarea aria-label="Ghi chú chung" value={trip.notes} onChange={e => setTrip(current => ({ ...current, notes: e.target.value }))} placeholder="Địa chỉ chỗ nghỉ, ngân sách, điều cần nhớ..." /></label>{trip.itinerary.map((day, index) => <label key={day.id}>Ghi chú ngày {index + 1} — {day.title}<textarea aria-label={`Ghi chú ngày ${index + 1}`} value={day.note} onChange={e => setTrip(current => ({ ...current, itinerary: current.itinerary.map(item => item.id === day.id ? { ...item, note: e.target.value } : item) }))} placeholder="Ghi chú riêng cho ngày này..." /></label>)}</section> : <>{view === 'overview' && <RouteOverview trip={trip}><h3>Tổng quan hành trình</h3><p>{trip.itinerary.length} ngày · {places} điểm tham quan trong lịch trình</p><h3>Chuẩn bị trước chuyến đi</h3><ChecklistProgress done={completed} total={trip.checklist.length} /><button className="soft" onClick={() => setPage('checklist')}>Mở checklist</button><button className="soft" onClick={() => setView('notes')}>Mở ghi chú</button>{trip.notes && <p className="day-note">{trip.notes}</p>}</RouteOverview>}<StayNightPlan trip={trip} onFind={date=>setPage('stays',date)}/><TripLocations trip={trip} setTrip={setTrip}/><TripFeasibility trip={trip} onPlanningChange={(index,planning)=>setTrip(current=>({...current,itinerary:current.itinerary.map((d,i)=>i===index?{...d,planning}:d)}))}/><Itinerary trip={trip} setTrip={setTrip} />{view === 'overview' && <div className="trip-completion">{trip.completedAt ? <><b><ToolIcon name="check" className="inline-icon"/> Đã hoàn thành chuyến đi</b><p>Ngày hoàn thành: {new Date(`${trip.completedAt}T12:00:00`).toLocaleDateString("vi-VN")}</p><button className="green" onClick={onFinish}>Xem nhật ký chuyến đi</button></> : <><p>Đã kết thúc hành trình? Ghi lại số km thực tế và những nơi bạn đã đến.</p><button className="green" onClick={onFinish}><ToolIcon name="check" className="inline-icon"/> Hoàn thành chuyến đi</button><small>Chuyến đi được đánh dấu hoàn thành sau khi bạn lưu nhật ký.</small></>}</div>}</>}</main>;
+  return <main className={`page journey-page ${riding ? 'is-riding' : ''}`}>
+    <div className="title trip-heading"><div><p className="phase-eyebrow">CHUYẾN ĐI CỦA BẠN</p><h1>{trip.origin} → {trip.destination}</h1><p>{dateRange(trip)} · {trip.days} ngày</p></div><button className="soft" onClick={onEdit}>Chỉnh sửa</button></div>
+    <nav className="journey-phases" aria-label="Giai đoạn chuyến đi">
+      <button aria-current={!riding ? 'page' : undefined} onClick={() => changePhase(false)}>1. Chuẩn bị</button>
+      <button aria-current={riding ? 'page' : undefined} onClick={() => changePhase(true)}>2. Đang đi</button>
+      <button onClick={() => setPage('journal')}>3. Nhật ký</button>
+    </nav>
+    {riding ? <RidingView trip={trip}/> : <>
+      <nav className="subnav" aria-label="Các phần hành trình">{[['overview', 'Tổng quan'], ['itinerary', 'Lịch trình'], ['checklist', 'Checklist'], ['notes', 'Ghi chú']].map(([key, label]) => <button key={key} aria-current={view === key ? 'page' : undefined} onClick={() => key === 'checklist' ? setPage('checklist') : setView(key)}>{label}</button>)}</nav>
+      {view === 'notes' ? <section className="card trip-notes"><h2>Ghi chú chuyến đi</h2><p className="muted-copy">Thay đổi được lưu tự động trên trình duyệt này.</p><label>Ghi chú chung<textarea aria-label="Ghi chú chung" value={trip.notes} onChange={e => setTrip(current => ({ ...current, notes: e.target.value }))} placeholder="Địa chỉ chỗ nghỉ, ngân sách, điều cần nhớ..." /></label>{trip.itinerary.map((day, index) => <label key={day.id}>Ghi chú ngày {index + 1} — {day.title}<textarea aria-label={`Ghi chú ngày ${index + 1}`} value={day.note} onChange={e => setTrip(current => ({ ...current, itinerary: current.itinerary.map(item => item.id === day.id ? { ...item, note: e.target.value } : item) }))} placeholder="Ghi chú riêng cho ngày này..." /></label>)}</section> : view === 'itinerary' ? <><details className="journey-disclosure"><summary>Chọn vị trí các điểm dừng</summary><TripLocations trip={trip} setTrip={setTrip}/></details><Itinerary trip={trip} setTrip={setTrip}/></> : <>
+        <section className="card preparation-card"><h2>Sẵn sàng cho chuyến đi</h2><p>{trip.days} ngày · {places} điểm trong lịch trình</p><ChecklistProgress done={completed} total={trip.checklist.length}/><div className="preparation-actions"><button className="soft" onClick={() => setPage('checklist')}>Mở checklist</button><button className="soft" onClick={() => setView('itinerary')}>Xem lịch trình</button></div>{!trip.completedAt && <button className="green start-journey" onClick={() => { changePhase(true); if (!location.tracking) location.start(); }}>Bắt đầu chuyến đi →</button>}</section>
+        <details className="journey-disclosure"><summary>Bản đồ, thời tiết và thông tin tuyến</summary><RouteOverview trip={trip}/></details>
+        <details className="journey-disclosure"><summary>Chỗ nghỉ theo từng đêm</summary><StayNightPlan trip={trip} onFind={date=>setPage('stays',date)}/></details>
+        <details className="journey-disclosure"><summary>Ghi chú chuyến đi</summary><p>{trip.notes || 'Chưa có ghi chú.'}</p><button className="soft" onClick={() => setView('notes')}>Viết ghi chú</button></details>
+      </>}
+    </>}
+    {(riding || view === 'overview') && <div className="trip-completion">{trip.completedAt ? <><b><ToolIcon name="check" className="inline-icon"/> Đã hoàn thành chuyến đi</b><p>Ngày hoàn thành: {new Date(`${trip.completedAt}T12:00:00`).toLocaleDateString("vi-VN")}</p><button className="green" onClick={() => { location.stop(); onFinish(); }}>Xem nhật ký chuyến đi</button></> : <><p>Đã kết thúc hành trình? Ghi lại số km thực tế và những nơi bạn đã đến.</p><button className="green" onClick={() => { location.stop(); onFinish(); }}><ToolIcon name="check" className="inline-icon"/> Hoàn thành chuyến đi</button><small>Chuyến đi được đánh dấu hoàn thành sau khi bạn lưu nhật ký.</small></>}</div>}
+  </main>;
 }
 
 export function TripChecklist({ trip, setTrip }) {
