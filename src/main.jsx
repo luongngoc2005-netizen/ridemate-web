@@ -1,3 +1,4 @@
+import { useNavigationState, useNavigationBlock } from './useNavigationState.js';
 import AIAssistant from './AIAssistant.jsx';
 import Plans from './Plans.jsx';
 import usePlanSync from './usePlanSync.js';
@@ -54,21 +55,23 @@ function Tools({setPage}){return <main className="page"><h1>Công cụ hỗ tr�
 function App(){const account=useAccount();return <BookingProvider userId={account.session?.user.id} authLoading={account.loading}><AppContent account={account}/></BookingProvider>}
 function AppContent({account}){
   const bookingData=useBookings();
-  const [stayDate,setStayDate]=useState(null);
-  const [reviewRequested,setReviewRequested]=useState(false);
+  const [stayDate,setStayDate]=useNavigationState('stayDate', null);
+  const [reviewRequested,setReviewRequested]=useNavigationState('reviewRequested', false);
   const [accountBusy,setAccountBusy] = useState(false);
+  useNavigationBlock(accountBusy);
   const sync=usePlanSync(account),plans=sync.plans;
-  const [activeId,setActiveId]=useState(null);
+  const [activeId,setActiveId]=useNavigationState('activeId', null);
   const trip=plans.find(p=>p.id===activeId)||null;
   const plansRef=React.useRef(plans);plansRef.current=plans;
   const changePlans=updater=>{try{sync.changePlans(updater);setStorageError('');return true;}catch(e){setStorageError(e.message);return false;}};
   const setTrip=updater=>{const id=activeId;return changePlans(current=>current.map(p=>p.id===id?(typeof updater==='function'?updater(p):updater):p));};
   const mapTrip=useMemo(()=>tripWithStays(trip,bookingData.bookings),[trip,bookingData.bookings]);
   const [storageError,setStorageError] = useState('');
-  useEffect(()=>{setActiveId(null);setStorageError('');},[sync.owner]);
-  const [page,setCurrentPage] = useState('home');
-  const [completionTrip,setCompletionTrip] = useState(null);
-  const [view,setView] = useState('overview');
+  const previousOwner = React.useRef(sync.owner);
+  useEffect(()=>{if(previousOwner.current!==sync.owner){setActiveId(null,{replace:true});previousOwner.current=sync.owner;}setStorageError('');},[sync.owner]);
+  const [page,setCurrentPage] = useNavigationState('page', 'home');
+  const [completionTrip,setCompletionTrip] = useNavigationState('completionTrip', null);
+  const [view,setView] = useNavigationState('view', 'overview');
   const [feedback,setFeedback] = useState('');
   useEffect(()=>{if(account.recovery)setCurrentPage('account');},[account.recovery]);
   useEffect(()=>{
@@ -109,7 +112,7 @@ function AppContent({account}){
   else if(page==='stays')content=<Stays key={`${account.session?.user.id||'guest'}:${stayDate}`} trip={trip} initialDate={stayDate}/>;
   else if(page==='tools')content=<Tools setPage={setPage}/>;
   else if(page==='ai')content=<AIAssistant trip={trip} setTrip={setTrip} setPage={setPage} onCreatePlan={createFromAssistant} onOpenPlan={id=>{setActiveId(id);setPage('trip');}} initialReview={reviewRequested} userId={account.session?.user.id}/>;
-  else content=account.loading ? <main className="page" role="status">Đang mở tài khoản…</main> : <Journal key={account.session?.user.id || "guest"} userId={account.session?.user.id} completionTrip={completionTrip} onEntryChange={journalChanged}/>;
+  else content=account.loading ? <main className="page" role="status">Đang mở tài khoản…</main> : <Journal key={account.session?.user.id || "guest"} userId={account.session?.user.id} completionTrip={plans.find(plan=>plan.id===completionTrip?.id)||null} onEntryChange={journalChanged}/>;
   return <TripRouteProvider key={`${trip?.id}:${trip?.origin}:${trip?.destination}`} trip={mapTrip}><Nav page={page} setPage={setPage} user={account.session?.user}/><LocationStatus/><div className="plans-shortcut"><button className="soft" onClick={()=>setPage('plans')}>Kế hoạch của tôi ({plans.length})</button></div>{trip && <div className="trip-return"><button onClick={()=>setPage('plans')}><ToolIcon name="arrowLeft" className="inline-icon"/> Kế hoạch của tôi</button><span>{trip.origin} <ToolIcon name="arrowRight" className="inline-icon"/> {trip.destination}</span><button onClick={()=>setPage('ai-review')}>Kiểm tra chuyến đi của tôi</button></div>}{sync.error&&<div className="storage-warning" role="alert"><p>{sync.error}</p><button onClick={()=>sync.retry()}>Thử đồng bộ lại</button>{sync.conflict&&<><button onClick={()=>{if(window.confirm("Chọn bản trên thiết bị cho những nội dung bị xung đột?"))sync.retry("local");}}>Giữ bản trên thiết bị</button><button onClick={()=>{if(window.confirm("Chọn bản tài khoản cho những nội dung bị xung đột?"))sync.retry("remote");}}>Giữ bản tài khoản</button></>}</div>}{storageError?<p className="storage-warning" role="alert">{storageError}</p>:trip?<p className="storage-hint">{account.session ? (sync.status==="synced"?"Kế hoạch đã đồng bộ tài khoản.":"Kế hoạch được giữ trên thiết bị; đang chờ đồng bộ tài khoản.") : "Kế hoạch khách lưu trên trình duyệt này. Đăng nhập để tự đồng bộ; nhập kế hoạch khách tại Tài khoản."}</p>:null}{feedback&&<p className="save-feedback app-feedback" role="status">{feedback}</p>}{sync.loading&&page!=="account"?<main className="page" role="status">Đang mở kế hoạch theo tài khoản…</main>:content}{trip && !trip.completedAt && !accountBusy && page !== 'trip' && <TripCompanion trip={mapTrip} setTrip={setTrip}/>}<footer><b><ToolIcon name="mountain" className="inline-icon"/> RideMate</b><span>Đi xa hơn, an toàn hơn, trải nghiệm nhiều hơn.</span><span>Giới thiệu · Hỗ trợ · Góp ý · Chính sách bảo mật</span></footer></TripRouteProvider>;
 }
 createRoot(document.getElementById('root')).render(<LocationProvider><App/></LocationProvider>);

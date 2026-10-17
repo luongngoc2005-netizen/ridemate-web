@@ -60,3 +60,10 @@ Lượt triển khai gần nhất đã có 152 kiểm thử đạt, kiểm thử
 - Removed the daily time-budget component from Journey as requested; its underlying planning logic remains for other existing features.
 - Checked Chrome mobile viewports 360/390/430, GPS granted/denied, mocked nearby results, completion form and overflow. Existing 166 tests plus 3 nearby tests pass. Build passes (existing large-bundle warning).
 - Still needed: Safari/iPhone hardware validation, outdoor GPS accuracy testing, and live map/nearby provider availability checks. Automated nearby UI checks used fixtures, not verified businesses. WebKit runtime unavailable on this machine.
+
+## Browser Back / Forward — 2026-10-17
+- Added a shared navigation store using pushState/replaceState/popstate. Changes in the same action (e.g. selecting a trip and opening it) create one history entry.
+- Main pages, active trip, itinerary/notes tabs, preparation/riding phases and journal list/editor/detail now participate in browser history. Page/trip/view/phase URL query parameters support refresh without server rewrite changes.
+- Journal draft text/photos stay in memory across in-app Back/Forward in the same page session; they are not serialized in URLs/history payloads. Reload/closing still requires saving. Saving does not undo data when navigating backward. Busy saves/uploads block in-app history traversal.
+- Chrome automated UI checks passed at 390x844 and 1440x900: selected trip, tabs, Back/Forward, refresh, journal draft retention across page transitions, save/detail; phase transitions also passed. Build and four navigation unit tests passed. Safari/iPhone hardware remains unverified.
+- Broad suite: 203 passed; two POI test files could not load because local node_modules lacks @electric-sql/pglite-postgis (already declared in package-lock/package.json from newer upstream work). Install locked dependencies to run those two files.

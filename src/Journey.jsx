@@ -1,3 +1,4 @@
+import { useNavigationState } from './useNavigationState.js';
 import OriginSelect from './OriginSelect.jsx';
 import {StayNightPlan} from './stays/Stays.jsx';
 import ToolIcon from './ToolIcon.jsx';
@@ -59,7 +60,7 @@ function ChecklistProgress({ done, total }) {
 export function Journey({ trip, setTrip, view, setView, onEdit, onFinish, setPage }) {
   const location = useLocation();
   const [mapOpen, setMapOpen] = useState(false);
-  const [riding, setRiding] = useState(() => { try { return sessionStorage.getItem(`ridemate.riding.${trip.id}`) === 'yes' && !trip.completedAt; } catch { return false; } });
+  const [riding, setRiding] = useNavigationState(`riding.${trip.id}`, () => { try { return sessionStorage.getItem(`ridemate.riding.${trip.id}`) === 'yes' && !trip.completedAt; } catch { return false; } });
   const isRiding = riding && !trip.completedAt;
   const changePhase = value => { if (value && trip.completedAt) return; setRiding(value); setView('overview'); try { sessionStorage.setItem(`ridemate.riding.${trip.id}`, value ? 'yes' : 'no'); } catch {} };
   const completed = trip.checklist.filter(item => item.done).length;
