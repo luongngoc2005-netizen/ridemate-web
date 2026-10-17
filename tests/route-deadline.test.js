@@ -30,3 +30,12 @@ test('Successful routing clears the deadline without later aborting', async () =
   await new Promise(resolve => setTimeout(resolve, 20));
   assert.equal(requestSignal.aborted, false);
 });
+
+test('A failed leg aborts sibling route requests immediately', async () => {
+  let requestSignal;
+  await assert.rejects(withRouteDeadline(signal => {
+    requestSignal = signal;
+    throw new Error('A route leg failed');
+  }), /A route leg failed/);
+  assert.equal(requestSignal.aborted, true);
+});

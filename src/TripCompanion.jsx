@@ -51,7 +51,7 @@ function CompanionPanel({ trip, setTrip, onClose }) {
     <div className="companion-content">
       <nav className="companion-categories" aria-label="Loại điểm dọc hành trình">{['planned', 'food', 'drink', 'fuel', 'repair', 'rest'].map(key => <button type="button" key={key} aria-pressed={key === category} onClick={() => chooseCategory(key)}><ToolIcon name={markerTypes[key].icon}/><span>{key === 'planned' ? 'Lịch trình' : markerTypes[key].label}</span></button>)}</nav>
       <p className="companion-help">{category === 'planned' ? 'Các điểm đã thêm trong lịch trình. Điểm có tọa độ sẽ hiện ghim trên bản đồ.' : 'Tìm điểm trong khoảng 1,5 km dọc tuyến đi–đến. Bấm ghim để xem tên, chỉ đường hoặc lưu vào lịch trình.'}</p>
-      {data.route ? <RouteMap route={data.route} places={pins} visible={visible} selected={selected} onPick={place => { setAdding(place); setResolving(null); }}/> : <><LocationControls/><div className="route-placeholder" role="status">{data.loading ? 'Đang tải cung đường…' : data.error}</div></>}
+      {data.route ? <RouteMap route={data.route} places={pins} visible={visible} selected={selected} onPick={place => { setAdding(place); setResolving(null); }}/> : <><LocationControls/><div className="route-placeholder" role="status">{data.loading ? (data.routeProgress || 'Đang tải cung đường…') : data.error}</div></>}
       {category !== 'planned' && (data.placesLoading || data.placesError) && <p className="route-message" role="status">{data.placesLoading ? `Đang tìm các điểm dọc tuyến… ${data.progress}` : data.placesError}</p>}
       {!data.loading && (data.error || data.placesError) && <button className="soft" onClick={data.retry}>Thử tải lại</button>}
       <div ref={action}>

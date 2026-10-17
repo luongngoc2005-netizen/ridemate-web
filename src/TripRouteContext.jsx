@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { loadTripRoute, loadPlaces } from './route-data.js';
 
 const TripRouteContext = createContext(null);
-const initial = { loading: true, route: null, places: [], placesLoading: false, error: '', placesError: '', progress: '' };
+const initial = { loading: true, route: null, places: [], placesLoading: false, error: '', placesError: '', progress: '', routeProgress: '' };
 export function TripRouteProvider({ trip, children }) {
   const [enabled, setEnabled] = useState(false), [attempt, setAttempt] = useState(0), [placesAttempt, setPlacesAttempt] = useState(0);
   const [state, setState] = useState(initial);
@@ -12,7 +12,9 @@ export function TripRouteProvider({ trip, children }) {
   useEffect(() => {
     if (!enabled || !tripRef.current) return;
     const controller = new AbortController(); setState({ ...initial, key });
-    loadTripRoute(tripRef.current, controller.signal).then(route => {
+    loadTripRoute(tripRef.current, controller.signal, routeProgress => {
+      if (!controller.signal.aborted) setState(current => ({ ...current, routeProgress }));
+    }).then(route => {
       if (!controller.signal.aborted) setState({ ...initial, key, route, loading: false, placesLoading: true });
     }).catch(error => { if (!controller.signal.aborted) setState({ ...initial, key, loading: false, error: error.message }); });
     return () => controller.abort();

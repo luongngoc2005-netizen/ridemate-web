@@ -19,6 +19,9 @@ export async function withRouteDeadline(work, signal, timeout = 60000) {
       controller.signal.throwIfAborted();
       return work(controller.signal);
     })]);
+  } catch (error) {
+    controller.abort();
+    throw error;
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', cancel);

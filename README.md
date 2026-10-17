@@ -51,6 +51,8 @@ ETA Valhalla giữ riêng với dự trù lập kế hoạch. Dự trù lấy gi
 
 Google Maps tính tuyến riêng; link yêu cầu xe máy và tránh cao tốc. Nếu vị trí truy cập không hỗ trợ xe máy, chọn xe máy trong ứng dụng Google Maps. Thời gian ô tô không tương đương thời gian xe máy.
 
+Tuyến dài được chia thành các chặng qua điểm dẫn tuyến trong nước để tránh vượt giới hạn của dịch vụ công cộng. Các chặng được gom tối đa hai chặng liên tiếp, tổng khoảng cách đường thẳng không quá 500 km mỗi yêu cầu, và tải tối đa hai yêu cầu cùng lúc. Nếu dịch vụ từ chối một nhóm vì giới hạn chiều dài, web thử từng chặng riêng. Nếu một nhóm chờ quá 8 giây, web cũng chuyển sang tính từng chặng nhỏ. Mỗi chặng vẫn được kiểm tra biên giới và các đoạn cao tốc được nhận diện trước khi ghép; điểm dẫn tuyến tự động không sửa lịch trình đã lưu và không bảo đảm tuyến ngắn nhất. Giao diện hiển thị tiến độ từng chặng; các chặng đã tải được giữ trong phiên để thử lại phần lỗi. Tổng thời gian chờ vẫn giới hạn 60 giây, và lỗi vượt chiều dài được thông báo riêng.
+
 Thời tiết Open-Meteo theo điểm đến và ngày chuyến đi trong cửa sổ 16 ngày, không phải toàn tuyến. Ngày quá khứ/quá xa được báo thiếu dự báo. GPS dùng quyền của trình duyệt, cần HTTPS hoặc localhost; vị trí sống chỉ giữ trong RAM, vị trí xuất phát đã xác nhận có thể lưu cùng kế hoạch.
 
 ## Kiểm tra và deploy

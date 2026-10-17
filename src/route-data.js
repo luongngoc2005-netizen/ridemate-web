@@ -4,7 +4,7 @@ import { createPlaceProcessor } from './places-processor.js';
 import { parseOsrm, routePoints, itineraryStops } from './osrm-data.js';
 import { provinces, travelDestinations } from './provinces.js';
 import {provinceLocation} from './province-locations.js';
-import { domesticShapingPoints } from './domestic-routing.js';
+import { domesticShapingPoints, domesticRequestChunks } from './domestic-routing.js';
 import { tripOrigin } from './origin-data.js';
 import { motorcycleUrl, highwaySteps, exclusionPoints, applyRidingEstimate } from './motorcycle-routing.js';
 import { withRouteDeadline } from './route-deadline.js';
@@ -16,6 +16,9 @@ export const mapServices = {
   style: env.VITE_MAP_STYLE_URL || 'https://tiles.openfreemap.org/styles/liberty',
 };
 const cache = new Map();
+// Keep completed legs during this session so a failed final leg does not make
+// a retry recompute every successful part of a cross-country route.
+const routeLegCache = new Map();
 const CACHE_KEY = 'ridemate.map-cache.v1';
 function cached(key) {
   try {
@@ -34,19 +37,31 @@ function remember(key, data, ttl) {
   try { localStorage.setItem(CACHE_KEY, JSON.stringify([...cache])); } catch { /* Keep the in-memory cache when quota is unavailable. */ }
   return data;
 }
-async function request(url, { signal, ...options } = {}) {
+async function request(url, { signal, timeout = 25000, ...options } = {}) {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   signal?.addEventListener('abort', cancel, { once: true });
-  const timer = setTimeout(cancel, 25000);
+  const timer = setTimeout(cancel, timeout);
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
-    if (!response.ok) throw new Error(response.status === 429 ? 'Dịch vụ bản đồ đang bận. Vui lòng thử lại sau.' : 'Dịch vụ bản đồ tạm thời chưa trả được dữ liệu.');
+    if (!response.ok) {
+      const detail = response.status === 400 ? await response.json().catch(() => null) : null;
+      if (detail?.code === 'DistanceExceeded') {
+        const error = new Error('Tuyến vượt giới hạn chiều dài của dịch vụ bản đồ. Hãy chia thành các chặng ngắn hơn.');
+        error.code = 'ROUTE_DISTANCE_EXCEEDED';
+        throw error;
+      }
+      throw new Error(response.status === 429 ? 'Dịch vụ bản đồ đang bận. Vui lòng thử lại sau.' : 'Dịch vụ bản đồ tạm thời chưa trả được dữ liệu.');
+    }
     return await response.json();
   } catch (error) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    if (controller.signal.aborted) throw new Error('Dịch vụ bản đồ phản hồi chậm. Vui lòng thử lại sau.');
+    if (controller.signal.aborted) {
+      const timeoutError = new Error('Dịch vụ bản đồ phản hồi chậm. Vui lòng thử lại sau.');
+      timeoutError.code = 'MAP_REQUEST_TIMEOUT';
+      throw timeoutError;
+    }
     throw error;
   } finally { clearTimeout(timer); signal?.removeEventListener('abort', cancel); }
 }
@@ -90,15 +105,16 @@ export async function resolveRoutePoint(value,signal) {
   if(!validPoint(value?.coordinates)||!vietnam.containsPoint(value.coordinates))throw new Error('Điểm xuất phát đã chọn không hợp lệ hoặc nằm ngoài Việt Nam. Hãy chọn lại vị trí.');
   return {coordinates:value.coordinates.slice(0,2),label:value.label||'Vị trí đã chọn'};
 }
-export async function loadRoute(origin, destination, signal, stops = []) {
-  return withRouteDeadline(boundedSignal => calculateRoute(origin, destination, boundedSignal, stops), signal);
+export async function loadRoute(origin, destination, signal, stops = [], onProgress = () => {}) {
+  return withRouteDeadline(boundedSignal => calculateRoute(origin, destination, boundedSignal, stops, onProgress), signal);
 }
-async function calculateRoute(origin, destination, signal, stops) {
+async function calculateRoute(origin, destination, signal, stops, onProgress) {
   const { vietnam, isDomesticRoute, DOMESTIC_ROUTE_ERROR } = await import('./vietnam-guard.js');
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   const key = 'motorcycle:vn-v4:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
   const saved = cached(key);
   if (saved && isDomesticRoute(saved)) return saved;
+  onProgress('Đang xác định điểm đi–đến…');
   const [start, end] = await Promise.all([resolveRoutePoint(origin, signal), resolveRoutePoint(destination, signal)]);
   const points = routePoints(start, end, stops);
   const outside = points.find(point => !vietnam.containsPoint(point.coordinates));
@@ -106,7 +122,7 @@ async function calculateRoute(origin, destination, signal, stops) {
   async function motorcycleRequest(chunk, alternatives = false) {
     let exclusions = [];
     for (let attempt = 0; attempt < 3; attempt++) {
-      const result = await request(motorcycleUrl(mapServices.route, chunk, alternatives, exclusions), { signal });
+      const result = await request(motorcycleUrl(mapServices.route, chunk, alternatives, exclusions), { signal, timeout: chunk.length > 2 ? 8000 : 25000 });
       const routes = result.routes || [];
       const safe = routes.filter(route => !highwaySteps(route).length);
       if (safe.length) return { ...result, routes: safe };
@@ -115,44 +131,85 @@ async function calculateRoute(origin, destination, signal, stops) {
     }
     throw new Error('Tuyến trả về vẫn có đoạn cao tốc nên chưa được hiển thị. Hãy chọn lại điểm hoặc thử lại sau.');
   }
-  async function domesticPart(chunk, alternatives = false) {
+  async function domesticPart(chunk, alternatives = false, inWorker = false) {
+    const legKey = mapServices.route + ':' + JSON.stringify(chunk);
+    const savedLeg = routeLegCache.get(legKey);
+    if (savedLeg?.expires > Date.now() && isDomesticRoute(savedLeg.route)) return [savedLeg.route];
+    if (chunk.length > 2) {
+      const savedParts = chunk.slice(1).map((point, index) => routeLegCache.get(mapServices.route + ':' + JSON.stringify([chunk[index], point])));
+      if (savedParts.every(part => part?.expires > Date.now() && isDomesticRoute(part.route))) return savedParts.map(part => part.route);
+    }
+    // Avoid a cross-country search followed by another oversized corridor
+    // request. Each short leg is still checked for highways and borders.
+    let distance = 0;
+    const shaped = [chunk[0]], via = [];
+    for (let i = 1; i < chunk.length; i++) {
+      const length = routePosition(chunk[i - 1].coordinates, [chunk[i - 1].coordinates, chunk[i].coordinates]).total;
+      distance += length;
+      const middle = length > 600000 ? domesticShapingPoints(chunk[i - 1], chunk[i]) : [];
+      via.push(...middle); shaped.push(...middle, chunk[i]);
+    }
+    if (!inWorker && distance > 600000 && shaped.length > 2) {
+      const parts = await domesticLegs(shaped, 2, true);
+      if (via.length) parts[0] = { ...parts[0], routingVia: [...via.map(p => p.label), ...(parts[0].routingVia || [])] };
+      return parts;
+    }
     // Alternative searches can be much slower on long motorcycle routes.
     // Ask for one route first; only seek alternatives after border rejection.
-    const result = await motorcycleRequest(chunk, alternatives);
+    let result;
+    try { result = await motorcycleRequest(chunk, alternatives); }
+    catch (error) {
+      if (['ROUTE_DISTANCE_EXCEEDED', 'MAP_REQUEST_TIMEOUT'].includes(error.code) && chunk.length > 2) return domesticLegs(chunk, inWorker ? 1 : 2);
+      throw error;
+    }
     if (Array.isArray(result.waypoints) && result.waypoints.some(point => !vietnam.containsPoint(point.location))) throw new Error(DOMESTIC_ROUTE_ERROR);
     let boundaryRejected = false, parseError;
     for (const candidate of result.routes || []) {
       try {
         const parsed = parseOsrm({ ...result, routes: [candidate] }, chunk);
-        if (isDomesticRoute(parsed)) return [parsed];
+        if (isDomesticRoute(parsed)) {
+          routeLegCache.set(legKey, { route: parsed, expires: Date.now() + 86400000 });
+          while (routeLegCache.size > 32) routeLegCache.delete(routeLegCache.keys().next().value);
+          return [parsed];
+        }
         boundaryRejected = true;
       } catch (error) { parseError = error; }
     }
     // OSRM alternatives are supported for two-point requests. A rejected
     // multi-stop route is retried leg by leg, preserving the itinerary order.
     if (boundaryRejected && chunk.length > 2) {
-      const legs = [];
-      for (let i = 1; i < chunk.length; i++) legs.push(...await domesticPart(chunk.slice(i - 1, i + 1)));
-      return legs;
+      return domesticLegs(chunk, inWorker ? 1 : 2);
     }
     if (boundaryRejected) {
       const via = domesticShapingPoints(chunk[0], chunk.at(-1));
       if (via.length && via.every(point => vietnam.containsPoint(point.coordinates))) {
         const shaped = [chunk[0], ...via, chunk.at(-1)];
-        const retry = await motorcycleRequest(shaped);
-        if (!retry.waypoints?.some(point => !vietnam.containsPoint(point.location))) {
-          for (const candidate of retry.routes || []) {
-            try {
-              const parsed = parseOsrm({ ...retry, routes: [candidate] }, shaped);
-              if (isDomesticRoute(parsed)) return [{ ...parsed, routingVia: via.map(p => p.label) }];
-            } catch { /* Never display an unverified fallback. */ }
-          }
-        }
+        const parts = await domesticLegs(shaped, inWorker ? 1 : 2);
+        parts[0] = { ...parts[0], routingVia: [...via.map(p => p.label), ...(parts[0].routingVia || [])] };
+        return parts;
       }
-      if (!alternatives) return domesticPart(chunk, true);
+      if (!alternatives) return domesticPart(chunk, true, inWorker);
       throw new Error(DOMESTIC_ROUTE_ERROR);
     }
     throw parseError || new Error('Dịch vụ bản đồ chưa tìm được tuyến qua các điểm đã chọn. Hãy kiểm tra vị trí các điểm hoặc thử lại.');
+  }
+  async function domesticLegs(points, concurrency = 2, batch = false) {
+    const chunks = batch ? domesticRequestChunks(points) : points.slice(1).map((point, index) => [points[index], point]);
+    const parts = new Array(chunks.length), total = points.length - 1;
+    let next = 0, completed = 0;
+    onProgress(`Đang tính tuyến theo chặng: 0/${total} chặng hoàn tất…`);
+    // At most two requests in flight; preserve the user's stop order even
+    // when later legs finish first. The outer deadline bounds all workers.
+    await Promise.all(Array.from({ length: Math.min(concurrency, parts.length) }, async () => {
+      while (next < parts.length) {
+        signal.throwIfAborted();
+        const index = next++;
+        parts[index] = await domesticPart(chunks[index], false, true);
+        completed += chunks[index].length - 1;
+        if (!signal.aborted) onProgress(`Đang tính tuyến theo chặng: ${completed}/${total} chặng hoàn tất…`);
+      }
+    }));
+    return parts.flat();
   }
   // Bound request size and preserve every stop, including shared chunk endpoints.
   const parts = [];
@@ -169,8 +226,8 @@ async function calculateRoute(origin, destination, signal, stops) {
   if (!isDomesticRoute(route)) throw new Error(DOMESTIC_ROUTE_ERROR);
   return remember(key, applyRidingEstimate(route), 86400000);
 }
-export async function loadTripRoute(trip, signal) {
-  return loadRoute(tripOrigin(trip), trip.destination, signal, itineraryStops(trip));
+export async function loadTripRoute(trip, signal, onProgress) {
+  return loadRoute(tripOrigin(trip), trip.destination, signal, itineraryStops(trip), onProgress);
 }
 export function sampleRoute(coordinates, limit = 100) {
   if (coordinates.length <= limit) return coordinates;

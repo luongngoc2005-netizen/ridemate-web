@@ -56,8 +56,9 @@ test('When all options cross the border, routing rejects instead of drawing an u
     if (url.hostname === 'photon.komoot.io') return {ok:true,json:async()=>geocodeResponse(url.searchParams.get('q'))};
     return {ok:true,json:async()=>({code:'Ok',routes:[makeRoute([hanoi,foreign,haiphong])]})};
   });
-  // Different itinerary key avoids the successful previous route cache.
-  await assert.rejects(loadRoute('Hà Nội','Hải Phòng',undefined,[{id:'domestic',name:'Stop',coordinates:hanoi}]), /Tuyến đi qua nước ngoài đã bị chặn/);
+  // Isolate both the full-route and completed-leg caches from earlier tests.
+  const fresh = await import('../src/route-data.js?all-options-foreign');
+  await assert.rejects(fresh.loadRoute('Hà Nội','Hải Phòng',undefined,[{id:'domestic',name:'Stop',coordinates:hanoi}]), /Tuyến đi qua nước ngoài đã bị chặn/);
 });
 
 test('Alternatives are requested only when the initial route crosses the border', async context => {
@@ -85,12 +86,12 @@ test('Domestic corridor retries a long foreign detour without modifying itinerar
     if(url.hostname==='photon.komoot.io') return {ok:true,json:async()=>({features:[{properties:{name:url.searchParams.get('q'),countrycode:'VN',osm_key:'place',osm_value:'city'},geometry:{coordinates:donghoi}}]})};
     routingRequests++;
     if(routingRequests===1) return {ok:true,json:async()=>({code:'Ok',routes:[makeRoute([hanoi,foreign,donghoi])]})};
-    const coordinates=[hanoi,via[0].coordinates,donghoi];
+    const coordinates=JSON.parse(url.searchParams.get('json')).locations.map(p=>[p.lon,p.lat]);
     const legs=coordinates.slice(1).map((p,i)=>({distance:1000,duration:100,steps:[{geometry:{coordinates:[coordinates[i],p]}}]}));
     return {ok:true,json:async()=>({code:'Ok',routes:[{distance:2000,duration:200,geometry:{coordinates},legs}]})};
   });
   const route=await loadRoute('Hà Nội','Đồng Hới');
-  assert.equal(routingRequests,2);
+  assert.equal(routingRequests,3);
   assert.deepEqual(route.routingVia,['Vinh']);
   assert.equal(route.points[1].routingOnly,true);
   assert.equal(isDomesticRoute(route),true);

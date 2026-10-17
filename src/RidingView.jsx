@@ -35,7 +35,7 @@ export default function RidingView({ trip }) {
     <div className="riding-caption"><b>Tuyến dự kiến</b><span>Không ghi lại đường đã chạy</span></div>
     <nav className="nearby-actions" aria-label="Tìm quanh vị trí hiện tại">{categories.map(([key, label, icon]) => <button key={key} aria-expanded={category === key} onClick={() => category === key ? (setCategory(null), setSearch(null), setSelected(null), setResults({ items: [] })) : locate(key)}><ToolIcon name={icon} className="inline-icon"/>{label}</button>)}</nav>
     <RouteMap riding route={route.route} places={results.items} visible={{ [category]: true }} selected={selected} onSelectPlace={setSelected} />
-    {!route.route && <p role="status">{route.loading ? 'Đang tải tuyến dự kiến… Bạn vẫn có thể định vị và tìm điểm gần mình.' : route.error}<button className="soft" onClick={route.retry}>Tải lại tuyến</button></p>}
+    {!route.route && <p role="status">{route.loading ? (route.routeProgress || 'Đang tải tuyến dự kiến… Bạn vẫn có thể định vị và tìm điểm gần mình.') : route.error}{!route.loading && <button className="soft" onClick={route.retry}>Tải lại tuyến</button>}</p>}
 
     {category && <section className="nearby-sheet" aria-label="Địa điểm gần bạn">
       <div className="title"><h3>{categories.find(c => c[0] === category)[1]} gần bạn</h3><button onClick={() => { setCategory(null); setSearch(null); setResults({ items: [] }); setSelected(null); }}>Đóng</button></div>
