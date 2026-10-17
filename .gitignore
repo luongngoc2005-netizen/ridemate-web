@@ -4,3 +4,7 @@ dist/
 .env.*
 !.env.example
 *.log
+.poi-tools/
+.poi-cache/
+output/poi/
+scripts/__pycache__/

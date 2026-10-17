@@ -8,7 +8,7 @@ import { nearbyStatus, nearbyMapsUrl } from './nearby-search.js';
 
 const categories = [['fuel', 'Xăng', 'fuel'], ['rest', 'Nghỉ', 'bed'], ['repair', 'Sửa xe', 'repair']];
 export default function RidingView({ trip }) {
-  const route = useTripRoute(), location = useLocation();
+  const route = useTripRoute({ places: false }), location = useLocation();
   const [category, setCategory] = useState(null), [search, setSearch] = useState(null);
   const [results, setResults] = useState({ items: [], loading: false, error: '' });
   const [selected, setSelected] = useState(null);

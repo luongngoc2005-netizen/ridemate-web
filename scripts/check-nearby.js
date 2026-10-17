@@ -25,7 +25,7 @@ globalThis.fetch = async (input, options = {}) => {
     return response;
   } finally { record.elapsedMs = Math.round(performance.now() - start); }
 };
-for (const category of ['fuel', 'rest']) {
+for (const category of ['fuel', 'rest', 'repair']) {
   const start = performance.now(), before = requests.length;
   try {
     const places = await loadNearbyPlaces(point, category);
@@ -36,7 +36,8 @@ for (const category of ['fuel', 'rest']) {
   } catch (error) {
     console.error(JSON.stringify({ category, elapsedMs: Math.round(performance.now() - start), error: error.message, requests: requests.slice(before) }, null, 2));
     process.exitCode = 1;
-    // Respect the main provider's cooldown rather than issuing another query.
-    if ([406, 429].includes(requests.at(-1)?.status)) break;
+    // All categories share one query; repeating it after a failure would only
+    // add load (and 406/429 specifically require the provider's cooldown).
+    break;
   }
 }

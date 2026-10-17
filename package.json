@@ -13,7 +13,10 @@
     "preview": "vite preview",
     "test": "node --test tests/*.test.js",
     "check:vllm": "node scripts/check-vllm.js",
-    "check:route": "node scripts/check-route.js"
+    "check:route": "node scripts/check-route.js",
+    "prepare:poi": "node scripts/prepare-poi.js",
+    "check:poi": "node scripts/check-poi.js",
+    "benchmark:poi": "node scripts/benchmark-poi.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
@@ -23,6 +26,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-postgis": "^0.2.8",
     "@vitejs/plugin-react": "^4.3.1",
     "fake-indexeddb": "^6.2.5",
     "vite": "^5.4.10"

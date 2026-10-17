@@ -9,12 +9,16 @@ import { tripOrigin } from './origin-data.js';
 import { motorcycleUrl, highwaySteps, exclusionPoints, applyRidingEstimate } from './motorcycle-routing.js';
 import { withRouteDeadline } from './route-deadline.js';
 import { canLoadTripMap } from './trip-map-state.js';
+import { fetchNearbyPois } from './poi-client.js';
 const env = import.meta.env || {};
 export const mapServices = {
   geocode: env.VITE_GEOCODER_URL || 'https://photon.komoot.io/api/',
   route: env.VITE_MOTORCYCLE_ROUTER_URL || 'https://valhalla1.openstreetmap.de/route',
   places: env.VITE_PLACES_URL || 'https://overpass-api.de/api/interpreter',
   style: env.VITE_MAP_STYLE_URL || 'https://tiles.openfreemap.org/styles/liberty',
+  nearbyProvider: env.VITE_NEARBY_PROVIDER || 'auto',
+  poi: env.VITE_SUPABASE_URL && env.VITE_SUPABASE_PUBLISHABLE_KEY
+    ? { url: env.VITE_SUPABASE_URL, key: env.VITE_SUPABASE_PUBLISHABLE_KEY } : null,
 };
 const cache = new Map();
 // Keep completed legs during this session so a failed final leg does not make
@@ -53,7 +57,9 @@ async function request(url, { signal, timeout = 25000, ...options } = {}) {
         error.code = 'ROUTE_DISTANCE_EXCEEDED';
         throw error;
       }
-      throw new Error(response.status === 429 ? 'Dịch vụ bản đồ đang bận. Vui lòng thử lại sau.' : 'Dịch vụ bản đồ tạm thời chưa trả được dữ liệu.');
+      const error = new Error(response.status === 429 ? 'Dịch vụ bản đồ đang bận. Vui lòng thử lại sau.' : 'Dịch vụ bản đồ tạm thời chưa trả được dữ liệu.');
+      error.status = response.status;
+      throw error;
     }
     return await response.json();
   } catch (error) {
@@ -276,6 +282,24 @@ export function placeSearchSegments(coordinates) {
 }
 // Completed segments remain cached; retry only fetches failed/expired segments.
 const segmentCache = new Map();
+const placesCooldown = new Map();
+async function requestPlaces(query, signal, timeout = 25000) {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  const endpoint = mapServices.places;
+  if (placesCooldown.get(endpoint) > Date.now()) {
+    const error = new Error('Dịch vụ địa điểm đang giới hạn lượt tìm. Vui lòng chờ khoảng 30 giây hoặc tìm trên Google Maps.');
+    error.code = 'PLACES_COOLDOWN';
+    throw error;
+  }
+  try {
+    return await request(endpoint, { signal, timeout, method: 'POST', body: new URLSearchParams({ data: query }) });
+  } catch (error) {
+    // Public Overpass asks clients to pause after these responses, rather than
+    // sending the remaining corridor queries or repeated category searches.
+    if ([406, 429].includes(error.status)) placesCooldown.set(endpoint, Date.now() + 30000);
+    throw error;
+  }
+}
 export async function loadPlaces(route, signal, onProgress = () => {}) {
   const { vietnam } = await import('./vietnam-guard.js');
   const domesticPlaces = elements => elements.filter(item => vietnam.containsPoint([item.lon ?? item.center?.lon, item.lat ?? item.center?.lat]));
@@ -301,7 +325,7 @@ export async function loadPlaces(route, signal, onProgress = () => {}) {
       let data = segmentCache.get(key);
       try {
         if (!data || data.expires <= Date.now()) {
-          const response = await request(mapServices.places, { signal, method: 'POST', body: new URLSearchParams({ data: query }) });
+          const response = await requestPlaces(query, signal);
           if (!Array.isArray(response.elements) || response.remark) throw new Error('Incomplete places response');
           data = { elements: response.elements, expires: Date.now() + 6 * 3600000 };
           segmentCache.set(key, data);
@@ -309,6 +333,9 @@ export async function loadPlaces(route, signal, onProgress = () => {}) {
         }
       } catch (error) {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        if ([406, 429].includes(error.status) || error.code === 'PLACES_COOLDOWN') {
+          failed = queries.length - completed; onProgress(snapshot()); break;
+        }
         failed++; onProgress(snapshot()); continue;
       }
       places = await processor.add(domesticPlaces(data.elements)); completed++;
@@ -355,35 +382,84 @@ export function placeUrl(place) {
 }
 
 // Nearby searches use an explicit GPS snapshot, never the destination or route.
-// Keep GPS search results only in memory, keyed by the exact snapshot/category.
-const nearbyCache = new Map();
+// Fetch all three categories together. Retain raw elements in RAM so each GPS
+// snapshot gets its own distance/radius filtering, including points at the edge.
+// A 2 km search fully covers a new 1.5 km circle after a move of up to 450 m.
+const nearbyCache = [], nearbyPending = [];
+const nearbyCovered = (entry, point, endpoint) => entry.endpoint === endpoint && routePosition(point, [entry.point, entry.point]).distance <= (entry.maxMove ?? 450);
+function joinNearby(entry, signal) {
+  entry.users++;
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const finish = (callback, value) => {
+      if (done) return;
+      done = true; signal?.removeEventListener('abort', abort); entry.users--;
+      // React cleans up the old category before subscribing to the new one.
+      // Allow that handoff to reuse the same request, while still cancelling
+      // when the user closes the search or leaves this screen.
+      queueMicrotask(() => { if (!entry.users) entry.controller.abort(); });
+      callback(value);
+    };
+    const abort = () => finish(reject, new DOMException('Aborted', 'AbortError'));
+    signal?.addEventListener('abort', abort, { once: true });
+    entry.promise.then(data => finish(resolve, data), error => finish(reject, error));
+    if (signal?.aborted) abort();
+  });
+}
 export async function loadNearbyPlaces(point, category, signal, { refresh = false } = {}) {
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   if (!validPoint(point)) throw new Error('Cần vị trí hiện tại để tìm quanh bạn.');
-  const filters = {
-    fuel: '[amenity=fuel]',
-    rest: '[tourism~"^(hotel|guest_house|motel)$"]',
-    repair: '[shop~"^(motorcycle_repair|motorcycle|tyres)$"]',
-  };
-  if (!filters[category]) throw new Error('Loại địa điểm không hợp lệ.');
-  const key = JSON.stringify([mapServices.places, point.slice(0, 2), category]);
-  const saved = nearbyCache.get(key);
-  if (!refresh && saved?.expires > Date.now()) return saved.places;
+  if (!['fuel', 'rest', 'repair'].includes(category)) throw new Error('Loại địa điểm không hợp lệ.');
+  const mode = mapServices.nearbyProvider;
+  if (!['auto', 'supabase', 'overpass'].includes(mode)) throw new Error('Cấu hình dịch vụ địa điểm không hợp lệ.');
+  const endpoint = JSON.stringify([mode, mapServices.poi?.url, mapServices.places]);
+  const select = elements => selectPlaces(elements, [point, point], 30).filter(place => place.type === category).sort((a, b) => a.distanceMeters - b.distanceMeters);
+  const saved = nearbyCache.find(entry => entry.expires > Date.now() && nearbyCovered(entry, point, endpoint));
+  if (!refresh && saved) return select(saved.elements);
   const [lon, lat] = point;
-  const query = `[out:json][timeout:8];nwr${filters[category]}(around:1500,${lat},${lon});out body center;`;
+  const around = `(around:2000,${lat},${lon})`;
+  const query = `[out:json][timeout:8];(nwr[amenity=fuel]${around};nwr[tourism~"^(hotel|guest_house|motel)$"]${around};nwr[highway~"^(rest_area|services)$"]${around};nwr[shop~"^(motorcycle_repair|car_repair|tyres)$"]${around};nwr[shop=motorcycle]["service:motorcycle:repair"=yes]${around};);out body center;`;
+  let pending = nearbyPending.find(entry => !entry.controller.signal.aborted && nearbyCovered(entry, point, endpoint));
+  if (!pending) {
+    pending = { point: point.slice(0, 2), endpoint, controller: new AbortController(), users: 0 };
+    const entry = pending;
+    entry.promise = (async () => {
+      try {
+        let data = mode === 'overpass' ? null : await fetchNearbyPois(mapServices.poi, entry.point, entry.controller.signal);
+        if (!data && mode === 'supabase') throw Object.assign(new Error('Dữ liệu địa điểm chưa sẵn sàng. Bạn có thể tìm trên Google Maps.'), { code: 'POI_NOT_READY' });
+        if (!data) data = { ...await requestPlaces(query, entry.controller.signal, 10000), complete: true };
+        entry.controller.signal.throwIfAborted();
+        if (!Array.isArray(data?.elements) || data.remark) {
+          const error = new Error('Chưa tải đủ điểm gần bạn. Vui lòng thử lại.');
+          error.code = 'INCOMPLETE_NEARBY';
+          throw error;
+        }
+        for (let i = nearbyCache.length - 1; i >= 0; i--) {
+          if (nearbyCache[i].expires <= Date.now() || nearbyCovered(nearbyCache[i], entry.point, endpoint)) nearbyCache.splice(i, 1);
+        }
+        entry.maxMove = data.complete ? 450 : 0;
+        nearbyCache.unshift({ point: entry.point, endpoint, maxMove: entry.maxMove, elements: data.elements, expires: Date.now() + 300000 });
+        if (nearbyCache.length > 30) nearbyCache.pop();
+        return { elements: data.elements, maxMove: entry.maxMove };
+      } finally {
+        nearbyPending.splice(nearbyPending.indexOf(entry), 1);
+      }
+    })();
+    nearbyPending.push(entry);
+  }
   let data;
   try {
-    data = await request(mapServices.places, { signal, timeout: 10000, method: 'POST', body: new URLSearchParams({ data: query }) });
+    data = await joinNearby(pending, signal);
   } catch (error) {
     if (signal?.aborted) throw error;
+    if (['PLACES_COOLDOWN', 'INCOMPLETE_NEARBY'].includes(error.code)) throw error;
+    if (error.code?.startsWith('POI_')) throw error;
     throw new Error(error.code === 'MAP_REQUEST_TIMEOUT'
       ? 'Dịch vụ tìm địa điểm phản hồi chậm. Bạn có thể thử lại hoặc tìm trên Google Maps.'
       : 'Chưa kết nối được dịch vụ tìm địa điểm. Bạn có thể thử lại hoặc tìm trên Google Maps.');
   }
-  if (!Array.isArray(data?.elements) || data.remark) throw new Error('Chưa tải đủ điểm gần bạn. Vui lòng thử lại.');
-  const places = selectPlaces(data.elements, [point, point], 30).filter(place => place.type === category).sort((a, b) => a.distanceMeters - b.distanceMeters);
-  nearbyCache.delete(key);
-  nearbyCache.set(key, { places, expires: Date.now() + 300000 });
-  while (nearbyCache.size > 30) nearbyCache.delete(nearbyCache.keys().next().value);
-  return places;
+  // Dense areas can hit the server cap. Their nearest results are usable at
+  // the exact query center, but a moved subscriber needs its own query.
+  if (routePosition(point, [pending.point, pending.point]).distance > data.maxMove) return loadNearbyPlaces(point, category, signal, { refresh });
+  return select(data.elements);
 }

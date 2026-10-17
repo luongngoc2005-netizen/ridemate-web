@@ -57,9 +57,13 @@ Tuyến dài được chia thành các chặng qua điểm dẫn tuyến trong n
 
 Thời tiết Open-Meteo theo điểm đến và ngày chuyến đi trong cửa sổ 16 ngày, không phải toàn tuyến. Ngày quá khứ/quá xa được báo thiếu dự báo. GPS dùng quyền của trình duyệt, cần HTTPS hoặc localhost; vị trí sống chỉ giữ trong RAM, vị trí xuất phát đã xác nhận có thể lưu cùng kế hoạch.
 
-Trong tab Đang đi, nút Xăng/Nghỉ/Sửa xe hiện trạng thái ngay dưới nút, tìm trong bán kính 1,5 km quanh vị trí GPS và giới hạn chờ dữ liệu địa điểm 10 giây sau khi lấy được GPS. Kết quả cùng tọa độ/loại điểm được giữ trong bộ nhớ 5 phút; Tìm lại quanh tôi bỏ qua cache. Nếu dịch vụ lỗi hoặc không có kết quả, người dùng có thể mở Google Maps tìm riêng quanh vị trí đã chọn. `node scripts/check-nearby.js` đo truy vấn mẫu tại Cao Bằng; có thể truyền kinh độ, vĩ độ và endpoint làm ba tham số tùy chọn.
+Trong tab Đang đi, nút Xăng/Nghỉ/Sửa xe hiện trạng thái ngay dưới nút, tìm trong bán kính 1,5 km quanh vị trí GPS và giới hạn chờ dữ liệu địa điểm 10 giây sau khi lấy được GPS. Một truy vấn lấy chung cả ba loại trong vùng 2 km; giữ dữ liệu thô trong RAM 5 phút và tái sử dụng nếu GPS mới cách tâm truy vấn tối đa 450 m. Khoảng cách và kết quả trong 1,5 km được tính lại theo vị trí mới, kể cả các điểm vừa lọt vào bán kính. Chuyển loại khi đang tải dùng chung request; rời màn hình hoặc đóng tìm kiếm sẽ hủy nếu không còn người dùng request. Tìm lại quanh tôi bỏ qua dữ liệu đã lưu. Tab Đang đi chỉ tải tuyến dự kiến và điểm quanh GPS, không tự quét điểm dọc toàn tuyến. Phần bản đồ ở Chuẩn bị chỉ tải khi mở; đóng phần này dừng tải điểm dọc tuyến nếu không còn màn hình nào cần. Sau HTTP 406/429, web ngừng gọi endpoint địa điểm đó ít nhất 30 giây, kể cả các đoạn tuyến còn lại. Nếu dịch vụ lỗi hoặc không có kết quả, người dùng có thể mở Google Maps tìm riêng quanh vị trí đã chọn. `node scripts/check-nearby.js` đo ba loại tại Cao Bằng (sau lần đầu thành công, hai loại còn lại không cần request); có thể truyền kinh độ, vĩ độ và endpoint làm ba tham số tùy chọn.
 
 ## Kiểm tra và deploy
+
+Tìm xăng/nghỉ/sửa xe nhanh bằng bản trích OSM Việt Nam trong Supabase PostGIS:
+xem [POI_SETUP.md](./POI_SETUP.md). Mặc định web tự dùng nguồn này khi migration
+và dữ liệu đã sẵn sàng; không cần đăng ký API POI trả phí.
 
 ```powershell
 npm test

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="RideMate test fixture">
+  <node id="1" lat="21" lon="105"><tag k="amenity" v="fuel"/><tag k="name" v="Xăng mẫu"/></node>
+  <node id="2" lat="21.001" lon="105.001"/>
+  <node id="3" lat="21.001" lon="105.002"/>
+  <node id="4" lat="21.002" lon="105.002"/>
+  <node id="5" lat="21.002" lon="105.001"/>
+  <way id="11"><nd ref="2"/><nd ref="3"/><nd ref="4"/><nd ref="5"/><nd ref="2"/>
+    <tag k="tourism" v="guest_house"/><tag k="name" v="Nghỉ mẫu"/>
+  </way>
+  <way id="12"><nd ref="2"/><nd ref="3"/><nd ref="4"/><nd ref="5"/><nd ref="2"/></way>
+  <relation id="21"><member type="way" ref="12" role="outer"/>
+    <tag k="type" v="multipolygon"/><tag k="shop" v="motorcycle_repair"/><tag k="name" v="Sửa mẫu"/>
+  </relation>
+</osm>
