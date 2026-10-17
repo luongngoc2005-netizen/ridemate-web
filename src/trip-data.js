@@ -21,7 +21,7 @@ export function dateRange(trip) {
   const format = date => date.toLocaleDateString('vi-VN');
   return Number(trip.days) === 1 ? format(start) : `${format(start)} – ${format(end)}`;
 }
-export function blankDay(title) { return { id: newId(), title, places: [], note: '' }; }
+export function blankDay(title) { return { id: newId(), title, places: [], note: '', mealStops: '', restStops: '' }; }
 export function suggestItinerary(details) {
   const count = Number(details.days);
   const plan = Array.from({ length: count }, (_, index) => blankDay(count === 1 ? `Khám phá ${details.destination}` : index === 0 ? `${details.origin} → ${details.destination}` : index === count - 1 ? `${details.destination} → ${details.origin}` : `Khám phá ${details.destination}`));
@@ -46,7 +46,7 @@ export function editTripDetails(trip, details) {
   return { ...trip, ...details, origin: details.origin.trim(), destination: details.destination.trim(), days, itinerary };
 }
 export function isStoredTrip(value) {
-  return validDetails(value) && typeof value.id === 'string' && typeof value.notes === 'string' && Array.isArray(value.interests) && value.interests.every(x => typeof x === 'string') && Array.isArray(value.itinerary) && value.itinerary.length === Number(value.days) && value.itinerary.every(day => day && typeof day.id === 'string' && typeof day.title === 'string' && typeof day.note === 'string' && Array.isArray(day.places) && day.places.every(place => place && typeof place.id === 'string' && typeof place.name === 'string')) && Array.isArray(value.checklist) && value.checklist.every(item => item && typeof item.id === 'string' && typeof item.name === 'string' && typeof item.done === 'boolean');
+  return validDetails(value) && typeof value.id === 'string' && typeof value.notes === 'string' && Array.isArray(value.interests) && value.interests.every(x => typeof x === 'string') && Array.isArray(value.itinerary) && value.itinerary.length === Number(value.days) && value.itinerary.every(day => day && typeof day.id === 'string' && typeof day.title === 'string' && typeof day.note === 'string' && (day.mealStops === undefined || typeof day.mealStops === 'string') && (day.restStops === undefined || typeof day.restStops === 'string') && Array.isArray(day.places) && day.places.every(place => place && typeof place.id === 'string' && typeof place.name === 'string')) && Array.isArray(value.checklist) && value.checklist.every(item => item && typeof item.id === 'string' && typeof item.name === 'string' && typeof item.done === 'boolean');
 }
 export function readTrip(storage) {
   try { const raw = storage.getItem(STORAGE_KEY); if (!raw) return { trip: null, error: '' }; const value = JSON.parse(raw); if (!isStoredTrip(value)) throw new Error(); return { trip: value, error: '' }; }
