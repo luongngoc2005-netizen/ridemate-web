@@ -6,6 +6,7 @@
 @media(max-width:760px){.journal-page .journal-card p,.journal-page .journal-card small,.journal-page .journal-totals small{font-size:14px}.journal-page .journal-route .route-canvas{height:300px}.journal-page>.title>.green{width:100%}.journal-page .journal-photo-edit button{font-size:14px}}
 
 .nearby-actions button{display:flex;align-items:center;justify-content:center;gap:8px}
+.nearby-actions button[aria-pressed=true]{background:var(--g);color:white}.riding-view .nearby-sheet{margin:12px 0}.nearby-sheet>summary{cursor:pointer;font-weight:700;min-height:32px}
 .nearby-feedback{padding:12px;margin-bottom:12px;border:1px solid #c2d6c9;border-radius:12px;background:#f0f7f2;line-height:1.6}.nearby-feedback p{margin:0}.nearby-feedback-actions{display:flex;flex-wrap:wrap;gap:8px}.nearby-feedback-actions button,.nearby-feedback-actions a{display:inline-flex;align-items:center;min-height:44px;padding:8px 10px;margin-top:8px;border:1px solid #b3ccbc;border-radius:8px;background:white;color:var(--g);font:inherit;text-decoration:none}.nearby-sheet{scroll-margin-top:80px}
 
 @media(max-width:760px){.is-riding .phase-eyebrow{display:none}.is-riding .trip-heading h1{font-size:21px}.is-riding .trip-heading>div>p:last-child{font-size:13px}.is-riding .trip-heading>.soft{padding:8px 12px;margin:0}.is-riding .trip-heading{flex-wrap:nowrap}.riding-view .nearby-actions{margin:8px 0 12px}.riding-view .route-canvas{height:40vh;height:40svh;min-height:260px}}

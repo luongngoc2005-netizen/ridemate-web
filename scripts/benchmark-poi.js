@@ -4,9 +4,11 @@ import { PGlite } from '@electric-sql/pglite';
 import { postgis } from '@electric-sql/pglite-postgis';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { loadRoutePlaces, mapServices } from '../src/route-data.js';
 
 const csvMode = process.argv.includes('--csv');
-const directory = process.argv.slice(2).find(arg => arg !== '--csv') || 'output/poi';
+const routePath = process.argv.find(arg => arg.startsWith('--route='))?.slice(8);
+const directory = process.argv.slice(2).find(arg => !arg.startsWith('--')) || 'output/poi';
 const db = new PGlite({ extensions: { postgis } });
 try {
   const started = performance.now();
@@ -32,13 +34,41 @@ try {
     searches.push({ name, point: [lon, lat], radiusMeters: 2000, firstMs: times[0], repeatMs: times.slice(1),
       complete: data.complete, counts: Object.fromEntries(['fuel', 'rest', 'repair'].map(type => [type, data.places.filter(p => p.category === type).length])) });
   }
+  const routeSearches = [];
+  if (routePath) {
+    const route = JSON.parse(await readFile(routePath, 'utf8'));
+    const nativeFetch = globalThis.fetch;
+    mapServices.poi = { url: 'https://local-benchmark.invalid', key: 'sb_publishable_benchmark' };
+    mapServices.nearbyProvider = 'supabase';
+    let rpcTimes = [];
+    globalThis.fetch = async (url, options) => {
+      if (!String(url).startsWith(mapServices.poi.url)) throw new Error('Unexpected external request in local POI benchmark');
+      const body = JSON.parse(options.body), start = performance.now();
+      const data = (await db.query('select public.route_pois($1::jsonb, $2, $3) as data', [JSON.stringify(body.route_geojson), body.category_name, body.radius_m])).rows[0].data;
+      rpcTimes.push(Math.round((performance.now() - start) * 100) / 100);
+      return { ok: true, json: async () => data };
+    };
+    try {
+      for (const category of ['fuel', 'rest', 'repair']) {
+        rpcTimes = [];
+        const started = performance.now();
+        const result = await loadRoutePlaces(route, category);
+        const firstMs = Math.round(performance.now() - started), queries = rpcTimes.slice();
+        const cachedStart = performance.now();
+        await loadRoutePlaces(route, category);
+        routeSearches.push({ category, originalVertices: route.coordinates.length, firstMs, rpcMs: queries,
+          cachedMs: Math.round((performance.now() - cachedStart) * 100) / 100, count: result.places.length,
+          firstMarkerKm: result.places[0]?.progressMeters / 1000, lastMarkerKm: result.places.at(-1)?.progressMeters / 1000 });
+      }
+    } finally { globalThis.fetch = nativeFetch; }
+  }
   await db.exec('reset role');
   const sizes = (await db.query("select pg_total_relation_size('public.osm_pois') as poi_bytes_with_indexes, pg_database_size(current_database()) as database_bytes")).rows[0];
   const explain = (await db.query(`explain (analyze, buffers, format json)
     select osm_id from public.osm_pois where dataset_id = (select dataset_id from public.poi_catalog where singleton)
       and category = 'fuel' and extensions.st_dwithin(location, extensions.st_setsrid(extensions.st_makepoint(106.2587824, 22.665781), 4326)::extensions.geography, 1500)
     order by location operator(extensions.<->) extensions.st_setsrid(extensions.st_makepoint(106.2587824, 22.665781), 4326)::extensions.geography limit 30`)).rows;
-  const report = { environment: 'Local PGlite + real PostGIS (WASM); not Supabase/network latency', importMode: csvMode ? 'Small setup SQL + actual CSV COPY + activation SQL' : 'Combined SQL', importedMs, sizes, searches };
+  const report = { environment: 'Local PGlite + real PostGIS (WASM); not Supabase/network latency', importMode: csvMode ? 'Small setup SQL + actual CSV COPY + activation SQL' : 'Combined SQL', importedMs, sizes, searches, routePath, routeSearches };
   await writeFile(join(directory, csvMode ? 'benchmark-csv.json' : 'benchmark.json'), JSON.stringify(report, null, 2) + '\n');
   await writeFile(join(directory, csvMode ? 'query-plan-csv.json' : 'query-plan.json'), JSON.stringify(explain, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));

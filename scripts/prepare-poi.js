@@ -84,7 +84,9 @@ export async function preparePoi({ input = 'output/poi/poi-elements.jsonl', outp
   const datasetId = createHash('sha256').update(JSON.stringify([metadata.sourceMd5 || metadata.sourceUrl, records])).digest('hex').slice(0, 24);
   await mkdir(outputDir, { recursive: true });
   const sql = datasetSql(records, metadata, datasetId);
-  const migration = await readFile(new URL('../supabase/migrations/202610170001_osm_pois.sql', import.meta.url), 'utf8');
+  const routeMigration = await readFile(new URL('../supabase/migrations/202610170002_route_pois.sql', import.meta.url), 'utf8');
+  const migration = await readFile(new URL('../supabase/migrations/202610170001_osm_pois.sql', import.meta.url), 'utf8') + '\n' + routeMigration;
+  await writeFile(join(outputDir, '04-route-search.sql'), routeMigration);
   await writeFile(join(outputDir, 'import.sql'), sql);
   await writeFile(join(outputDir, 'setup-and-import.sql'), migration + '\n' + sql);
   await writeFile(join(outputDir, 'pois.csv'), ['dataset_id,' + columns.join(','), ...records.map(row => [datasetId, ...columns.map(key => row[key])].map(csvValue).join(',')), ''].join('\n'));
@@ -94,7 +96,7 @@ export async function preparePoi({ input = 'output/poi/poi-elements.jsonl', outp
   const partsDir = join(outputDir, 'sql-editor', datasetId);
   await mkdir(partsDir, { recursive: true });
   for (let i = 0; i < editor.parts.length; i++) await writeFile(join(partsDir, `02-data-${String(i + 1).padStart(3, '0')}.sql`), editor.parts[i]);
-  await writeFile(join(outputDir, 'IMPORT-README.txt'), `NHAP DU LIEU POI VAO SUPABASE\n\n1. SQL Editor: chay toan bo file 01-setup.sql (nho).\n2. Table Editor: chon bang public.osm_pois -> Insert -> Import data from CSV. Chon file pois.csv. Cho import hoan tat.\n3. SQL Editor: chay toan bo file 03-activate.sql. Ket qua can ready=true va imported_count=${records.length}.\n\nKhong dan setup-and-import.sql/import.sql vao SQL Editor: cac file do danh cho ket noi database truc tiep.\nNeu CSV bao trung khoa do da nhap mot phan, dung cac file 02-data-*.sql trong sql-editor/${datasetId}/ theo thu tu, roi chay 03-activate.sql. Cac phan SQL co the chay lai an toan. Khong xoa bang hay tat RLS.\n`);
+  await writeFile(join(outputDir, 'IMPORT-README.txt'), `NHAP DU LIEU POI VAO SUPABASE\n\n1. SQL Editor: chay toan bo file 01-setup.sql (nho).\n2. Table Editor: chon bang public.osm_pois -> Insert -> Import data from CSV. Chon file pois.csv. Cho import hoan tat.\n3. SQL Editor: chay toan bo file 03-activate.sql. Ket qua can ready=true va imported_count=${records.length}.\n\nNeu da nhap va kich hoat du lieu truoc day: chi chay 04-route-search.sql de them tim doc tuyen; khong nhap lai CSV.\n\nKhong dan setup-and-import.sql/import.sql vao SQL Editor: cac file do danh cho ket noi database truc tiep.\nNeu CSV bao trung khoa do da nhap mot phan, dung cac file 02-data-*.sql trong sql-editor/${datasetId}/ theo thu tu, roi chay 03-activate.sql. Cac phan SQL co the chay lai an toan. Khong xoa bang hay tat RLS.\n`);
   const report = { datasetId, source: metadata, counts, total: records.length, rejected,
     sqlBytes: (await stat(join(outputDir, 'setup-and-import.sql'))).size,
     csvBytes: (await stat(join(outputDir, 'pois.csv'))).size,

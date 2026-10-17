@@ -9,7 +9,7 @@ import { tripOrigin } from './origin-data.js';
 import { motorcycleUrl, highwaySteps, exclusionPoints, applyRidingEstimate } from './motorcycle-routing.js';
 import { withRouteDeadline } from './route-deadline.js';
 import { canLoadTripMap } from './trip-map-state.js';
-import { fetchNearbyPois } from './poi-client.js';
+import { fetchNearbyPois, fetchRoutePois } from './poi-client.js';
 const env = import.meta.env || {};
 export const mapServices = {
   geocode: env.VITE_GEOCODER_URL || 'https://photon.komoot.io/api/',
@@ -241,12 +241,21 @@ export function sampleRoute(coordinates, limit = 100) {
   if (coordinates.length <= limit) return coordinates;
   return Array.from({ length: limit }, (_, i) => coordinates[Math.round(i * (coordinates.length - 1) / (limit - 1))]);
 }
-export function placesQuery(coordinates) {
+export function placesQuery(coordinates, category) {
   if (coordinates.length < 2 || !coordinates.every(validPoint)) throw new Error('Tuyến không hợp lệ.');
   // Overpass linestring corridor, not isolated circles. The 200 m margin
   // accommodates route simplification; final filtering uses the full route.
   const line = coordinates.map(([lon, lat]) => `${lat.toFixed(5)},${lon.toFixed(5)}`).join(',');
   const around = `(around:1700,${line})`;
+  const filters = {
+    fuel: ['[amenity=fuel]'], rest: ['[highway~"^(rest_area|services)$"]', '[tourism~"^(hotel|guest_house|motel)$"]'],
+    repair: ['[shop~"^(motorcycle_repair|car_repair|tyres)$"]', '[shop=motorcycle]["service:motorcycle:repair"=yes]'],
+    food: ['[amenity~"^(restaurant|fast_food|food_court)$"]'], drink: ['[amenity~"^(cafe|ice_cream)$"]'],
+  };
+  if (category) {
+    if (!filters[category]) throw new Error('Loại địa điểm không hợp lệ.');
+    return `[out:json][timeout:20];(${filters[category].map(filter => `nwr${filter}${around};`).join('')});out body center;`;
+  }
   return `[out:json][timeout:20];(nwr[amenity~"^(fuel|restaurant|cafe|fast_food|food_court|ice_cream)$"]${around};nwr[highway~"^(rest_area|services)$"]${around};nwr[tourism~"^(hotel|guest_house|motel)$"]${around};nwr[shop~"^(motorcycle_repair|car_repair|tyres)$"]${around};nwr[shop=motorcycle]["service:motorcycle:repair"=yes]${around};);out body center;`;
 }
 export function simplifyRoute(coordinates, tolerance = 200) {
@@ -300,10 +309,10 @@ async function requestPlaces(query, signal, timeout = 25000) {
     throw error;
   }
 }
-export async function loadPlaces(route, signal, onProgress = () => {}) {
+export async function loadPlaces(route, signal, onProgress = () => {}, { category } = {}) {
   const { vietnam } = await import('./vietnam-guard.js');
   const domesticPlaces = elements => elements.filter(item => vietnam.containsPoint([item.lon ?? item.center?.lon, item.lat ?? item.center?.lat]));
-  const queries = placeSearchSegments(route.coordinates).map(placesQuery);
+  const queries = placeSearchSegments(route.coordinates).map(segment => placesQuery(segment, category));
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   const processor = createPlaceProcessor(route.coordinates, signal);
   let places = [], completed = 0, failed = 0;
@@ -316,7 +325,7 @@ export async function loadPlaces(route, signal, onProgress = () => {}) {
       else missing.push(query);
     }
     if (completed) {
-      places = await processor.add(domesticPlaces(cachedElements.flat()));
+      places = (await processor.add(domesticPlaces(cachedElements.flat()))).filter(p => !category || p.type === category);
       onProgress(snapshot());
     }
     for (const query of missing) {
@@ -338,11 +347,50 @@ export async function loadPlaces(route, signal, onProgress = () => {}) {
         }
         failed++; onProgress(snapshot()); continue;
       }
-      places = await processor.add(domesticPlaces(data.elements)); completed++;
+      places = (await processor.add(domesticPlaces(data.elements))).filter(p => !category || p.type === category); completed++;
       onProgress(snapshot());
     }
     return snapshot();
   } finally { processor.dispose(); }
+}
+
+const routePoiCache = new WeakMap();
+export async function loadRoutePlaces(route, category, signal, onProgress = () => {}) {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  if (!['fuel', 'rest', 'repair', 'food', 'drink'].includes(category)) throw new Error('Loại địa điểm không hợp lệ.');
+  if (!route?.coordinates || route.coordinates.length < 2 || !route.coordinates.every(validPoint)) throw new Error('Tuyến không hợp lệ.');
+  if (!['auto', 'supabase', 'overpass'].includes(mapServices.nearbyProvider)) throw new Error('Cấu hình dịch vụ địa điểm không hợp lệ.');
+  const key = JSON.stringify([mapServices.nearbyProvider, mapServices.poi?.url, mapServices.places, category]);
+  const cache = routePoiCache.get(route) || new Map();
+  routePoiCache.set(route, cache);
+  const saved = cache.get(key);
+  if (saved?.expires > Date.now()) { onProgress(saved.result); return saved.result; }
+  const useDatabase = mapServices.nearbyProvider !== 'overpass' && ['fuel', 'rest', 'repair'].includes(category);
+  const line = simplifyRoute(route.coordinates, 100);
+  let data = null;
+  // Large, intricate itineraries are queried in overlapping vertex chunks;
+  // no uniformly sampled straight shortcuts are substituted for the route.
+  if (useDatabase) {
+    const elements = [];
+    for (let i = 0; i < line.length - 1; i += 4999) {
+      const part = await fetchRoutePois(mapServices.poi, line.slice(i, i + 5000), category, signal);
+      if (!part) { data = null; break; }
+      elements.push(...part.elements); data = { elements };
+    }
+    if (!data && mapServices.nearbyProvider === 'supabase') throw new Error('Dữ liệu điểm dọc tuyến chưa sẵn sàng. Vui lòng cập nhật truy vấn tuyến trên Supabase.');
+  }
+  let result;
+  if (data) {
+    const { vietnam } = await import('./vietnam-guard.js');
+    const processor = createPlaceProcessor(route.coordinates, signal);
+    try {
+      const places = (await processor.add(data.elements.filter(p => vietnam.containsPoint([p.lon, p.lat])))).filter(p => p.type === category);
+      result = { places, completed: 1, total: 1, failed: 0 };
+      onProgress(result);
+    } finally { processor.dispose(); }
+  } else result = await loadPlaces(route, signal, onProgress, { category });
+  if (!result.failed && !signal?.aborted) cache.set(key, { result, expires: Date.now() + 300000 });
+  return result;
 }
 export function pointText(point) {
   const coordinates = Array.isArray(point) ? point : point?.coordinates;

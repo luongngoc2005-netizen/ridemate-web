@@ -28,8 +28,8 @@ function ResolvePlace({ place, route, onChoose, onCancel }) {
 }
 
 function CompanionPanel({ trip, setTrip, onClose }) {
-  const data = useTripRoute();
   const [category, setCategory] = useState('planned'), [selected, setSelected] = useState(null);
+  const data = useTripRoute({ places: category === 'planned' ? [] : [category] });
   const [adding, setAdding] = useState(null), [resolving, setResolving] = useState(null), [message, setMessage] = useState('');
   const [dayId, setDayId] = useState(trip.itinerary[0]?.id);
   const close = useRef(null), action = useRef(null);

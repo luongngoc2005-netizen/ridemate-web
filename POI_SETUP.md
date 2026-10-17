@@ -1,8 +1,9 @@
 # Điểm xăng / nghỉ / sửa xe từ OSM trong Supabase
 
 Render tiếp tục phục vụ web và API AI. Supabase lưu bản trích POI Việt Nam;
-trình duyệt gọi RPC `nearby_pois` trực tiếp, không cần đi qua backend Render.
-Không lưu lịch sử GPS: tọa độ chỉ được gửi làm tham số tìm kiếm.
+trình duyệt gọi RPC `route_pois` trực tiếp để tìm loại được chọn dọc tuyến đi–đến,
+không cần đi qua backend Render hay lấy GPS. RPC chỉ đọc, không lưu tuyến tìm kiếm.
+`nearby_pois` vẫn có sẵn cho các công cụ tìm quanh một tọa độ riêng.
 
 ## 1. Chuẩn bị dữ liệu trên máy quản trị
 
@@ -33,6 +34,7 @@ Các file được tạo trong `output/poi/` (đã được gitignore):
 | `01-setup.sql` | SQL nhỏ: tạo bảng/RPC và đăng ký bản dữ liệu chưa kích hoạt |
 | `pois.csv` | Nhập dữ liệu bằng Table Editor → Insert → Import data from CSV |
 | `03-activate.sql` | SQL nhỏ: kiểm tra đủ số dòng rồi kích hoạt bản dữ liệu |
+| `04-route-search.sql` | Chỉ thêm RPC tìm dọc tuyến cho project đã nhập dữ liệu trước đây |
 | `sql-editor/<datasetId>/02-data-*.sql` | Phương án phục hồi: các phần SQL tối đa 64.000 byte, chạy lại không trùng dòng |
 | `setup-and-import.sql` / `import.sql` | Chỉ dùng với kết nối database trực tiếp; quá lớn cho SQL Editor |
 | `source.json` / `poi-elements.jsonl` | Metadata nguồn và bản trích nhỏ để tái tạo SQL |
@@ -44,13 +46,17 @@ không phải dung lượng database. Báo cáo không suy đoán số MB của 
 
 Mở **đúng project RideMate**, thực hiện ba bước:
 
+Nếu đã hoàn tất nhập và kích hoạt dữ liệu trước đây, chỉ chạy
+`output/poi/04-route-search.sql` trong SQL Editor. Không cần nhập lại CSV.
+Nếu chưa nhập dữ liệu, dùng ba bước dưới đây; `01-setup.sql` đã gồm RPC dọc tuyến.
+
 1. SQL Editor → New query: dán toàn bộ `output/poi/01-setup.sql` rồi Run với vai trò `postgres`.
 2. Table Editor → schema `public` → bảng `osm_pois` → Insert → Import data from CSV.
    Chọn `output/poi/pois.csv`, kiểm tra tên cột khớp và chờ import hoàn tất.
 3. SQL Editor → New query: chạy toàn bộ `output/poi/03-activate.sql`.
    Kết quả cần `ready = true` và `imported_count = 16049` với bản dữ liệu hiện tại.
 
-SQL Editor từ chối file gộp gần 2 MB. Hai file SQL nhỏ chỉ khoảng 5,2 KB và
+SQL Editor từ chối file gộp gần 2 MB. Hai file SQL nhỏ chỉ khoảng 9 KB và
 0,9 KB; phần dữ liệu được tải lên dưới dạng CSV khoảng 2 MB. Supabase hỗ trợ
 [CSV qua Table Editor](https://supabase.com/docs/guides/database/import-data),
 với giới hạn được tài liệu công bố là 100 MB.
@@ -86,9 +92,10 @@ dung lượng dùng chung; kiểm tra cả bảng/chỉ mục và database, khô
 
 Người dùng khách/đăng nhập chỉ có quyền gọi RPC tìm kiếm công khai. Các bảng
 import/cấu hình không cấp quyền đọc hoặc ghi trực tiếp cho họ; RPC không ghi GPS.
-RPC giới hạn bán kính 2 km và tối đa 300 điểm mỗi loại. Tại vùng rất đông điểm,
-`complete: false` làm cache chỉ được dùng lại tại đúng tọa độ đã tìm, tránh mất
-các điểm mới khi người dùng di chuyển.
+RPC dọc tuyến giới hạn khoảng cách hai bên đường 2 km, tối đa 5.000 đỉnh mỗi
+request. Chỉ mục không gian tìm theo các đoạn nhỏ; kết quả lấy tối đa 180 ứng viên
+chia đều theo 30 khoảng dọc tuyến. Web kiểm tra lại theo tuyến gốc trong 1,5 km,
+chọn tối đa 30 ghim mỗi loại trải từ đầu đến cuối tuyến theo dữ liệu có sẵn.
 
 ## 3. Đưa web mới lên Render
 
@@ -101,10 +108,12 @@ Giữ nguyên `VITE_SUPABASE_URL` và `VITE_SUPABASE_PUBLISHABLE_KEY` của proj
 - `overpass`: quay về nguồn công cộng.
 
 Với dữ liệu Supabase đã công bố, lỗi kết nối không tự nối tiếp một lượt chờ
-Overpass khác. Request Supabase giới hạn chờ 4 giây. Sau lần thành công, ba loại
-dùng chung cache RAM 5 phút; nếu dữ liệu đầy đủ có thể tái dùng khi di chuyển
-tối đa 450 m, vẫn lọc lại theo GPS mới trong bán kính 1,5 km. Nút Tìm lại bỏ qua
-cache dữ liệu. Biến `VITE_*` được đọc lúc build, nên đổi chế độ cần build/deploy.
+Overpass khác. Request dọc tuyến Supabase giới hạn chờ 8 giây. Chưa chọn loại thì
+không tải POI; chọn loại nào chỉ tải loại đó. Có thể bật nhiều loại cùng lúc.
+Tắt loại đang chờ sẽ hủy request nếu không còn màn hình nào cần. Kết quả thành công
+được giữ khi bật/tắt trong cùng hành trình; bộ nạp có cache RAM 5 phút theo tuyến/loại.
+Thử lại chỉ tải các loại/đoạn bị lỗi. Quán ăn/đồ uống vẫn dùng Overpass khi được chọn.
+Biến `VITE_*` được đọc lúc build, nên đổi chế độ cần build/deploy.
 
 ## 4. Đo thật và cập nhật
 
@@ -120,18 +129,31 @@ node scripts/check-poi.js --site https://ridemate-pka.onrender.com/
 Lệnh đo ba lần RPC, không dùng cache RAM của UI; không in key.
 Tùy chọn `--site` chỉ đọc hai thông tin public đã có trong bundle web online,
 không lấy thông tin quản trị hoặc truy vấn dữ liệu tài khoản.
-Đối chiếu Network trong tab Đang đi: phải gọi `/rest/v1/rpc/nearby_pois`, không phải Overpass.
-Chuyển Xăng/Nghỉ/Sửa xe sau lần thành công không tạo thêm request trong cùng vùng.
+`check:poi` kiểm tra RPC quanh điểm và việc kích hoạt dữ liệu. Đối chiếu Network
+trong Hành trình/Đang đi: chọn Xăng/Nghỉ/Sửa xe phải gọi `/rest/v1/rpc/route_pois`
+với `route_geojson` và `category_name`. Trước khi chọn không gọi tìm POI; bật lại
+loại đã tải thành công trên cùng tuyến không tạo thêm request.
 
 ```powershell
 npm run benchmark:poi
 node scripts/benchmark-poi.js --csv
+node scripts/benchmark-poi.js --csv --route=output/poi/route.json
 ```
 
 Lệnh trên nhập dữ liệu vào PostgreSQL/PostGIS WASM local, xuất `benchmark.json`
 và `query-plan.json`; tùy chọn `--csv` kiểm tra đúng luồng setup/CSV/kích hoạt và
-xuất `benchmark-csv.json`, `query-plan-csv.json`. Số đo này chỉ kiểm chứng local, không phải thời gian tải
+xuất `benchmark-csv.json`, `query-plan-csv.json`. Tùy chọn `--route` nhận JSON tuyến
+có `coordinates` để chạy cả bộ nạp dọc tuyến trên dữ liệu thật và đo cache.
+Số đo này chỉ kiểm chứng local, không phải thời gian tải
 Supabase, Render, GPS hoặc trình duyệt thật.
+
+Kiểm tra dọc tuyến ngày 17/10/2026 trên cùng bộ 16.049 POI: dùng tuyến Valhalla
+Cao Bằng–An Giang dài 2.426 km, 41.038 đỉnh. Mỗi loại chỉ cần một RPC local;
+truy vấn mất 87–218 ms, cả lọc/phân bố ghim mất 621–864 ms; cả ba loại đều có
+30 ghim trải dọc tuyến ở những nơi có dữ liệu. Bật lại cùng loại dùng cache mất
+khoảng 1 ms. Báo cáo nằm ở `output/poi/benchmark-csv.json`, hình học kiểm tra ở
+`output/poi/route.json`. Đây là PostGIS local qua WASM và bộ nạp Node, không phải
+thời gian mạng Supabase hoặc thao tác trên web online.
 
 Lần kiểm tra ngày 17/10/2026 dùng bản OSM đến `2026-10-16T20:21:21Z`, MD5 PBF
 `6d8abd6bf5c5e3e85549bfeb0d903f4a`: 16.049 điểm (5.020 fuel, 9.469 rest,
