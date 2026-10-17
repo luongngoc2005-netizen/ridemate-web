@@ -28,3 +28,35 @@ test('incomplete provider responses are errors rather than empty nearby results'
   try { await assert.rejects(loadNearbyPlaces([105, 21], 'rest'), /Chưa tải đủ/); }
   finally { globalThis.fetch = original; }
 });
+
+test('nearby cache is isolated by exact GPS/category, and explicit refresh bypasses it', async t => {
+  let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>{calls++;return {ok:true,json:async()=>({elements:[]})};});
+  await loadNearbyPlaces([105.01,21.01],'fuel');
+  await loadNearbyPlaces([105.01,21.01],'fuel');assert.equal(calls,1);
+  await loadNearbyPlaces([105.01,21.01],'rest');assert.equal(calls,2);
+  await loadNearbyPlaces([105.02,21.01],'fuel');assert.equal(calls,3);
+  await loadNearbyPlaces([105.01,21.01],'fuel',undefined,{refresh:true});assert.equal(calls,4);
+  const controller=new AbortController();controller.abort();
+  await assert.rejects(loadNearbyPlaces([105.01,21.01],'fuel',controller.signal),{name:'AbortError'});
+  assert.equal(calls,4);
+});
+
+test('provider errors do not become empty results and are not cached', async t => {
+  let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>{calls++;return {ok:false,status:406};});
+  await assert.rejects(loadNearbyPlaces([105.03,21.01],'fuel'),/Google Maps/);
+  await assert.rejects(loadNearbyPlaces([105.03,21.01],'fuel'),/Google Maps/);
+  assert.equal(calls,2);
+});
+
+test('stalled nearby search stops at ten seconds with actionable feedback', async t => {
+  const realSetTimeout=globalThis.setTimeout;
+  t.mock.method(globalThis,'setTimeout',(fn,delay,...args)=>realSetTimeout(fn,delay===10000?1:delay,...args));
+  let stopped=false;
+  t.mock.method(globalThis,'fetch',async(_url,{signal})=>new Promise((resolve,reject)=>{
+    signal.addEventListener('abort',()=>{stopped=true;reject(new DOMException('Aborted','AbortError'));},{once:true});
+  }));
+  await assert.rejects(loadNearbyPlaces([105.04,21.01],'rest'),/phản hồi chậm/);
+  assert.equal(stopped,true);
+});

@@ -59,21 +59,22 @@ function ChecklistProgress({ done, total }) {
 export function Journey({ trip, setTrip, view, setView, onEdit, onFinish, setPage }) {
   const location = useLocation();
   const [riding, setRiding] = useState(() => { try { return sessionStorage.getItem(`ridemate.riding.${trip.id}`) === 'yes' && !trip.completedAt; } catch { return false; } });
-  const changePhase = value => { setRiding(value); setView('overview'); try { sessionStorage.setItem(`ridemate.riding.${trip.id}`, value ? 'yes' : 'no'); } catch {} };
+  const isRiding = riding && !trip.completedAt;
+  const changePhase = value => { if (value && trip.completedAt) return; setRiding(value); setView('overview'); try { sessionStorage.setItem(`ridemate.riding.${trip.id}`, value ? 'yes' : 'no'); } catch {} };
   const completed = trip.checklist.filter(item => item.done).length;
   const places = trip.itinerary.reduce((total, day) => total + day.places.length, 0);
-  return <main className={`page journey-page ${riding ? 'is-riding' : ''}`}>
+  return <main className={`page journey-page ${isRiding ? 'is-riding' : ''}`}>
     <div className="title trip-heading"><div><p className="phase-eyebrow">CHUYẾN ĐI CỦA BẠN</p><h1>{trip.origin} → {trip.destination}</h1><p>{dateRange(trip)} · {trip.days} ngày</p></div><button className="soft" onClick={onEdit}>Chỉnh sửa</button></div>
     <nav className="journey-phases" aria-label="Giai đoạn chuyến đi">
-      <button aria-current={!riding ? 'page' : undefined} onClick={() => changePhase(false)}>1. Chuẩn bị</button>
-      <button aria-current={riding ? 'page' : undefined} onClick={() => changePhase(true)}>2. Đang đi</button>
+      <button aria-current={!isRiding ? 'page' : undefined} onClick={() => changePhase(false)}>1. Chuẩn bị</button>
+      <button disabled={!!trip.completedAt} aria-current={isRiding ? 'page' : undefined} onClick={() => changePhase(true)}>2. Đang đi</button>
       <button onClick={() => setPage('journal')}>3. Nhật ký</button>
     </nav>
-    {riding ? <RidingView trip={trip}/> : <>
+    {isRiding ? <RidingView trip={trip}/> : <>
       <nav className="subnav" aria-label="Các phần hành trình">{[['overview', 'Tổng quan'], ['itinerary', 'Lịch trình'], ['checklist', 'Checklist'], ['notes', 'Ghi chú']].map(([key, label]) => <button key={key} aria-current={view === key ? 'page' : undefined} onClick={() => key === 'checklist' ? setPage('checklist') : setView(key)}>{label}</button>)}</nav>
-      {view === 'notes' ? <section className="card trip-notes"><h2>Ghi chú chuyến đi</h2><p className="muted-copy">Thay đổi được lưu tự động trên trình duyệt này.</p><label>Ghi chú chung<textarea aria-label="Ghi chú chung" value={trip.notes} onChange={e => setTrip(current => ({ ...current, notes: e.target.value }))} placeholder="Địa chỉ chỗ nghỉ, ngân sách, điều cần nhớ..." /></label>{trip.itinerary.map((day, index) => <label key={day.id}>Ghi chú ngày {index + 1} — {day.title}<textarea aria-label={`Ghi chú ngày ${index + 1}`} value={day.note} onChange={e => setTrip(current => ({ ...current, itinerary: current.itinerary.map(item => item.id === day.id ? { ...item, note: e.target.value } : item) }))} placeholder="Ghi chú riêng cho ngày này..." /></label>)}</section> : view === 'itinerary' ? <><details className="journey-disclosure"><summary>Chọn vị trí các điểm dừng</summary><TripLocations trip={trip} setTrip={setTrip}/></details><Itinerary trip={trip} setTrip={setTrip}/></> : <>
+      {view === 'notes' ? <section className="card trip-notes"><h2>Ghi chú chuyến đi</h2><p className="muted-copy">Thay đổi được lưu tự động trên trình duyệt này.</p><label>Ghi chú chung<textarea aria-label="Ghi chú chung" value={trip.notes} onChange={e => setTrip(current => ({ ...current, notes: e.target.value }))} placeholder="Địa chỉ chỗ nghỉ, ngân sách, điều cần nhớ..." /></label>{trip.itinerary.map((day, index) => <label key={day.id}>Ghi chú ngày {index + 1} — {day.title}<textarea aria-label={`Ghi chú ngày ${index + 1}`} value={day.note} onChange={e => setTrip(current => ({ ...current, itinerary: current.itinerary.map(item => item.id === day.id ? { ...item, note: e.target.value } : item) }))} placeholder="Ghi chú riêng cho ngày này..." /></label>)}</section> : view === 'itinerary' ? <>{!trip.completedAt && <details className="journey-disclosure"><summary>Chọn vị trí các điểm dừng</summary><TripLocations trip={trip} setTrip={setTrip}/></details>}<Itinerary trip={trip} setTrip={setTrip}/></> : <>
         <section className="card preparation-card"><h2>Sẵn sàng cho chuyến đi</h2><p>{trip.days} ngày · {places} điểm trong lịch trình</p><ChecklistProgress done={completed} total={trip.checklist.length}/><div className="preparation-actions"><button className="soft" onClick={() => setPage('checklist')}>Mở checklist</button><button className="soft" onClick={() => setView('itinerary')}>Xem lịch trình</button></div>{!trip.completedAt && <button className="green start-journey" onClick={() => { changePhase(true); if (!location.tracking) location.start(); }}>Bắt đầu chuyến đi →</button>}</section>
-        <details className="journey-disclosure"><summary>Bản đồ, thời tiết và thông tin tuyến</summary><RouteOverview trip={trip}/></details>
+        <>{trip.completedAt ? <p className="route-message">Chuyến đi đã hoàn thành. Bản đồ và thông tin tuyến không tự tải để giảm gọi dịch vụ.</p> : <details className="journey-disclosure"><summary>Bản đồ, thời tiết và thông tin tuyến</summary><RouteOverview trip={trip}/></details>}</>
         <details className="journey-disclosure"><summary>Chỗ nghỉ theo từng đêm</summary><StayNightPlan trip={trip} onFind={date=>setPage('stays',date)}/></details>
         <details className="journey-disclosure"><summary>Ghi chú chuyến đi</summary><p>{trip.notes || 'Chưa có ghi chú.'}</p><button className="soft" onClick={() => setView('notes')}>Viết ghi chú</button></details>
       </>}

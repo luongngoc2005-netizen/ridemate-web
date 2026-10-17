@@ -7,4 +7,5 @@ export function readPlans(storage){
   }catch{return {plans:[],error:'Không đọc được danh sách kế hoạch. Dữ liệu cũ chưa bị ghi đè.'};}
 }
 export function putPlan(plans,trip){return plans.some(p=>p.id===trip.id)?plans.map(p=>p.id===trip.id?trip:p):[trip,...plans];}
+export function removePlan(plans,id){return plans.filter(plan=>plan.id!==id);}
 export function savePlans(storage,plans){if(!validPlans(plans))throw new Error('Danh sách kế hoạch không hợp lệ.');storage.setItem(PLANS_KEY,JSON.stringify(plans));}

@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 import {createTrip} from '../src/trip-data.js';
 import {mergePlans,syncPlans,readAccountPlans,writeAccountPlans} from '../src/plan-sync.js';
 const plan=()=>createTrip({origin:'Hà Nội',destination:'Cao Bằng',date:'2026-10-15',days:3});
+test('plan deletion sync preserves journals and clears the legacy trip when all plans are removed',async()=>{
+  const a=plan(),b=plan(),entries=[{id:'journal',sourceTripId:a.id,photos:[{path:'keep'}]}];
+  for(const local of [[b],[]]){
+    let committed;
+    await syncPlans({base:[a,b],local,read:async()=>({revision:8,payload:{version:1,trips:[a,b],trip:a,entries}}),commit:async payload=>{committed=payload;}});
+    assert.deepEqual(committed.trips,local);assert.deepEqual(committed.entries,entries);
+    assert.deepEqual(committed.trip,local[0]||null);
+  }
+});
 test('pending cache survives reload and is isolated by account without importing guest data',()=>{
   const records=new Map([['ridemate.plans.v1','guest-data']]);
   const storage={getItem:k=>records.get(k)||null,setItem:(k,v)=>records.set(k,v)};

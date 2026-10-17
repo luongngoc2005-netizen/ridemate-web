@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { loadTripRoute, loadPlaces } from './route-data.js';
+import { canLoadTripMap } from './trip-map-state.js';
 
 const TripRouteContext = createContext(null);
 const initial = { loading: true, route: null, places: [], placesLoading: false, error: '', placesError: '', progress: '', routeProgress: '' };
@@ -7,10 +8,11 @@ export function TripRouteProvider({ trip, children }) {
   const [enabled, setEnabled] = useState(false), [attempt, setAttempt] = useState(0), [placesAttempt, setPlacesAttempt] = useState(0);
   const [state, setState] = useState(initial);
   const enable = useCallback(() => setEnabled(true), []);
-  const key = JSON.stringify([trip?.origin, trip?.originPoint, trip?.destination, trip?.itinerary?.map(day => [day.id, day.places.map(p => [p.id, p.name, p.coordinates])])]);
+  const mapAllowed = canLoadTripMap(trip);
+  const key = JSON.stringify([trip?.origin, trip?.originPoint, trip?.destination, trip?.completedAt, trip?.itinerary?.map(day => [day.id, day.places.map(p => [p.id, p.name, p.coordinates])])]);
   const tripRef = useRef(trip); tripRef.current = trip;
   useEffect(() => {
-    if (!enabled || !tripRef.current) return;
+    if (!enabled || !mapAllowed) { setState({ ...initial, key, loading: false }); return; }
     const controller = new AbortController(); setState({ ...initial, key });
     loadTripRoute(tripRef.current, controller.signal, routeProgress => {
       if (!controller.signal.aborted) setState(current => ({ ...current, routeProgress }));
@@ -18,8 +20,8 @@ export function TripRouteProvider({ trip, children }) {
       if (!controller.signal.aborted) setState({ ...initial, key, route, loading: false, placesLoading: true });
     }).catch(error => { if (!controller.signal.aborted) setState({ ...initial, key, loading: false, error: error.message }); });
     return () => controller.abort();
-  }, [enabled, key, attempt]);
-  const route = state.key === key ? state.route : null;
+  }, [enabled, key, attempt, mapAllowed]);
+  const route = mapAllowed && state.key === key ? state.route : null;
   useEffect(() => {
     if (!route) return;
     const controller = new AbortController();
@@ -34,7 +36,7 @@ export function TripRouteProvider({ trip, children }) {
     return () => controller.abort();
   }, [route, placesAttempt]);
   const retry = () => route ? setPlacesAttempt(n => n + 1) : setAttempt(n => n + 1);
-  return <TripRouteContext.Provider value={{ ...(state.key === key ? state : initial), enable, retry }}>{children}</TripRouteContext.Provider>;
+  return <TripRouteContext.Provider value={{ ...(mapAllowed ? (state.key === key ? state : initial) : { ...initial, loading: false }), mapAllowed, enable, retry }}>{children}</TripRouteContext.Provider>;
 }
 export function useTripRoute() {
   const value = useContext(TripRouteContext), enable = value?.enable;

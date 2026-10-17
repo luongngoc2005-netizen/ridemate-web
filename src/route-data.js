@@ -8,6 +8,7 @@ import { domesticShapingPoints, domesticRequestChunks } from './domestic-routing
 import { tripOrigin } from './origin-data.js';
 import { motorcycleUrl, highwaySteps, exclusionPoints, applyRidingEstimate } from './motorcycle-routing.js';
 import { withRouteDeadline } from './route-deadline.js';
+import { canLoadTripMap } from './trip-map-state.js';
 const env = import.meta.env || {};
 export const mapServices = {
   geocode: env.VITE_GEOCODER_URL || 'https://photon.komoot.io/api/',
@@ -227,6 +228,7 @@ async function calculateRoute(origin, destination, signal, stops, onProgress) {
   return remember(key, applyRidingEstimate(route), 86400000);
 }
 export async function loadTripRoute(trip, signal, onProgress) {
+  if (!canLoadTripMap(trip)) return null;
   return loadRoute(tripOrigin(trip), trip.destination, signal, itineraryStops(trip), onProgress);
 }
 export function sampleRoute(coordinates, limit = 100) {
@@ -353,7 +355,10 @@ export function placeUrl(place) {
 }
 
 // Nearby searches use an explicit GPS snapshot, never the destination or route.
-export async function loadNearbyPlaces(point, category, signal) {
+// Keep GPS search results only in memory, keyed by the exact snapshot/category.
+const nearbyCache = new Map();
+export async function loadNearbyPlaces(point, category, signal, { refresh = false } = {}) {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   if (!validPoint(point)) throw new Error('Cần vị trí hiện tại để tìm quanh bạn.');
   const filters = {
     fuel: '[amenity=fuel]',
@@ -361,9 +366,24 @@ export async function loadNearbyPlaces(point, category, signal) {
     repair: '[shop~"^(motorcycle_repair|motorcycle|tyres)$"]',
   };
   if (!filters[category]) throw new Error('Loại địa điểm không hợp lệ.');
+  const key = JSON.stringify([mapServices.places, point.slice(0, 2), category]);
+  const saved = nearbyCache.get(key);
+  if (!refresh && saved?.expires > Date.now()) return saved.places;
   const [lon, lat] = point;
-  const query = `[out:json][timeout:20];nwr${filters[category]}(around:1500,${lat},${lon});out body center;`;
-  const data = await request(mapServices.places, { signal, method: 'POST', body: new URLSearchParams({ data: query }) });
-  if (!Array.isArray(data.elements) || data.remark) throw new Error('Chưa tải đủ điểm gần bạn. Vui lòng thử lại.');
-  return selectPlaces(data.elements, [point, point], 30).filter(place => place.type === category).sort((a, b) => a.distanceMeters - b.distanceMeters);
+  const query = `[out:json][timeout:8];nwr${filters[category]}(around:1500,${lat},${lon});out body center;`;
+  let data;
+  try {
+    data = await request(mapServices.places, { signal, timeout: 10000, method: 'POST', body: new URLSearchParams({ data: query }) });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new Error(error.code === 'MAP_REQUEST_TIMEOUT'
+      ? 'Dịch vụ tìm địa điểm phản hồi chậm. Bạn có thể thử lại hoặc tìm trên Google Maps.'
+      : 'Chưa kết nối được dịch vụ tìm địa điểm. Bạn có thể thử lại hoặc tìm trên Google Maps.');
+  }
+  if (!Array.isArray(data?.elements) || data.remark) throw new Error('Chưa tải đủ điểm gần bạn. Vui lòng thử lại.');
+  const places = selectPlaces(data.elements, [point, point], 30).filter(place => place.type === category).sort((a, b) => a.distanceMeters - b.distanceMeters);
+  nearbyCache.delete(key);
+  nearbyCache.set(key, { places, expires: Date.now() + 300000 });
+  while (nearbyCache.size > 30) nearbyCache.delete(nearbyCache.keys().next().value);
+  return places;
 }

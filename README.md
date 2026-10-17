@@ -33,6 +33,8 @@ Chỉ sao chép `.env.example` khi chưa có `.env.local`. Điền cấu hình r
 ## Các luồng hiện có
 
 - Tạo nhiều kế hoạch từ Khám phá, form hoặc bản nháp AI. Chọn kế hoạch trước khi mở lịch trình, bản đồ và checklist; không tự mở kế hoạch khi đăng nhập.
+- Xóa từng kế hoạch qua hộp xác nhận; giữ lại nhật ký và đơn chỗ nghỉ. Thay đổi dùng cùng cơ chế lưu local và đồng bộ tài khoản với các chỉnh sửa kế hoạch khác.
+- Kế hoạch đã hoàn thành không tự tải bản đồ, tính tuyến hay tìm điểm hỗ trợ. Nhật ký hiển thị thông tin cung đường và link mở Google Maps, không tự gọi dịch vụ bản đồ.
 - Sửa thông tin chuyến, ngày, thứ tự điểm ghé, ghi chú và checklist. Giảm số ngày cần xác nhận trước khi bỏ ngày cuối.
 - AI hỏi từng thông tin còn thiếu, hiển thị bản nháp để sửa và xác nhận. Không tự lưu kế hoạch hoặc đặt dịch vụ.
 - Tìm tọa độ điểm tham quan từ Photon/OpenStreetMap. Kết quả không rõ cần người dùng chọn; có Google Maps để đối chiếu và nhập tọa độ thủ công đã xác nhận.
@@ -54,6 +56,8 @@ Google Maps tính tuyến riêng; link yêu cầu xe máy và tránh cao tốc. 
 Tuyến dài được chia thành các chặng qua điểm dẫn tuyến trong nước để tránh vượt giới hạn của dịch vụ công cộng. Các chặng được gom tối đa hai chặng liên tiếp, tổng khoảng cách đường thẳng không quá 500 km mỗi yêu cầu, và tải tối đa hai yêu cầu cùng lúc. Nếu dịch vụ từ chối một nhóm vì giới hạn chiều dài, web thử từng chặng riêng. Nếu một nhóm chờ quá 8 giây, web cũng chuyển sang tính từng chặng nhỏ. Mỗi chặng vẫn được kiểm tra biên giới và các đoạn cao tốc được nhận diện trước khi ghép; điểm dẫn tuyến tự động không sửa lịch trình đã lưu và không bảo đảm tuyến ngắn nhất. Giao diện hiển thị tiến độ từng chặng; các chặng đã tải được giữ trong phiên để thử lại phần lỗi. Tổng thời gian chờ vẫn giới hạn 60 giây, và lỗi vượt chiều dài được thông báo riêng.
 
 Thời tiết Open-Meteo theo điểm đến và ngày chuyến đi trong cửa sổ 16 ngày, không phải toàn tuyến. Ngày quá khứ/quá xa được báo thiếu dự báo. GPS dùng quyền của trình duyệt, cần HTTPS hoặc localhost; vị trí sống chỉ giữ trong RAM, vị trí xuất phát đã xác nhận có thể lưu cùng kế hoạch.
+
+Trong tab Đang đi, nút Xăng/Nghỉ/Sửa xe hiện trạng thái ngay dưới nút, tìm trong bán kính 1,5 km quanh vị trí GPS và giới hạn chờ dữ liệu địa điểm 10 giây sau khi lấy được GPS. Kết quả cùng tọa độ/loại điểm được giữ trong bộ nhớ 5 phút; Tìm lại quanh tôi bỏ qua cache. Nếu dịch vụ lỗi hoặc không có kết quả, người dùng có thể mở Google Maps tìm riêng quanh vị trí đã chọn. `node scripts/check-nearby.js` đo truy vấn mẫu tại Cao Bằng; có thể truyền kinh độ, vĩ độ và endpoint làm ba tham số tùy chọn.
 
 ## Kiểm tra và deploy
 
