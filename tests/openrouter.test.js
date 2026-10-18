@@ -48,7 +48,8 @@ test('OpenRouter draft preserves previous draft and validates returned content',
     assert.deepEqual(JSON.parse(body.messages[1].content).previous,draft);
     assert.equal(body.response_format.json_schema.name,'ride_draft');return completion(draft);
   }});
-  assert.deepEqual(result.draft,draft);
+  const {landmarkSource,...content}=result.draft;
+  assert.deepEqual(content,draft);assert.equal(landmarkSource.destination,draft.destination);
   await assert.rejects(generateDraft({message:'edit'},{...config,fetchImpl:async()=>completion({})}));
 });
 test('OpenRouter errors are sanitized and partial or invalid outputs are rejected',async()=>{

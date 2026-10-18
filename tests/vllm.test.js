@@ -53,7 +53,8 @@ test('vLLM draft supports edits and rejects invalid and truncated content',async
     assert.deepEqual(JSON.parse(body.messages[1].content).previous,draft);
     return completion(draft);
   }});
-  assert.deepEqual(result.draft,draft);
+  const {landmarkSource,...content}=result.draft;
+  assert.deepEqual(content,draft);assert.equal(landmarkSource.destination,draft.destination);
   await assert.rejects(generateDraft({message:'Tạo lịch trình'},{...config,fetchImpl:async()=>completion({})}),e=>e.code==='AI_INVALID_DRAFT');
   await assert.rejects(generateDraft({message:'Tạo lịch trình'},{...config,fetchImpl:async()=>completion(draft,'length')}),e=>e.code==='AI_OUTPUT_TRUNCATED');
 });

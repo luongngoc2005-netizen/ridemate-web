@@ -38,7 +38,7 @@ test('confirmation rejects impossible dates, missing details, overcapacity and i
 });
 test('draft API preserves previous draft context, uses structured output and strips extra properties',async()=>{
  const draft=basicDraft(prompt);let sent;
- const result=await generateDraft({message:'Bỏ Bản Giốc',previous:draft},{apiKey:'test',model:'test',fetchImpl:async(_,init)=>{sent=JSON.parse(init.body);return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({...draft,evil:'ignored'})}]}]}));}});
+ const result=await generateDraft({message:'Giữ nguyên các điểm tham quan',previous:draft},{apiKey:'test',model:'test',fetchImpl:async(_,init)=>{sent=JSON.parse(init.body);return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({...draft,evil:'ignored'})}]}]}));}});
  assert.equal(sent.store,false);assert.equal(sent.text.format.strict,true);assert.deepEqual(JSON.parse(sent.input).previous,draft);assert.equal(result.draft.evil,undefined);
  assert.throws(()=>normalizeDraftRequest({message:'x',previous:{}}));
  assert.throws(()=>normalizeDraftRequest({message:'x'.repeat(2001)}));

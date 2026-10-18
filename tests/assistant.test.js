@@ -10,7 +10,8 @@ test('destination questions return sourced attractions without a profile or API'
  assert.equal(detectIntent(message),'explore');
  const reply=destinationReply(message,trip);
  assert.ok(reply.places.includes('Thác Bản Giốc'));assert.match(reply.source,/vietnam.travel/);
- assert.equal(destinationReply('Chơi gì ở Đà Lạt?',{...trip,destination:'Cao Bằng'}).places.length,0);
+ assert.ok(destinationReply('Chơi gì ở Đà Lạt?',{...trip,destination:'Cao Bằng'}).places.includes('Hồ Xuân Hương'));
+ assert.equal(destinationReply('Chơi gì ở nơi chưa có danh sách?',{...trip,destination:'nơi chưa có danh sách'}).places.length,0);
  assert.equal(destinationReply('Có gì hay?',{...trip,destination:'Cao Bằng'}).destination,'Cao Bằng');
 });
 test('provider quota exhaustion is distinct from throttling and leaks no details',async()=>{

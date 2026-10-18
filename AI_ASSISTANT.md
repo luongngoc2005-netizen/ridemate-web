@@ -1,5 +1,25 @@
 # AI Assistant — trợ lý du lịch bằng xe máy
 
+## Điểm tham quan theo điểm đến
+
+Khi không yêu cầu điểm cụ thể, backend chỉ dùng danh sách địa danh nổi bật của B
+có nguồn từ Vietnam Tourism hoặc cơ quan địa phương. Không gọi Overpass để lấy
+POI bất kỳ cho trường hợp này. Danh sách hiện có 12 khu vực: Hà Nội, Ninh Bình,
+Huế, Đà Nẵng, Hồ Chí Minh, Đà Lạt, Quảng Ninh, Lạng Sơn, Hà Giang, Cao Bằng,
+Mộc Châu và Cát Bà. Chưa có danh sách cho B thì báo `AI_DESTINATION_DATA_UNAVAILABLE`;
+không mượn địa điểm tỉnh khác. Nguồn tham khảo hiện ngay trên lịch đề xuất.
+
+Điểm được yêu cầu cụ thể được ưu tiên và kiểm tra bắt buộc có trong lịch; yêu cầu
+bỏ điểm sẽ loại điểm đó. Nếu điểm chưa có trong danh sách, tra OpenStreetMap trong
+ranh giới B, cache 15 phút và giới hạn chờ 8,5 giây. Chưa xác minh được điểm yêu cầu
+thì báo `AI_REQUESTED_PLACE_UNAVAILABLE`, không tự thay bằng điểm khác.
+
+Model chỉ sắp xếp các điểm đã tìm được. Điểm ngoài danh sách hoặc chặng sang tỉnh
+không được yêu cầu bị chặn bằng `AI_DESTINATION_MISMATCH`. Dữ liệu này không xác nhận
+thời gian chạy hay tính khả thi: vẫn cần tính tuyến riêng. Tọa độ OSM được giữ cùng
+điểm và đưa ra cho người dùng đối chiếu, không tìm lại tên trên toàn quốc nếu đã có.
+Nguồn Lạng Sơn: https://tamthanh.langson.gov.vn/gioi-thieu/di-tich-danh-thang.
+
 Backend hỗ trợ `AI_PROVIDER=vllm|openrouter|openai`. Xem [vLLM](./VLLM_SETUP.md), [OpenRouter](./OPENROUTER_SETUP.md) và [deploy](./RENDER_DEPLOY.md). Khóa chỉ nằm ở server. API AI yêu cầu đăng nhập Supabase và migration hạn mức; không cần service-role key.
 
 ## Hội thoại và bản nháp
@@ -10,7 +30,7 @@ Ví dụ: “Lập lịch trình 3 ngày 2 đêm ở Cao Bằng”. Trợ lý h�
 
 Mặc định có chặng về ngày cuối; yêu cầu một chiều bỏ chặng về. Giữ số đêm đã yêu cầu. Bản nháp AI giới hạn 1–7 ngày; form kế hoạch thủ công hỗ trợ tới 30 ngày. Tọa độ GPS giữ ở frontend, chỉ tên khu vực được gửi cho model. Đổi tên điểm đi trong form xác nhận bỏ tọa độ xuất phát cũ.
 
-Model tạo bản nháp theo schema; người dùng sửa nội dung/ngày/điểm trước khi xác nhận. Mẫu cơ bản Hà Nội–Cao Bằng 3 ngày 2 đêm có thể dùng khi AI không hoạt động, chỉ khi yêu cầu phù hợp mẫu. Không giả vờ chỉnh tự do bằng model khi offline.
+Model tạo lịch đề xuất theo schema từ các điểm du lịch của B; người dùng sửa nội dung/ngày/điểm trước khi xác nhận. Khi AI không hoạt động, giữ thông tin đã nhập và báo lỗi; không dùng lịch mẫu Hà Nội–Cao Bằng thay thế.
 
 ## Tọa độ và quỹ thời gian
 

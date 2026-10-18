@@ -1,5 +1,5 @@
 import React, {useEffect,useState} from 'react';
-import {findAttraction,locationKey} from './attraction-location.js';
+import {findAttraction,locationKey,cleanDestinationAttractions,matchingAttractions} from './attraction-location.js';
 import {chosenOrigin} from './origin-data.js';
 
 export default function DraftLocations({draft,disabled,onChange}) {
@@ -25,7 +25,9 @@ export default function DraftLocations({draft,disabled,onChange}) {
         const key=locationKey(name,draft.destination);
         if(draft.stopLocations?.[key])continue;
         try {
-          const result=await findAttraction(name,draft.destination,controller.signal);
+          const sourced=cleanDestinationAttractions(draft.destinationAttractions,draft.destination)?.items||[];
+          const candidates=matchingAttractions(name,sourced);
+          const result=candidates.length?{candidates,automatic:null}:await findAttraction(name,draft.destination,controller.signal);
           if(!controller.signal.aborted)setResults(s=>({...s,[key]:result}));
         } catch(error){if(!controller.signal.aborted)setResults(s=>({...s,[key]:{error:error.message,candidates:[]}}));}
       }

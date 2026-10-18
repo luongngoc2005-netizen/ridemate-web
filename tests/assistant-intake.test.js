@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {startIntake,intakeQuestion,answerIntake,intakeContext,attachIntake,requestedPlaces} from '../src/assistant-intake.js';
+import {startIntake,intakeQuestion,answerIntake,intakeContext,attachIntake,requestedPlaces,requestedEditPlaces} from '../src/assistant-intake.js';
 import {basicDraft,cleanDraft,confirmDraft} from '../src/assistant-draft.js';
 import {normalizeDraftRequest,generateDraft} from '../server/draft-api.js';
 import {isStoredTrip} from '../src/trip-data.js';
@@ -10,6 +10,11 @@ const message='Lập lịch trình 3 ngày 2 đêm ở Cao Bằng';
 const originPoint={coordinates:[105.85,21.03],label:'Vị trí của tôi',source:'gps',accuracy:10};
 const details={origin:'Hà Nội',destination:'Cao Bằng',days:3,nights:2,date:'2026-10-15',departure:'06:30',people:2,vehicles:1,bike:'semi',experience:'new',hours:4,avoidDark:'yes',preferences:'Thiên nhiên, lịch nhẹ',returnToOrigin:true};
 const completion=draft=>new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(draft)}]}]}));
+test('editing attractions at B does not rewrite the trip destination from a whole sentence',()=>{
+  assert.deepEqual(requestedEditPlaces('Sửa lịch trình: chỉ tham quan Động Tam Thanh và Động Nhị Thanh ở Lạng Sơn vào ngày 2. Ngày 1 chỉ di chuyển đến Lạng Sơn; ngày 3 về Hà Nội.'),{origin:'',destination:''});
+  assert.deepEqual(requestedEditPlaces('Đổi điểm đến sang Ninh Bình, chọn địa danh nổi tiếng'),{origin:'',destination:'Ninh Bình'});
+  assert.deepEqual(requestedEditPlaces('Đổi tuyến từ Hà Nội đến Lạng Sơn bằng xe máy'),{origin:'Hà Nội',destination:'Lạng Sơn'});
+});
 
 test('destination-only requests default to current location without guessing a city',()=>{
   for(const prompt of [message,'Cho tôi lịch trình 3N2Đ tại Cao Bằng','Lên lịch 3 ngày 2 đêm đến Cao Bằng']){

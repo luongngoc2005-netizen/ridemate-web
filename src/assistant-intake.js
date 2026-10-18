@@ -24,7 +24,7 @@ export function requestedDuration(message){
 export function requestedPlaces(message){
   const q=fold(message);
   const truncate=value=>{
-    const end=fold(value).search(/\s+(?:(?:trong\s+)?\d+\s*(?:ngay|n\s*\d)|gom\b|bao gom\b|voi\b|ngay di\b|khoi hanh\b|xuat phat luc\b)|[,;]\s*(?:khong|co|thich|uu tien|gom|voi|ngay|xuat|chi|mot chieu)\b/);
+    const end=fold(value).search(/\s+(?:(?:trong\s+)?\d+\s*(?:ngay|n\s*\d)|(?:bang|di)\s+xe\b|gom\b|bao gom\b|voi\b|ngay di\b|khoi hanh\b|xuat phat luc\b)|[,;]\s*(?:khong|co|thich|uu tien|chon|tham quan|ghe|quay ve|gom|voi|ngay|xuat|chi|mot chieu)\b/);
     return place(end>=0?value.slice(0,end):value);
   };
   const route=q.match(/\btu\s+(.+?)\s*(?:den\b|toi\b|di\b|[-–→])\s*(.+)/);
@@ -43,6 +43,12 @@ export function requestedPlaces(message){
   if(!destination)return {origin:'',destination:''};
   const start=destination.index+destination[0].lastIndexOf(destination[1]);
   return {origin:'',destination:truncate(message.slice(start))};
+}
+export function requestedEditPlaces(message){
+  const places=requestedPlaces(message);
+  if(places.origin)return places;
+  const change=message.match(/(?:đổi|chuyển|thay)(?: lại)?\s+(?:điểm đến|đích đến)\s+(?:(?:thành|sang|là)\s+)?(.+)/i);
+  return change?{origin:'',destination:requestedPlaces(`tại ${change[1]}`).destination}:{origin:'',destination:''};
 }
 export function startIntake(message,profile={}){
   const locations=requestedPlaces(message),duration=requestedDuration(message);

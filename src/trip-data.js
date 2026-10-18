@@ -3,6 +3,14 @@ export const STORAGE_KEY = 'ridemate.trip.v1';
 export const newId = () => globalThis.crypto.randomUUID();
 const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase().trim();
 export const destinations = [
+  { name: 'Hà Nội', source: 'https://vietnam.travel/places-to-go/northern-vietnam/ha-noi', places: ['Hồ Hoàn Kiếm', 'Phố cổ Hà Nội', 'Bảo tàng Mỹ thuật Việt Nam'] },
+  { name: 'Ninh Bình', source: 'https://vietnam.travel/things-to-do/10-must-do-activities-ninh-binh', places: ['Tràng An', 'Tam Cốc', 'Hang Múa', 'Chùa Bái Đính', 'Chùa Bích Động', 'Vườn quốc gia Cúc Phương'] },
+  { name: 'Huế', source: 'https://vietnam.travel/places-to-go/north-central-coast/hue', places: ['Đại Nội Huế', 'Chùa Thiên Mụ', 'Chùa Từ Hiếu'] },
+  { name: 'Đà Nẵng', source: 'https://vietnam.travel/places-to-go/south-central-coast-central-highlands/da-nang', places: ['Ngũ Hành Sơn', 'Bãi biển Mỹ Khê', 'Bán đảo Sơn Trà'] },
+  { name: 'Hồ Chí Minh', source: 'https://vietnam.travel/node/137', places: ['Dinh Độc Lập', 'Bảo tàng Chứng tích Chiến tranh', 'Địa đạo Củ Chi'] },
+  { name: 'Đà Lạt', source: 'https://vietnam.travel/index.php/vi/places-to-go/central-vietnam/dalat', places: ['Hồ Xuân Hương', 'Chùa Linh Phước', 'Hồ Tuyền Lâm'] },
+  { name: 'Quảng Ninh', source: 'https://vietnam.travel/node/1368', places: ['Vịnh Hạ Long', 'Hang Sửng Sốt', 'Động Mê Cung'] },
+  { name: 'Lạng Sơn', source: 'https://tamthanh.langson.gov.vn/gioi-thieu/di-tich-danh-thang', places: ['Động Tam Thanh', 'Động Nhị Thanh', 'Núi Tô Thị', 'Thành nhà Mạc'] },
   { name: 'Hà Giang', source: 'https://www.vietnam.travel/vi/node/1641', places: ['Cổng trời Quản Bạ', 'Phố cổ Đồng Văn', 'Cột cờ Lũng Cú', 'Đèo Mã Pí Lèng'] },
   { name: 'Cao Bằng', source: 'https://vietnam.travel/node/606', places: ['Thác Bản Giốc', 'Động Ngườm Ngao', 'Khu di tích Pác Bó'] },
   { name: 'Mộc Châu', source: 'https://www.vietnam.travel/things-to-do/moc-chau-your-one-stop-nature-escape', places: ['Thác Dải Yếm', 'Đồi chè Mộc Châu'] },

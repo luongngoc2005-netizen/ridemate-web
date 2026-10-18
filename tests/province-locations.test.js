@@ -30,6 +30,7 @@ test('known region pins work without network, detailed addresses are not replace
   await assert.rejects(geocode('Cao Bằng',controller.signal),{name:'AbortError'});
 });
 test('requests strip conversational suffixes and canonicalize only complete region names',()=>{
+  assert.deepEqual(requestedPlaces('Lập lịch trình 3 ngày 2 đêm từ Hà Nội đến Lạng Sơn bằng xe máy, chọn các địa danh nổi tiếng tại Lạng Sơn, có quay về Hà Nội.'),{origin:'Hà Nội',destination:'Lạng Sơn'});
   for(const prompt of ['Lên kế hoạch từ Cao Bằng đến Lạng Sơn cho tôi','len ke hoach tu cao bang den lang son giup minh nhe','Từ tỉnh Cao Bằng tới thành phố Lạng Sơn cho mình nhé','Từ Cao Bằng đi Lạng Sơn trong 3 ngày, không quay về','Cao Bằng → Lạng Sơn cho tôi']){
     assert.deepEqual(requestedPlaces(prompt),{origin:'Cao Bằng',destination:'Lạng Sơn'},prompt);
   }
@@ -47,6 +48,8 @@ test('backend enforces parsed endpoints even when model returns a corrupted plac
   const payload=normalizeDraftRequest({message});
   assert.deepEqual(payload.context,{origin:'Cao Bằng',destination:'Lạng Sơn'});
   const draft=basicDraft('3N2Đ HN CB');draft.origin='Cao Bằng';draft.destination='Lạng Sơn cho tôi';
+  draft.summary='Từ Cao Bằng đến Lạng Sơn.';
+  draft.days=draft.days.map(day=>({...day,title:'Tham quan Lạng Sơn',morning:'Di chuyển theo tuyến cần tính.',afternoon:'Ghé Động Tam Thanh.',evening:'Nghỉ ngơi.',lodging:'Lạng Sơn',stops:['Động Tam Thanh']}));
   const result=await generateDraft({message},{apiKey:'test',model:'test',fetchImpl:async()=>new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(draft)}]}]}))});
   assert.equal(result.draft.origin,'Cao Bằng');assert.equal(result.draft.destination,'Lạng Sơn');
 });

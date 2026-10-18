@@ -16,6 +16,7 @@ export default function DraftReply({draft,mode,active,busy,saved,onChange,onCrea
   return <div className="ai-draft-message">{error&&<p role="alert">{error}</p>}
     <div className="draft-result"><span className="ai-kicker">{mode} · {saved?"ĐÃ LƯU":"BẢN NHÁP"}</span><h2>{draft.days.length} ngày {nights} đêm · {draft.origin} → {draft.destination}</h2><p>{draft.summary}</p>
       {draft.returnToOrigin!=null&&<p>{draft.returnToOrigin?'Có chặng quay về điểm xuất phát vào ngày cuối.':'Hành trình một chiều theo yêu cầu.'}</p>}
+      {draft.landmarkSource&&<p>Điểm tham quan được chọn từ <a href={draft.landmarkSource.url} target="_blank" rel="noreferrer">nguồn giới thiệu du lịch {draft.destination}</a>. Giá vé, giờ mở cửa và thời gian di chuyển vẫn cần kiểm tra riêng.</p>}
       {draft.originPoint&&<p>Điểm đi đã có tọa độ {draft.originPoint.source==='gps'?'GPS':'do bạn chọn'}{Number.isFinite(draft.originPoint.accuracy)?` · sai số khoảng ${Math.round(draft.originPoint.accuracy)} m`:''}. Vị trí được giữ cố định cho kế hoạch này.</p>}
       {regionPins.length>0&&<p>Đối chiếu khu vực: {regionPins.map((p,i)=><React.Fragment key={p.name}>{i>0?' · ':''}<a href={provinceMapUrl(p)} target="_blank" rel="noopener noreferrer">Xem ghim {p.name}</a></React.Fragment>)}. Đây là ghim đại diện; cần chọn địa chỉ cụ thể khi chốt tuyến.</p>}
       <h3>Giả định của bản nháp</h3><ul>{draft.assumptions.map((x,i)=><li key={i}>{x}</li>)}</ul>

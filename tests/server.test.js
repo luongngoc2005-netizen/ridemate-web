@@ -32,7 +32,7 @@ test('draft endpoint without a plan still requires authenticated quota and valid
   const send=(body,token='valid')=>fetch(`${url}/api/assistant/draft`,{method:'POST',headers:{'content-type':'application/json','x-ridemate-assistant':'1',authorization:`Bearer ${token}`},body:JSON.stringify(body)});
   assert.equal((await send({message:'3N2Đ HN - CB'},'bad')).status,401);
   assert.equal((await send({message:'sửa',previous:{}})).status,400);
-  const response=await send({message:'3N2Đ HN - CB'});assert.equal(response.status,200);assert.deepEqual((await response.json()).draft,draft);
+  const response=await send({message:'3N2Đ HN - CB'});assert.equal(response.status,200);const {landmarkSource,...content}=(await response.json()).draft;assert.deepEqual(content,draft);assert.equal(landmarkSource.destination,'Cao Bằng');
   assert.equal(calls,1);assert.equal(reserved,1);
  });
 });

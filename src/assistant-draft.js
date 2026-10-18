@@ -2,7 +2,7 @@ import {createTrip,newId,suggestionsFor} from './trip-data.js';
 import {cleanProfile,profileQuestions} from './ride-review.js';
 import {validOriginPoint} from './origin-data.js';
 import {intakeContext} from './assistant-intake.js';
-import {cleanStopLocations,locationKey} from './attraction-location.js';
+import {cleanStopLocations,locationKey,cleanDestinationAttractions} from './attraction-location.js';
 import {cleanDayPlanning} from './trip-feasibility.js';
 
 const string=(v,max=600)=>typeof v==='string'&&v.trim().length>0&&v.length<=max;
@@ -18,6 +18,11 @@ export function cleanDraft(value,{keepContext=true}={}){
   const result={origin:value.origin,destination:value.destination,summary:value.summary,assumptions:[...value.assumptions],warnings:[...value.warnings],checklist:[...value.checklist],
     days:value.days.map(d=>({title:d.title,morning:d.morning,afternoon:d.afternoon,evening:d.evening,lodging:d.lodging,stops:[...d.stops]}))};
   if(keepContext){
+    if(value.landmarkSource?.destination===value.destination){
+      try{const url=new URL(value.landmarkSource.url);if(url.protocol==='https:'&&!url.username&&!url.password&&(url.hostname==='vietnam.travel'||url.hostname.endsWith('.vietnam.travel')||url.hostname.endsWith('.langson.gov.vn')))result.landmarkSource={destination:value.destination,url:url.href};}catch{}
+    }
+    const attractions=cleanDestinationAttractions(value.destinationAttractions,value.destination);
+    if(attractions)result.destinationAttractions=attractions;
     result.stopLocations=cleanStopLocations(value.stopLocations,value.destination,value.days.flatMap(d=>d.stops));
     if(Array.isArray(value.dayPlanning))result.dayPlanning=value.days.map((_,i)=>cleanDayPlanning(value.dayPlanning[i]));
     if(Number.isInteger(value.nights)&&value.nights>=0&&value.nights<=value.days.length)result.nights=value.nights;

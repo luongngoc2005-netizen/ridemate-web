@@ -14,6 +14,10 @@ export async function requestAssistant(payload,{client,fetchImpl=fetch,signal,ex
   }
   if(!response.ok){
     const messages={
+      AI_DESTINATION_DATA_UNAVAILABLE:'Chưa tra cứu được các điểm du lịch thuộc điểm đến bạn chọn. Hãy thử lại sau hoặc nhập rõ tỉnh/thành; tôi sẽ không dùng địa điểm từ tuyến mẫu khác.',
+      AI_DESTINATION_MISMATCH:'AI đã đưa điểm tham quan hoặc chặng đi ngoài khu vực bạn chọn. Kết quả này đã bị chặn; hãy thử tạo lại lịch trình.',
+      AI_REQUESTED_PLACE_UNAVAILABLE:'Chưa xác minh được địa điểm bạn yêu cầu trong khu vực điểm đến. Hãy bổ sung tên hoặc địa chỉ; tôi sẽ không tự đổi sang điểm khác.',
+      AI_REQUESTED_PLACE_MISSING:'AI đã bỏ sót địa điểm bạn yêu cầu. Kết quả này chưa được dùng; hãy thử tạo lại lịch trình.',
       AI_MODEL_OFFLINE:'Model AI hiện chưa hoạt động hoặc chưa kết nối được. Hãy bật model trên server và thử lại; bản nháp hiện có vẫn được giữ.',
       AI_PROVIDER_UNAVAILABLE:'Nhà cung cấp AI đang lỗi hoặc tạm thời không phục vụ được. Hãy thử lại sau.',
       AI_OUTPUT_TRUNCATED:'AI đã hết giới hạn sinh nội dung trước khi hoàn tất lịch trình. Hãy thử yêu cầu ngắn hơn.',

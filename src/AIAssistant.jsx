@@ -7,9 +7,9 @@ import {supabase} from './supabase.js';
 import {requestAssistant} from './assistant-client.js';
 import './ai-assistant.css';
 import DraftReply from './DraftReply.jsx';
-import {basicDraft,cleanDraft} from './assistant-draft.js';
+import {cleanDraft} from './assistant-draft.js';
 import {chatAction,draftExample} from './assistant-chat.js';
-import {startIntake,intakeQuestion,answerIntake,intakeContext,attachIntake,withIntakeOrigin} from './assistant-intake.js';
+import {startIntake,intakeQuestion,answerIntake,intakeContext,attachIntake,withIntakeOrigin,requestedEditPlaces} from './assistant-intake.js';
 import DraftIntakeQuestion from './DraftIntakeQuestion.jsx';
 import {useLocation} from './Location.jsx';
 import {chosenOrigin} from './origin-data.js';
@@ -93,9 +93,6 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
         next=cleanDraft(result.draft);mode='Bản nháp do AI đề xuất';
       }catch(failure){if(controller.signal.aborted)return;append({role:'assistant',text:failure.message});return;}
       finally{setBusy(false);request.current=null;}
-    }else if(!previous){
-      const basic=basicDraft(message);
-      if(basic&&(!details||details.days===3&&details.nights===2&&details.returnToOrigin))next=basic;
     }
     if(next){
       if(details)next=attachIntake(next,details);
@@ -164,9 +161,10 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
       }else{
         // Edits retain confirmed metadata unless the user explicitly changes it.
         const parsed=startIntake(message);
+        const endpointChanges=requestedEditPlaces(message);
         const details={...previous.details,originPoint:previous.originPoint,origin:previous.origin,destination:previous.destination,nights:previous.nights??previous.days.length-1,days:previous.days.length,returnToOrigin:previous.returnToOrigin!==false};
-        if(parsed.origin){details.origin=parsed.origin;details.originPoint=null;}
-        if(parsed.destination&&/(?:^|\s)(?:ở|tại|đến|tới)\s/i.test(message))details.destination=parsed.destination;
+        if(endpointChanges.origin){details.origin=endpointChanges.origin;details.originPoint=null;}
+        if(endpointChanges.destination)details.destination=endpointChanges.destination;
         if(parsed.days!=null)details.days=parsed.days;
         if(parsed.nights!=null)details.nights=parsed.nights;
         if(/không (?:quay )?về|một chiều/i.test(message))details.returnToOrigin=false;

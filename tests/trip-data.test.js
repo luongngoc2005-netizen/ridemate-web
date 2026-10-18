@@ -10,7 +10,9 @@ test('Schedules follow day count, destination and unique IDs', () => {
     assert.ok(trip.itinerary.some(day => day.places.length));
   }
   assert.ok(suggestionsFor('ha giang').places.includes('Cột cờ Lũng Cú'));
-  const unknown = createTrip({ ...initialDetails, destination: 'Đà Lạt' });
+  const dalat = createTrip({ ...initialDetails, destination: 'Đà Lạt' });
+  assert.ok(dalat.itinerary.flatMap(day=>day.places).some(p=>p.name==='Hồ Xuân Hương'));
+  const unknown = createTrip({ ...initialDetails, destination: 'Điểm đến chưa có danh sách' });
   assert.ok(unknown.itinerary.every(day => !day.places.length && !day.title.includes('Đồng Văn')));
   for (const days of [0, -1, 31, 1.5, '', 'abc']) assert.throws(() => createTrip({ ...initialDetails, days }));
 });
