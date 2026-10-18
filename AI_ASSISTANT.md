@@ -40,6 +40,8 @@ Ví dụ: “Lập lịch trình 3 ngày 2 đêm ở Cao Bằng”. Trợ lý h�
 
 Mặc định có chặng về ngày cuối; yêu cầu một chiều bỏ chặng về. Giữ số đêm đã yêu cầu. Bản nháp AI giới hạn 1–7 ngày; form kế hoạch thủ công hỗ trợ tới 30 ngày. Tọa độ GPS giữ ở frontend, chỉ tên khu vực được gửi cho model. Đổi tên điểm đi trong form xác nhận bỏ tọa độ xuất phát cũ.
 
+Giờ đi có bộ chọn đồng hồ, giờ/phút và AM/PM trong bước hỏi thông tin, form xác nhận và điều chỉnh giờ đánh giá. AM là trước 12 giờ trưa, PM là từ 12 giờ trưa; 12:00 AM lưu thành 00:00, 12:00 PM lưu thành 12:00. Chỉ bấm Chọn giờ mới áp dụng lựa chọn; Hủy hoặc Escape giữ giờ cũ. Dữ liệu kế hoạch/API vẫn dùng HH:mm (24 tiếng). Tiêu đề ngày được bỏ số thứ tự do model thêm trước khi hiển thị/lưu, tránh lặp “Ngày 3: Ngày 3: …”.
+
 Model tạo lịch đề xuất theo schema từ các điểm du lịch của B; người dùng sửa nội dung/ngày/điểm trước khi xác nhận. Khi AI không hoạt động, giữ thông tin đã nhập và báo lỗi; không dùng lịch mẫu Hà Nội–Cao Bằng thay thế.
 
 ## Tọa độ và quỹ thời gian

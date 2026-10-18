@@ -8,6 +8,12 @@ import {trustedLandmarkSource} from './destination-data.js';
 
 const string=(v,max=600)=>typeof v==='string'&&v.trim().length>0&&v.length<=max;
 const strings=(v,max=15)=>Array.isArray(v)&&v.length<=max&&v.every(x=>string(x));
+export function cleanDayTitle(value){
+  // AI may include numbering already supplied by the UI, sometimes repeatedly.
+  const title=String(value||'').trim();
+  const cleaned=title.replace(/^(?:(?:ngày|ngay|day)\s+\d{1,2}(?:\s*[:.\-–—]\s*|\s*$))+/iu,'').trim();
+  return cleaned||'Hành trình trong ngày';
+}
 export function validateDraft(value){
   return !!value&&string(value.origin,200)&&string(value.destination,200)&&string(value.summary,1200)&&
     strings(value.assumptions)&&strings(value.warnings)&&strings(value.checklist,30)&&value.checklist.length>0&&
@@ -17,7 +23,7 @@ export function validateDraft(value){
 export function cleanDraft(value,{keepContext=true}={}){
   if(!validateDraft(value))throw new Error('Bản nháp chưa hợp lệ. Hãy thử lại hoặc chỉnh yêu cầu.');
   const result={origin:value.origin,destination:value.destination,summary:value.summary,assumptions:[...value.assumptions],warnings:[...value.warnings],checklist:[...value.checklist],
-    days:value.days.map(d=>({title:d.title,morning:d.morning,afternoon:d.afternoon,evening:d.evening,lodging:d.lodging,stops:[...d.stops]}))};
+    days:value.days.map(d=>({title:cleanDayTitle(d.title),morning:d.morning,afternoon:d.afternoon,evening:d.evening,lodging:d.lodging,stops:[...d.stops]}))};
   if(keepContext){
     if(value.landmarkSource?.destination===value.destination){
       if(trustedLandmarkSource(value.landmarkSource.url))result.landmarkSource={destination:value.destination,url:new URL(value.landmarkSource.url).href};

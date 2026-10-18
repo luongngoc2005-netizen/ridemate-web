@@ -3,6 +3,8 @@ import OriginSelect from './OriginSelect.jsx';
 import {useLocation} from './Location.jsx';
 import {requestLocation} from './geolocation.js';
 import {chosenOrigin} from './origin-data.js';
+import TimePicker from './TimePicker.jsx';
+import {clockLabel} from './time-data.js';
 
 export default function DraftIntakeQuestion({question,value,busy,onAnswer,onOrigin,onCancel}){
   const location=useLocation(),dispose=useRef(null),revision=useRef(0),lookup=useRef(null);
@@ -29,8 +31,8 @@ export default function DraftIntakeQuestion({question,value,busy,onAnswer,onOrig
       <fieldset disabled={disabled}><OriginSelect value={{origin:value.origin||'',originPoint:value.originPoint}} onChange={onOrigin}/></fieldset>
     </>}
     {question.options&&<div className="ai-answer-options">{question.options.map(([answer,label])=><button type="button" className="soft" disabled={disabled} key={answer} onClick={()=>onAnswer(answer,label)}>{label}</button>)}</div>}
-    {['date','time','number'].includes(question.type)&&<form className="ai-answer-form" onSubmit={event=>{event.preventDefault();onAnswer(input);}}>
-      <label>{question.type==='date'?'Ngày đi':question.type==='time'?'Giờ đi':'Câu trả lời'}<input type={question.type} value={input} min={question.min} max={question.max} step={question.key==='hours'?'0.5':undefined} required disabled={disabled} onChange={e=>setInput(e.target.value)}/></label>
+    {['date','time','number'].includes(question.type)&&<form className="ai-answer-form" onSubmit={event=>{event.preventDefault();onAnswer(input,question.type==='time'?clockLabel(input):input);}}>
+      {question.type==='time'?<TimePicker label="Giờ đi" value={input} onChange={setInput} required disabled={disabled}/>:<label>{question.type==='date'?'Ngày đi':'Câu trả lời'}<input type={question.type} value={input} min={question.min} max={question.max} step={question.key==='hours'?'0.5':undefined} required disabled={disabled} onChange={e=>setInput(e.target.value)}/></label>}
       <button className="green" disabled={disabled||!input} type="submit">Tiếp tục</button>
     </form>}
     {error&&<p role="alert">{error}</p>}

@@ -1,10 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {basicDraft,validateDraft,cleanDraft,confirmDraft,draftCosts} from '../src/assistant-draft.js';
+import {basicDraft,validateDraft,cleanDraft,confirmDraft,draftCosts,cleanDayTitle} from '../src/assistant-draft.js';
 import {isStoredTrip} from '../src/trip-data.js';
 import {generateDraft,normalizeDraftRequest} from '../server/draft-api.js';
 const prompt='Cho tôi lịch trình 3N2Đ từ HN - CB gồm điểm chơi nghỉ phí vé đồ chuẩn bị';
 const details={date:'2026-10-15',departure:'06:30',origin:'Hà Nội',people:'2',vehicles:'1'};
+
+test('AI day numbering is removed repeatedly before rendering and saving, while dates stay intact',()=>{
+ for(const title of ['Ngày 3: Ngày 3: Cao Bằng → Hà Nội','Ngày 3 - Cao Bằng → Hà Nội','Day 3: Cao Bằng → Hà Nội'])assert.equal(cleanDayTitle(title),'Cao Bằng → Hà Nội');
+ assert.equal(cleanDayTitle('Ngày 3: Ngày 3:'),'Hành trình trong ngày');
+ assert.equal(cleanDayTitle('Ngày 24/10: về Hà Nội'),'Ngày 24/10: về Hà Nội');
+ const draft=basicDraft(prompt);draft.days[2].title='Ngày 3: Ngày 3: Cao Bằng → Hà Nội';
+ assert.equal(cleanDraft(draft).days[2].title,'Cao Bằng → Hà Nội');
+ assert.equal(confirmDraft(draft,details).itinerary[2].title,'Cao Bằng → Hà Nội');
+});
 test('confirmation accepts an explicitly supplied missing destination and gives actionable errors',()=>{
  const draft={...basicDraft(prompt),destination:'Chưa xác định'};
  assert.throws(()=>confirmDraft(draft,details),/điểm đến/);
