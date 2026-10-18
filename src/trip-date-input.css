@@ -1,0 +1,11 @@
+.trip-date-input{display:flex;position:relative;align-items:center;width:100%;min-width:0;max-width:100%;margin-top:5px}
+.tripbar .trip-date-input>input,.trip-form .trip-date-input>input{display:block;width:100%;min-width:0;max-width:100%;margin-top:0;padding-right:44px;font-variant-numeric:tabular-nums}
+.trip-date-picker{position:absolute;right:0;top:0;bottom:0;width:40px;display:flex;align-items:center;justify-content:center;color:var(--g);overflow:hidden;border-radius:9px}
+.trip-date-picker input[type=date]{position:absolute;inset:0;opacity:0;width:100%;height:100%;min-width:0;margin:0;padding:0;cursor:pointer}
+.trip-date-picker:focus-within{outline:3px solid var(--o);outline-offset:-3px}
+.tripbar{grid-template-columns:minmax(0,1.1fr) minmax(0,1.1fr) minmax(160px,1fr) minmax(80px,.6fr) auto}
+@media(max-width:1100px){.tripbar{grid-template-columns:repeat(2,minmax(0,1fr))}.tripbar>.origin-field,.tripbar>label:nth-child(2),.tripbar>.orange{grid-column:1/-1}}
+@media(max-width:760px){.tripbar>label{display:block;min-width:0;max-width:100%}.tripbar input[type=number]{min-width:0;max-width:100%;min-height:46px}.tripbar .trip-date-input>input{font-size:16px;min-height:46px;padding-left:8px;padding-right:36px}.trip-date-picker{width:34px}.trip-form>.card{min-width:0}}
+@media(max-width:380px){.tripbar>label:nth-child(3),.tripbar>label:nth-child(4){grid-column:1/-1}}
+
+.trip-date-picker input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;cursor:pointer}

@@ -1,3 +1,4 @@
+import TripDateInput from './TripDateInput.jsx';
 import { useNavigationState, useNavigationBlock } from './useNavigationState.js';
 import AIAssistant from './AIAssistant.jsx';
 import Plans from './Plans.jsx';
@@ -27,6 +28,7 @@ import TripCompanion from './TripCompanion.jsx';
 import DestinationMap from './DestinationMap.jsx';
 import './mobile-journey.css';
 import './responsive.css';
+import './trip-date-input.css';
 
 const tools=[['fuel','Cây xăng','gas station'],['repair','Sửa xe','motorcycle repair'],['food','Ăn uống','restaurant'],['bed','Chỗ nghỉ','hotel'],['medical','Y tế','hospital'],['pin','Điểm hot','tourist attraction']];
 const searchMaps=q=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,'_blank');
@@ -36,7 +38,7 @@ function Nav({page,setPage,user}){return <header className="nav"><button classNa
 
 function Home({trip: savedTrip,onCreate,setPage}){const [trip,setTrip]=useState(()=>({...initialDetails,...savedTrip}));return <main className="dash"><div className="maincol">
   <section className="hero"><div><small>RIDE MORE · EXPLORE FURTHER</small><h1>Những cung đường<br/>đẹp hơn khi đi cùng<br/>RideMate</h1><p>Lên kế hoạch dễ dàng · Hành trình an toàn hơn · Trải nghiệm nhiều hơn.</p></div>
-    <form className="tripbar" onSubmit={e=>{e.preventDefault();onCreate(trip)}}><OriginSelect value={trip} onChange={setTrip} showLocationHint={false}/><label>Điểm đến<ProvinceSelect required showLocationHint={false} value={trip.destination} onChange={e=>setTrip({...trip,destination:e.target.value})}/></label><label>Ngày đi<input required type="date" value={trip.date} onChange={e=>setTrip({...trip,date:e.target.value})}/></label><label>Số ngày<input required type="number" min="1" max="30" step="1" value={trip.days} onChange={e=>setTrip({...trip,days:e.target.value})}/></label><button className="orange" type="submit">Tạo chuyến đi <ToolIcon name="arrowRight" className="inline-icon"/></button></form>
+    <form className="tripbar" onSubmit={e=>{e.preventDefault();onCreate(trip)}}><OriginSelect value={trip} onChange={setTrip} showLocationHint={false}/><label>Điểm đến<ProvinceSelect required showLocationHint={false} value={trip.destination} onChange={e=>setTrip({...trip,destination:e.target.value})}/></label><label>Ngày đi<TripDateInput value={trip.date} onChange={date=>setTrip({...trip,date})}/></label><label>Số ngày<input required type="number" min="1" max="30" step="1" value={trip.days} onChange={e=>setTrip({...trip,days:e.target.value})}/></label><button className="orange" type="submit">Tạo chuyến đi <ToolIcon name="arrowRight" className="inline-icon"/></button></form>
   </section>
   <section className="box"><div className="title"><h2>Công cụ hỗ trợ nhanh</h2><button onClick={()=>setPage('tools')}>Xem tất cả <ToolIcon name="arrowRight" className="inline-icon"/></button></div><div className="quick"><button onClick={()=>setPage('checklist')}><span><ToolIcon name="checklist"/></span>Checklist</button>{tools.map(t=><button key={t[1]} onClick={()=>t[0]==='bed'?setPage('stays'):searchMaps(t[2])}><span><ToolIcon name={t[0]}/></span>{t[1]}</button>)}<button onClick={()=>setPage('ai')}><span><ToolIcon name="assistant"/></span>AI Assistant</button></div></section>
 </div><aside className="side">{savedTrip && <section className="box"><div className="title"><h2>Chuyến đi của bạn</h2><button onClick={()=>setPage('trip')}>Xem chi tiết <ToolIcon name="arrowRight" className="inline-icon"/></button></div><h3>{savedTrip.origin} <ToolIcon name="arrowRight" className="inline-icon"/> {savedTrip.destination}</h3><p>{dateRange(savedTrip)} · {savedTrip.days} ngày</p><p>{savedTrip.itinerary.reduce((total,day)=>total+day.places.length,0)} điểm tham quan · {savedTrip.checklist.filter(item=>item.done).length}/{savedTrip.checklist.length} mục chuẩn bị</p><button className="green full" onClick={()=>setPage('trip')}>Quay lại tổng quan hành trình <ToolIcon name="arrowRight" className="inline-icon"/></button></section>}
