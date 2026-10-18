@@ -6,10 +6,12 @@
   <node id="4" lat="21.002" lon="105.002"/>
   <node id="5" lat="21.002" lon="105.001"/>
   <way id="11"><nd ref="2"/><nd ref="3"/><nd ref="4"/><nd ref="5"/><nd ref="2"/>
-    <tag k="tourism" v="guest_house"/><tag k="name" v="Nghỉ mẫu"/>
+    <tag k="tourism" v="guest_house"/><tag k="amenity" v="restaurant"/><tag k="name" v="Nghỉ mẫu"/>
   </way>
   <way id="12"><nd ref="2"/><nd ref="3"/><nd ref="4"/><nd ref="5"/><nd ref="2"/></way>
   <relation id="21"><member type="way" ref="12" role="outer"/>
     <tag k="type" v="multipolygon"/><tag k="shop" v="motorcycle_repair"/><tag k="name" v="Sửa mẫu"/>
   </relation>
+<node id="30" lat="21.001" lon="105.001"><tag k="amenity" v="restaurant"/><tag k="name" v="Food fixture"/></node>
+<node id="31" lat="21.002" lon="105.002"><tag k="amenity" v="cafe"/><tag k="name" v="Drink fixture"/></node>
 </osm>

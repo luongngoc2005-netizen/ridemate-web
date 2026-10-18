@@ -15,6 +15,7 @@ export async function requestAssistant(payload,{client,fetchImpl=fetch,signal,ex
   if(!response.ok){
     const messages={
       AI_DESTINATION_DATA_UNAVAILABLE:'Chưa tra cứu được các điểm du lịch thuộc điểm đến bạn chọn. Hãy thử lại sau hoặc nhập rõ tỉnh/thành; tôi sẽ không dùng địa điểm từ tuyến mẫu khác.',
+      AI_DESTINATION_NOT_SUPPORTED:'Đã nhận được điểm đến, nhưng RideMate chưa có danh sách địa danh nổi bật đã đối chiếu cho khu vực này. Bạn không cần nhập lại tỉnh/thành. Cần bổ sung nguồn địa danh cho khu vực này trước khi tự động gợi ý; tôi sẽ không lấy điểm của tỉnh khác.',
       AI_DESTINATION_MISMATCH:'AI đã đưa điểm tham quan hoặc chặng đi ngoài khu vực bạn chọn. Kết quả này đã bị chặn; hãy thử tạo lại lịch trình.',
       AI_REQUESTED_PLACE_UNAVAILABLE:'Chưa xác minh được địa điểm bạn yêu cầu trong khu vực điểm đến. Hãy bổ sung tên hoặc địa chỉ; tôi sẽ không tự đổi sang điểm khác.',
       AI_REQUESTED_PLACE_MISSING:'AI đã bỏ sót địa điểm bạn yêu cầu. Kết quả này chưa được dùng; hãy thử tạo lại lịch trình.',

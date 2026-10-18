@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {destinationAttractions,validateDestinationDraft,attractionRequests} from '../server/destination-attractions.js';
-import {generateDraft} from '../server/draft-api.js';
+import {generateDraft,normalizeDraftRequest} from '../server/draft-api.js';
 import {cleanDraft,basicDraft} from '../src/assistant-draft.js';
 import {relevantAttractions,cleanDestinationAttractions} from '../src/attraction-location.js';
+import {destinations,suggestionsFor} from '../src/trip-data.js';
+import {requestAssistant} from '../src/assistant-client.js';
 
 const poi={type:'node',id:123,lon:106.75,lat:21.95,tags:{name:'Động Tam Thanh',tourism:'attraction'}};
 const localDraft=()=>({...basicDraft('3N2Đ HN-CB'),origin:'Hà Nội',destination:'Lạng Sơn',summary:'Đi và về Hà Nội, tham quan Lạng Sơn.',assumptions:[],warnings:[],days:[
@@ -66,4 +68,47 @@ test('candidate list rejects a stadium, hostel, unrelated parks and correct name
  const candidates=[p,{...p,name:'Sân vận động thôn Thủ Công',kind:'leisure',subtype:'pitch'}, {...p,address:'Hà Nội'},{...p,subtype:'hostel'},{...p,name:'Vườn quốc gia Bái Tử Long'}];
  assert.deepEqual(relevantAttractions('Động Tam Thanh','Lạng Sơn',candidates),[p]);
  assert.equal(cleanDestinationAttractions({destination:'Cao Bằng',items:[p]},'Lạng Sơn'),null);
+});
+
+test('the exact Hanoi–Hai Phong request reaches AI with a sourced Hai Phong catalog without map lookup',async()=>{
+ const message='Tạo cho tôi chuyến đi 3 ngày 2 đêm từ Hà Nội đến Hải Phòng';
+ assert.deepEqual(normalizeDraftRequest({message}).context,{origin:'Hà Nội',destination:'Hải Phòng'});
+ let calls=0;
+ const result=await generateDraft({message,context:{days:3,nights:2}},{apiKey:'test',model:'test',fetchImpl:async(url,init)=>{
+  calls++;assert.ok(!url.includes('overpass'));
+  const input=JSON.parse(JSON.parse(init.body).input);
+  assert.equal(input.catalog.name,'Hải Phòng');
+  assert.ok(input.catalog.places.includes('Bãi biển Đồ Sơn'));
+  assert.ok(input.catalog.places.includes('Nhà hát lớn Hải Phòng'));
+  assert.ok(!input.catalog.places.includes('Thác Bản Giốc'));
+  const draft=localDraft();draft.destination='Hải Phòng';draft.summary='Chuyến đi Hà Nội đến Hải Phòng, 3 ngày 2 đêm.';
+  draft.days=draft.days.map(day=>({...day,title:'Hà Nội → Hải Phòng',morning:'Tham quan Nhà hát lớn Hải Phòng.',afternoon:'Dạo Hồ Tam Bạc.',evening:'Nghỉ tại Hải Phòng.',lodging:'Hải Phòng',stops:['Nhà hát lớn Hải Phòng','Hồ Tam Bạc']}));
+  return response(draft);
+ }});
+ assert.equal(calls,1);assert.equal(result.draft.destination,'Hải Phòng');assert.equal(result.draft.days.length,3);
+ assert.match(cleanDraft(result.draft).landmarkSource.url,/\.haiphong\.gov\.vn\//);
+ const selection=await destinationAttractions('Hải Phòng');
+ const island=result.draft;island.days[1]={...island.days[1],title:'Khám phá Cát Bà',morning:'Tham quan Vườn quốc gia Cát Bà.',afternoon:'Ghé Động Trung Trang.',lodging:'Cát Bà',stops:['Vườn quốc gia Cát Bà','Động Trung Trang']};
+ assert.doesNotThrow(()=>validateDestinationDraft(island,selection,'Hà Nội'));
+ island.days[1].afternoon='Đến Hà Giang thăm Phố cổ Đồng Văn.';
+ assert.throws(()=>validateDestinationDraft(island,selection,'Hà Nội'),e=>e.code==='AI_DESTINATION_MISMATCH');
+});
+
+test('sourced subregions take precedence and every catalog validates its own shared landmarks',async()=>{
+ assert.equal(suggestionsFor('Cát Bà, Hải Phòng').name,'Cát Bà');
+ for(const destination of destinations){
+  const selection=await destinationAttractions(destination.name);
+  const draft=localDraft();draft.destination=destination.name;draft.summary=`Khám phá ${destination.name}.`;
+  draft.days=draft.days.map(day=>({...day,title:destination.name,morning:selection.places[0],afternoon:selection.places[0],evening:'Nghỉ ngơi.',lodging:destination.name,stops:selection.places.slice(0,5)}));
+  assert.doesNotThrow(()=>validateDestinationDraft(draft,selection,'Hà Nội'),destination.name);
+ }
+});
+
+test('Bac Ninh is supported and older deployed missing-catalog errors remain clear in the client',async()=>{
+ assert.ok((await destinationAttractions('Bắc Ninh')).places.includes('Chùa Dâu'));
+ const client={auth:{getSession:async()=>({data:{session:{access_token:'test',user:{id:'user'}}}})}};
+ await assert.rejects(requestAssistant({message:'Từ Hà Nội đến Bắc Ninh'},{client,expectedUserId:'user',drafting:true,
+  fetchImpl:async()=>({ok:false,json:async()=>({error:'AI_DESTINATION_NOT_SUPPORTED'})})}),/không cần nhập lại tỉnh\/thành/);
+ const draft=localDraft();draft.landmarkSource={destination:draft.destination,url:'https://haiphong.gov.vn.evil.test/source'};
+ assert.equal(cleanDraft(draft).landmarkSource,undefined);
 });

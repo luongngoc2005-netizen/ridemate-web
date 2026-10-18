@@ -1,5 +1,24 @@
 # Kiểm thử luồng AI trên Render — 18/10/2026
 
+## Bổ sung: lỗi lặp màn hình chuyến đi khi điều hướng
+
+Đã tái hiện trên Render bằng Edge: mở kế hoạch rồi bấm “Kiểm tra chuyến đi
+của tôi”; URL đổi sang `page=ai` nhưng hai màn hình Journey cũ còn nằm trên
+AI Assistant. Các thanh “1. Chuẩn bị / 2. Đang đi” vì vậy bị lặp.
+
+Nguyên nhân trong code: Journey và bong bóng TripCompanion là phần tử cùng
+cấp, cùng nhận `key={trip.id}`. Khi React thay màn hình hoặc cập nhật giai đoạn,
+khóa trùng làm đối chiếu phần tử sai và để lại DOM cũ. Đã đổi khóa bong bóng
+thành `companion:<tripId>`, vẫn giữ trạng thái bong bóng khi đổi trang của cùng
+kế hoạch và tạo trạng thái riêng khi chọn kế hoạch khác.
+
+Đã thêm kiểm thử DOM bằng ứng dụng React thật, chỉ thay đăng nhập và canvas
+bản đồ bằng thành phần offline. Kịch bản đi qua hai kế hoạch, chuyển Chuẩn bị /
+Đang đi, mở AI review, Back/Forward và quay lại danh sách, lặp nhiều vòng.
+Test thất bại trên code cũ vì có 2 màn hình `main`; bản sửa chỉ còn 1 màn hình
+và không phát sinh lỗi khóa React. Đây là xác nhận bản sửa local; chưa deploy
+lại Render tại thời điểm ghi chú. Không sửa dữ liệu kế hoạch trên tài khoản.
+
 Trang: https://ridemate-pka.onrender.com/ . Thử bằng Edge qua giao diện với phiên
 đã đăng nhập. Đây là kết quả của bản đang deploy, không phải nghiệm thu các sửa
 đổi local chưa push. Không nhập mật khẩu, không bật GPS và không đặt dịch vụ.

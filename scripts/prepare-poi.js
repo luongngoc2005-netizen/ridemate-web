@@ -10,7 +10,7 @@ import { vietnam } from '../src/vietnam-guard.js';
 const columns = ['osm_type', 'osm_id', 'category', 'name', 'longitude', 'latitude', 'address', 'hours'];
 const literal = value => typeof value === 'number' ? String(value) : "'" + String(value).replaceAll("'", "''") + "'";
 const csvValue = value => '"' + String(value).replaceAll('"', '""') + '"';
-const registrationSql = (records, metadata, datasetId) => `insert into public.poi_imports(id, source_url, source_date, expected_count) values (${literal(datasetId)}, ${literal(metadata.sourceUrl)}, ${literal(metadata.sourceDate)}, ${records.length}) on conflict (id) do nothing;`;
+const registrationSql = (records, metadata, datasetId) => `insert into public.poi_imports(id, source_url, source_date, expected_count, categories) values (${literal(datasetId)}, ${literal(metadata.sourceUrl)}, ${literal(metadata.sourceDate)}, ${records.length}, array[${[...new Set(records.map(r => r.category))].sort().map(literal).join(',')}]::text[]) on conflict (id) do nothing;`;
 const insertSql = (records, datasetId) => `insert into public.osm_pois(dataset_id, ${columns.join(', ')}) values\n${records.map(row => '(' + [literal(datasetId), ...columns.map(key => literal(row[key]))].join(',') + ')').join(',\n')}\non conflict (dataset_id, osm_type, osm_id) do nothing;`;
 const activationSql = (records, datasetId) => `do $$ begin
   if (select count(*) from public.osm_pois where dataset_id = '${datasetId}') <> ${records.length} then
@@ -69,7 +69,7 @@ select (public.nearby_pois(106.2587824, 22.665781, 1500)->>'ready') as ready,
 export async function preparePoi({ input = 'output/poi/poi-elements.jsonl', outputDir = 'output/poi', containsPoint = vietnam.containsPoint } = {}) {
   const metadata = JSON.parse(await readFile(join(dirname(input), 'source.json'), 'utf8'));
   if (!metadata.sourceUrl || !metadata.sourceDate) throw new Error('Missing OSM source metadata.');
-  const rows = new Map(), counts = { fuel: 0, rest: 0, repair: 0 }, rejected = { invalidOrOutsideVietnam: 0, duplicates: 0 };
+  const rows = new Map(), counts = { fuel: 0, rest: 0, repair: 0, food: 0, drink: 0 }, rejected = { invalidOrOutsideVietnam: 0, duplicates: 0 };
   const reader = createInterface({ input: createReadStream(input), crlfDelay: Infinity });
   for await (const line of reader) {
     if (!line.trim()) continue;
@@ -84,7 +84,8 @@ export async function preparePoi({ input = 'output/poi/poi-elements.jsonl', outp
   const datasetId = createHash('sha256').update(JSON.stringify([metadata.sourceMd5 || metadata.sourceUrl, records])).digest('hex').slice(0, 24);
   await mkdir(outputDir, { recursive: true });
   const sql = datasetSql(records, metadata, datasetId);
-  const routeMigration = await readFile(new URL('../supabase/migrations/202610170002_route_pois.sql', import.meta.url), 'utf8');
+  const upgrade = await readFile(new URL('../supabase/migrations/202610180001_food_drink_pois.sql', import.meta.url), 'utf8');
+  const routeMigration = await readFile(new URL('../supabase/migrations/202610170002_route_pois.sql', import.meta.url), 'utf8') + '\n' + upgrade;
   const migration = await readFile(new URL('../supabase/migrations/202610170001_osm_pois.sql', import.meta.url), 'utf8') + '\n' + routeMigration;
   await writeFile(join(outputDir, '04-route-search.sql'), routeMigration);
   await writeFile(join(outputDir, 'import.sql'), sql);
@@ -96,7 +97,7 @@ export async function preparePoi({ input = 'output/poi/poi-elements.jsonl', outp
   const partsDir = join(outputDir, 'sql-editor', datasetId);
   await mkdir(partsDir, { recursive: true });
   for (let i = 0; i < editor.parts.length; i++) await writeFile(join(partsDir, `02-data-${String(i + 1).padStart(3, '0')}.sql`), editor.parts[i]);
-  await writeFile(join(outputDir, 'IMPORT-README.txt'), `NHAP DU LIEU POI VAO SUPABASE\n\n1. SQL Editor: chay toan bo file 01-setup.sql (nho).\n2. Table Editor: chon bang public.osm_pois -> Insert -> Import data from CSV. Chon file pois.csv. Cho import hoan tat.\n3. SQL Editor: chay toan bo file 03-activate.sql. Ket qua can ready=true va imported_count=${records.length}.\n\nNeu da nhap va kich hoat du lieu truoc day: chi chay 04-route-search.sql de them tim doc tuyen; khong nhap lai CSV.\n\nKhong dan setup-and-import.sql/import.sql vao SQL Editor: cac file do danh cho ket noi database truc tiep.\nNeu CSV bao trung khoa do da nhap mot phan, dung cac file 02-data-*.sql trong sql-editor/${datasetId}/ theo thu tu, roi chay 03-activate.sql. Cac phan SQL co the chay lai an toan. Khong xoa bang hay tat RLS.\n`);
+  await writeFile(join(outputDir, 'IMPORT-README.txt'), `NHAP DU LIEU POI VAO SUPABASE\n\n1. SQL Editor: chay toan bo file 01-setup.sql (nho).\n2. Table Editor: chon bang public.osm_pois -> Insert -> Import data from CSV. Chon file pois.csv. Cho import hoan tat.\n3. SQL Editor: chay toan bo file 03-activate.sql. Ket qua can ready=true va imported_count=${records.length}.\n\nNeu da nhap va kich hoat du lieu truoc day: bo sung an/uong can chay lai du 3 buoc voi CSV moi. Chi chay 04-route-search.sql se cap nhat RPC nhung khong them du lieu an/uong.\n\nKhong dan setup-and-import.sql/import.sql vao SQL Editor: cac file do danh cho ket noi database truc tiep.\nNeu CSV bao trung khoa do da nhap mot phan, dung cac file 02-data-*.sql trong sql-editor/${datasetId}/ theo thu tu, roi chay 03-activate.sql. Cac phan SQL co the chay lai an toan. Khong xoa bang hay tat RLS.\n`);
   const report = { datasetId, source: metadata, counts, total: records.length, rejected,
     sqlBytes: (await stat(join(outputDir, 'setup-and-import.sql'))).size,
     csvBytes: (await stat(join(outputDir, 'pois.csv'))).size,

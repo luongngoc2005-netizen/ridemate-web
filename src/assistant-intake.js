@@ -1,6 +1,7 @@
 import {cleanProfile,profileQuestions} from './ride-review.js';
 import {validOriginPoint} from './origin-data.js';
 import {provinceLocation} from './province-locations.js';
+import {destinationArea} from './destination-data.js';
 
 const fold=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase();
 const text=value=>typeof value==='string'?value.trim():'';
@@ -8,7 +9,7 @@ const place=value=>{
   let s=text(value).replace(/[.!?,;]+$/,'').trim();
   const suffix=fold(s).search(/(?:\s|[,;])+(?:cho (?:toi|minh|em|anh|chi|ban)|giup (?:toi|minh|em)|dum (?:toi|minh)|nhe|nha|voi nhe|duoc khong|duoc chu)(?:\s|[.!?,;]|$)/);
   if(suffix>=0)s=s.slice(0,suffix).trim();
-  return provinceLocation(s)?.name||s;
+  return destinationArea(s)?.name||provinceLocation(s)?.name||s;
 };
 const validDate=value=>{
   if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))return false;
@@ -37,7 +38,7 @@ export function requestedPlaces(message){
   const arrow=message.match(/(.+?)\s*[-–→]\s*(.+)/);
   if(arrow){
     const origin=arrow[1].replace(/^.*?(?:lịch trình|lich trinh|kế hoạch|ke hoach)\s*/i,'').replace(/^\d+\s*[nN]\s*\d+\s*[đdĐD]\s*/,'').trim();
-    if(provinceLocation(origin))return {origin:place(origin),destination:truncate(arrow[2])};
+    if(destinationArea(origin)||provinceLocation(origin))return {origin:place(origin),destination:truncate(arrow[2])};
   }
   const destination=message.match(/(?:^|\s)(?:ở|tại|đến|tới|đi|o|tai|den)\s+(?:địa điểm\s+)?(.+)/i);
   if(!destination)return {origin:'',destination:''};

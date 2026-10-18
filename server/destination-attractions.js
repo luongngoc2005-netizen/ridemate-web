@@ -1,16 +1,30 @@
 import {provinceLocation,provinceLocations} from '../src/province-locations.js';
 import {suggestionsFor,destinations} from '../src/trip-data.js';
+import {destinationArea} from '../src/destination-data.js';
+import {requestedPlaces} from '../src/assistant-intake.js';
 import {validPoint} from '../src/places-data.js';
 import {apiError} from './supabase-gate.js';
 
 export const foldPlace=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const caches=new WeakMap();
 export function attractionRequests(payload){
-  const text=[payload.message,payload.context?.preferences].filter(Boolean).join('. '),folded=foldPlace(text);
+  const text=[payload.message,payload.context?.preferences].filter(Boolean).join('. ');
+  let folded=foldPlace(text);
+  // "đến Hưng Yên" is a route endpoint, not a request for "Đền Hùng".
+  // Mask endpoint phrases only; keep later explicit landmark requests intact.
+  const route=requestedPlaces(payload.message||'');
+  for(const place of [route.origin,route.destination,payload.context?.origin,payload.context?.destination]){
+    const area=destinationArea(place);if(!area)continue;
+    for(const name of [area.name,...(area.aliases||[])]){
+      const phrase=foldPlace(name);
+      folded=folded.replace(new RegExp(`\\b(?:tu|den|toi|di|tai|o) ${phrase}(?= |$)`,'g'),s=>' '.repeat(s.length));
+    }
+  }
   const include=new Set(),exclude=new Set();
   for(const name of destinations.flatMap(d=>d.places)){
     const full=foldPlace(name),short=full.replace(/^(?:thac|dong|chua|nui|khu di tich|bai bien|vuon quoc gia) /,'');
-    const at=folded.indexOf(full)>=0?folded.indexOf(full):short.split(' ').length>=2?folded.indexOf(short):-1;if(at<0)continue;
+    const atFull=` ${folded} `.indexOf(` ${full} `),atShort=short.split(' ').length>=2?` ${folded} `.indexOf(` ${short} `):-1;
+    const at=atFull>=0?atFull:atShort;if(at<0)continue;
     const before=folded.slice(Math.max(0,at-35),at);
     (/\b(?:khong (?:muon )?(?:di|ghe|tham|tham quan)|bo|bot|loai|tru)\s*$/.test(before)?exclude:include).add(name);
   }
@@ -19,7 +33,7 @@ export function attractionRequests(payload){
     if(/(?:không(?: muốn)?|bỏ)\s*$/i.test(text.slice(Math.max(0,match.index-18),match.index)))continue;
     for(const part of match[1].split(/,|\s+và\s+/i)){
       const name=part.split(/\s+(?:trong|vào|ngày|rồi|sau đó|giúp|cho tôi)\b/i)[0].trim();
-      if(!name||name.length>120||provinceLocation(name)||/^(?:các? |những |một |quán |nhà hàng |điểm |địa điểm |nơi |đâu|gì|thiên nhiên|danh lam)/i.test(name))continue;
+      if(!name||name.length>120||destinationArea(name)||provinceLocation(name)||/^(?:các? |những |một |quán |nhà hàng |điểm |địa điểm |nơi |đâu|gì|thiên nhiên|danh lam)/i.test(name))continue;
       if(![...include,...exclude].some(p=>foldPlace(name).includes(foldPlace(p))||foldPlace(p).endsWith(foldPlace(name))))include.add(name);
     }
   }
@@ -34,8 +48,8 @@ export async function destinationAttractions(destination,{fetchImpl=fetch,signal
     if(!curated.length)throw apiError(503,'AI_DESTINATION_DATA_UNAVAILABLE');
     return {...local,places:curated,items:[],required:requested,excluded:excludedNames,mode:'famous'};
   }
-  if(!requested.length)throw apiError(503,'AI_DESTINATION_DATA_UNAVAILABLE');
   const region=provinceLocation(destination);
+  if(!requested.length)throw apiError(region?422:503,region?'AI_DESTINATION_NOT_SUPPORTED':'AI_DESTINATION_DATA_UNAVAILABLE');
   let cache=caches.get(fetchImpl);if(!cache){cache=new Map();caches.set(fetchImpl,cache);}
   const cacheKey=JSON.stringify([destination,requested,excludedNames]);
   const cached=cache.get(cacheKey);if(cached?.until>Date.now())return cached.value;
@@ -77,10 +91,18 @@ export function validateDestinationDraft(draft,selection,origin){
   const prose=foldPlace([draft.summary,...draft.days.flatMap(d=>[d.title,d.morning,d.afternoon,d.evening,d.lodging])].join(' '));
   if(selection.excluded?.some(name=>` ${prose} `.includes(` ${foldPlace(name)} `)))throw apiError(502,'AI_DESTINATION_MISMATCH');
   const regions=[...destinations,...provinceLocations];
+  const subregions=destinations.filter(region=>region.parent&&foldPlace(region.parent)===foldPlace(selection.name)).map(region=>region.name);
+  const local=suggestionsFor(selection.name);
+  // A landmark can contain another area name (e.g. Mộc Châu in Sơn La).
+  // Validate those names separately, then mask approved landmarks for region checks.
+  let regionProse=` ${prose} `;
+  for(const name of [...allowed].sort((a,b)=>b.length-a.length))regionProse=regionProse.replaceAll(` ${name} `,' ');
+  const permitted=[origin,draft.destination,selection.name,local?.parent,local?.currentProvince,...subregions].filter(Boolean).flatMap(value=>[value,destinationArea(value)?.name].filter(Boolean)).map(foldPlace);
   for(const region of regions){
     // Origin is valid in the travel legs, but unrelated regions/attractions are not.
     const name=foldPlace(region.name);
-    if([origin,draft.destination,selection.name].some(p=>foldPlace(p).includes(name)))continue;
-    if(` ${prose} `.includes(` ${name} `)||region.places?.some(p=>` ${prose} `.includes(` ${foldPlace(p)} `)))throw apiError(502,'AI_DESTINATION_MISMATCH');
+    if(region.places?.some(p=>!allowed.has(foldPlace(p))&&` ${prose} `.includes(` ${foldPlace(p)} `)))throw apiError(502,'AI_DESTINATION_MISMATCH');
+    if(permitted.some(p=>p===name||` ${p} `.includes(` ${name} `)))continue;
+    if(regionProse.includes(` ${name} `))throw apiError(502,'AI_DESTINATION_MISMATCH');
   }
 }

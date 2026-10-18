@@ -14,6 +14,7 @@ Chạy các file trong SQL Editor theo thứ tự, chỉ chạy phần chưa đ�
 | [202609270001_demo_bookings.sql](./supabase/migrations/202609270001_demo_bookings.sql) | Catalog/đơn chỗ nghỉ demo và RPC đặt/hủy |
 | [202609300001_ai_quota.sql](./supabase/migrations/202609300001_ai_quota.sql) | Hạn mức API AI theo tài khoản/toàn ứng dụng |
 | [202610170001_osm_pois.sql](./supabase/migrations/202610170001_osm_pois.sql) | Tùy chọn: PostGIS và truy vấn xăng/nghỉ/sửa xe từ bản trích OSM Việt Nam; xem [POI_SETUP](./POI_SETUP.md) để nhập dữ liệu |
+| [202610180001_food_drink_pois.sql](./supabase/migrations/202610180001_food_drink_pois.sql) | Bổ sung quán ăn/đồ uống vào POI; cần nhập snapshot mới theo [POI_SETUP](./POI_SETUP.md), không chỉ chạy migration |
 
 Tự đồng bộ nhiều kế hoạch dùng bảng và RPC workspace hiện có, không cần migration mới. Không chạy lại migration workspace chỉ để bật tính năng đồng bộ. Kiểm tra lỗi SQL và bảng/hàm/bucket sau mỗi bước.
 

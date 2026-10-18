@@ -49,7 +49,7 @@ if (!config.url || !config.key) {
       if (!data) throw new Error('POI snapshot is not published or nearby_pois migration is missing.');
       const places = selectPlaces(data.elements, [point, point], 30);
       console.log(JSON.stringify({ attempt: attempt + 1, elapsedMs: Math.round(performance.now() - start), dataset: data.dataset,
-        sourceDate: data.sourceDate, complete: data.complete, counts: Object.fromEntries(['fuel', 'rest', 'repair'].map(type => [type, places.filter(p => p.type === type).length])) }));
+        sourceDate: data.sourceDate, complete: data.complete, counts: Object.fromEntries(['fuel', 'rest', 'repair', 'food', 'drink'].map(type => [type, places.filter(p => p.type === type).length])) }));
     } catch (error) { console.error(error.message); process.exitCode = 1; break; }
   }
 }

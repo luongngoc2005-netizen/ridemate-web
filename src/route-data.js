@@ -365,7 +365,7 @@ export async function loadRoutePlaces(route, category, signal, onProgress = () =
   routePoiCache.set(route, cache);
   const saved = cache.get(key);
   if (saved?.expires > Date.now()) { onProgress(saved.result); return saved.result; }
-  const useDatabase = mapServices.nearbyProvider !== 'overpass' && ['fuel', 'rest', 'repair'].includes(category);
+  const useDatabase = mapServices.nearbyProvider !== 'overpass';
   const line = simplifyRoute(route.coordinates, 100);
   let data = null;
   // Large, intricate itineraries are queried in overlapping vertex chunks;

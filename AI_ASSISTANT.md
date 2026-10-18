@@ -4,9 +4,14 @@
 
 Khi không yêu cầu điểm cụ thể, backend chỉ dùng danh sách địa danh nổi bật của B
 có nguồn từ Vietnam Tourism hoặc cơ quan địa phương. Không gọi Overpass để lấy
-POI bất kỳ cho trường hợp này. Danh sách hiện có 12 khu vực: Hà Nội, Ninh Bình,
-Huế, Đà Nẵng, Hồ Chí Minh, Đà Lạt, Quảng Ninh, Lạng Sơn, Hà Giang, Cao Bằng,
-Mộc Châu và Cát Bà. Chưa có danh sách cho B thì báo `AI_DESTINATION_DATA_UNAVAILABLE`;
+POI bất kỳ cho trường hợp này. Danh sách hiện phủ đủ 63 tỉnh/thành theo tên cũ,
+kèm Đà Lạt, Mộc Châu, Cát Bà: 66 khu vực, 177 tên điểm tham quan khác nhau.
+Nhận cả tên cũ, tên hiện hành và ánh xạ sang 34 tỉnh/thành; giữ phạm vi du lịch cũ,
+không thay tọa độ điểm đến bằng trung tâm tỉnh sau sáp nhập. Danh sách và nguồn:
+[DESTINATION_DATA.md](./DESTINATION_DATA.md). Không cần migration Supabase.
+Đã nhận diện tỉnh/thành nhưng thiếu danh sách thì báo
+`AI_DESTINATION_NOT_SUPPORTED` (422), không yêu cầu người dùng nhập lại tên rõ hơn.
+Điểm đến chưa nhận diện và chưa có dữ liệu thì báo `AI_DESTINATION_DATA_UNAVAILABLE`;
 không mượn địa điểm tỉnh khác. Nguồn tham khảo hiện ngay trên lịch đề xuất.
 
 Điểm được yêu cầu cụ thể được ưu tiên và kiểm tra bắt buộc có trong lịch; yêu cầu
@@ -19,6 +24,11 @@ không được yêu cầu bị chặn bằng `AI_DESTINATION_MISMATCH`. Dữ li
 thời gian chạy hay tính khả thi: vẫn cần tính tuyến riêng. Tọa độ OSM được giữ cùng
 điểm và đưa ra cho người dùng đối chiếu, không tìm lại tên trên toàn quốc nếu đã có.
 Nguồn Lạng Sơn: https://tamthanh.langson.gov.vn/gioi-thieu/di-tich-danh-thang.
+Nguồn Hải Phòng: https://hatay.haiphong.gov.vn/di-san-van-hoa-78115/kham-pha-canh-dep-hai-phong-nam-2026-964803.
+Danh sách Hải Phòng có các điểm nội đô, Đồ Sơn và các điểm Cát Bà. Chỉ chọn
+một nhóm vừa sức; nguồn địa danh không xác nhận khả năng ghép hết vào 3 ngày.
+Cát Bà là khu vực con của Hải Phòng nên không bị chặn nhầm là đi sang tỉnh khác;
+nếu người dùng chọn riêng Cát Bà thì ưu tiên danh sách riêng của Cát Bà.
 
 Backend hỗ trợ `AI_PROVIDER=vllm|openrouter|openai`. Xem [vLLM](./VLLM_SETUP.md), [OpenRouter](./OPENROUTER_SETUP.md) và [deploy](./RENDER_DEPLOY.md). Khóa chỉ nằm ở server. API AI yêu cầu đăng nhập Supabase và migration hạn mức; không cần service-role key.
 

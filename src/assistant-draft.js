@@ -4,6 +4,7 @@ import {validOriginPoint} from './origin-data.js';
 import {intakeContext} from './assistant-intake.js';
 import {cleanStopLocations,locationKey,cleanDestinationAttractions} from './attraction-location.js';
 import {cleanDayPlanning} from './trip-feasibility.js';
+import {trustedLandmarkSource} from './destination-data.js';
 
 const string=(v,max=600)=>typeof v==='string'&&v.trim().length>0&&v.length<=max;
 const strings=(v,max=15)=>Array.isArray(v)&&v.length<=max&&v.every(x=>string(x));
@@ -19,7 +20,7 @@ export function cleanDraft(value,{keepContext=true}={}){
     days:value.days.map(d=>({title:d.title,morning:d.morning,afternoon:d.afternoon,evening:d.evening,lodging:d.lodging,stops:[...d.stops]}))};
   if(keepContext){
     if(value.landmarkSource?.destination===value.destination){
-      try{const url=new URL(value.landmarkSource.url);if(url.protocol==='https:'&&!url.username&&!url.password&&(url.hostname==='vietnam.travel'||url.hostname.endsWith('.vietnam.travel')||url.hostname.endsWith('.langson.gov.vn')))result.landmarkSource={destination:value.destination,url:url.href};}catch{}
+      if(trustedLandmarkSource(value.landmarkSource.url))result.landmarkSource={destination:value.destination,url:new URL(value.landmarkSource.url).href};
     }
     const attractions=cleanDestinationAttractions(value.destinationAttractions,value.destination);
     if(attractions)result.destinationAttractions=attractions;

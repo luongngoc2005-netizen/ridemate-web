@@ -1,0 +1,812 @@
+[
+  {
+    "name": "Hà Nội",
+    "source": "https://vietnam.travel/places-to-go/northern-vietnam/ha-noi",
+    "places": [
+      "Hồ Hoàn Kiếm",
+      "Phố cổ Hà Nội",
+      "Bảo tàng Mỹ thuật Việt Nam"
+    ],
+    "currentProvince": "Hà Nội",
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18",
+    "aliases": [
+      "HN"
+    ]
+  },
+  {
+    "name": "Hải Phòng",
+    "source": "https://hatay.haiphong.gov.vn/di-san-van-hoa-78115/kham-pha-canh-dep-hai-phong-nam-2026-964803",
+    "places": [
+      "Nhà hát lớn Hải Phòng",
+      "Hồ Tam Bạc",
+      "Bảo tàng Hải Phòng",
+      "Bãi biển Đồ Sơn",
+      "Tháp Tường Long",
+      "Vườn quốc gia Cát Bà",
+      "Động Trung Trang",
+      "Bãi biển Cát Cò"
+    ],
+    "currentProvince": "Hải Phòng",
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Ninh Bình",
+    "source": "https://vietnam.travel/things-to-do/10-must-do-activities-ninh-binh",
+    "places": [
+      "Tràng An",
+      "Tam Cốc",
+      "Hang Múa",
+      "Chùa Bái Đính",
+      "Chùa Bích Động",
+      "Vườn quốc gia Cúc Phương"
+    ],
+    "currentProvince": "Ninh Bình",
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Huế",
+    "source": "https://vietnam.travel/places-to-go/north-central-coast/hue",
+    "places": [
+      "Đại Nội Huế",
+      "Chùa Thiên Mụ",
+      "Chùa Từ Hiếu"
+    ],
+    "currentProvince": "Huế",
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18",
+    "aliases": [
+      "Thừa Thiên Huế",
+      "Thừa Thiên - Huế"
+    ]
+  },
+  {
+    "name": "Đà Nẵng",
+    "source": "https://vietnam.travel/places-to-go/south-central-coast-central-highlands/da-nang",
+    "places": [
+      "Ngũ Hành Sơn",
+      "Bãi biển Mỹ Khê",
+      "Bán đảo Sơn Trà"
+    ],
+    "currentProvince": "Đà Nẵng",
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Hồ Chí Minh",
+    "source": "https://vietnam.travel/node/137",
+    "places": [
+      "Dinh Độc Lập",
+      "Bảo tàng Chứng tích Chiến tranh",
+      "Địa đạo Củ Chi"
+    ],
+    "currentProvince": "Hồ Chí Minh",
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18",
+    "aliases": [
+      "TP HCM",
+      "TPHCM",
+      "HCM",
+      "Sài Gòn"
+    ]
+  },
+  {
+    "name": "Đà Lạt",
+    "source": "https://vietnam.travel/index.php/vi/places-to-go/central-vietnam/dalat",
+    "places": [
+      "Hồ Xuân Hương",
+      "Chùa Linh Phước",
+      "Hồ Tuyền Lâm"
+    ],
+    "currentProvince": "Lâm Đồng",
+    "parent": "Lâm Đồng",
+    "level": "destination",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Quảng Ninh",
+    "source": "https://vietnam.travel/node/1368",
+    "places": [
+      "Vịnh Hạ Long",
+      "Hang Sửng Sốt",
+      "Động Mê Cung"
+    ],
+    "currentProvince": "Quảng Ninh",
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Lạng Sơn",
+    "source": "https://tamthanh.langson.gov.vn/gioi-thieu/di-tich-danh-thang",
+    "places": [
+      "Động Tam Thanh",
+      "Động Nhị Thanh",
+      "Núi Tô Thị",
+      "Thành nhà Mạc"
+    ],
+    "currentProvince": "Lạng Sơn",
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Hà Giang",
+    "source": "https://www.vietnam.travel/vi/node/1641",
+    "places": [
+      "Cổng trời Quản Bạ",
+      "Phố cổ Đồng Văn",
+      "Cột cờ Lũng Cú",
+      "Đèo Mã Pí Lèng"
+    ],
+    "currentProvince": "Tuyên Quang",
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Cao Bằng",
+    "source": "https://vietnam.travel/node/606",
+    "places": [
+      "Thác Bản Giốc",
+      "Động Ngườm Ngao",
+      "Khu di tích Pác Bó"
+    ],
+    "currentProvince": "Cao Bằng",
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18",
+    "aliases": [
+      "CB"
+    ]
+  },
+  {
+    "name": "Mộc Châu",
+    "source": "https://www.vietnam.travel/things-to-do/moc-chau-your-one-stop-nature-escape",
+    "places": [
+      "Thác Dải Yếm",
+      "Đồi chè Mộc Châu"
+    ],
+    "currentProvince": "Sơn La",
+    "parent": "Sơn La",
+    "level": "destination",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Cát Bà",
+    "parent": "Hải Phòng",
+    "source": "https://www.vietnam.travel/things-to-do/things-do-north-vietnam",
+    "places": [
+      "Vườn quốc gia Cát Bà",
+      "Động Trung Trang",
+      "Bãi biển Cát Cò"
+    ],
+    "currentProvince": "Hải Phòng",
+    "level": "destination",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Bắc Giang",
+    "currentProvince": "Bắc Ninh",
+    "source": "https://vietnamtourism.gov.vn/post/28210",
+    "places": [
+      "Chùa Vĩnh Nghiêm",
+      "Chùa Thượng Tây Yên Tử"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Bắc Kạn",
+    "currentProvince": "Thái Nguyên",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1285/",
+    "places": [
+      "Hồ Ba Bể",
+      "Động Puông",
+      "Thác Đầu Đẳng"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Bắc Ninh",
+    "currentProvince": "Bắc Ninh",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1432/3",
+    "places": [
+      "Chùa Dâu",
+      "Đền Đô",
+      "Chùa Bút Tháp"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Lai Châu",
+    "currentProvince": "Lai Châu",
+    "source": "https://nongthon.vietnamtourism.gov.vn/den-voi-mien-dat-huyen-bi-lai-chau/",
+    "places": [
+      "Động Pu Sam Cáp",
+      "Cao nguyên Sìn Hồ"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Điện Biên",
+    "currentProvince": "Điện Biên",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2068",
+    "places": [
+      "Đồi A1",
+      "Hầm chỉ huy tướng Đờ Cát",
+      "Tượng đài chiến thắng Điện Biên Phủ"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Yên Bái",
+    "currentProvince": "Lào Cai",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1293",
+    "places": [
+      "Ruộng bậc thang Mù Cang Chải",
+      "Hồ Thác Bà"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Hòa Bình",
+    "currentProvince": "Phú Thọ",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2223",
+    "places": [
+      "Nhà máy thủy điện Hòa Bình",
+      "Bản Lác",
+      "Thung Nai"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Lào Cai",
+    "currentProvince": "Lào Cai",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/533/5",
+    "places": [
+      "Núi Fansipan",
+      "Bản Cát Cát",
+      "Thác Tình Yêu"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Phú Thọ",
+    "currentProvince": "Phú Thọ",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1367/2",
+    "places": [
+      "Khu di tích Đền Hùng",
+      "Vườn quốc gia Xuân Sơn"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Sơn La",
+    "currentProvince": "Sơn La",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2229",
+    "places": [
+      "Nhà tù Sơn La",
+      "Thác Dải Yếm",
+      "Đồi chè Mộc Châu"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Tuyên Quang",
+    "currentProvince": "Tuyên Quang",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2605",
+    "places": [
+      "Khu di tích Tân Trào",
+      "Khu du lịch sinh thái Na Hang",
+      "Thác Mơ Na Hang"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Vĩnh Phúc",
+    "currentProvince": "Phú Thọ",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2747",
+    "places": [
+      "Khu danh thắng Tây Thiên",
+      "Tháp Bình Sơn",
+      "Hồ Đại Lải"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Hải Dương",
+    "currentProvince": "Hải Phòng",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1208/3",
+    "places": [
+      "Khu di tích Côn Sơn",
+      "Đền Kiếp Bạc",
+      "Văn miếu Mao Điền"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Thái Nguyên",
+    "currentProvince": "Thái Nguyên",
+    "source": "https://vietnamtourism.gov.vn/post/67687",
+    "places": [
+      "Hồ Núi Cốc",
+      "ATK Định Hóa"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Hưng Yên",
+    "currentProvince": "Hưng Yên",
+    "source": "https://vietnamtourism.vn/index.php/news/items/15256",
+    "places": [
+      "Chùa Chuông",
+      "Văn miếu Xích Đằng",
+      "Đền Mẫu Phố Hiến"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Thanh Hóa",
+    "currentProvince": "Thanh Hóa",
+    "source": "https://vietnamtourism.vn/index.php/about/provinces/8437",
+    "places": [
+      "Thành nhà Hồ",
+      "Khu di tích Lam Kinh"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Thái Bình",
+    "currentProvince": "Hưng Yên",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1353/2",
+    "places": [
+      "Chùa Keo Thái Bình",
+      "Khu di tích các vua Trần Thái Bình",
+      "Đền Đồng Bằng"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Nam Định",
+    "currentProvince": "Ninh Bình",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2837/1",
+    "places": [
+      "Đền Trần Nam Định",
+      "Phủ Dầy",
+      "Chùa Cổ Lễ"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Hà Nam",
+    "currentProvince": "Ninh Bình",
+    "source": "https://nongthon.vietnamtourism.gov.vn/ung-von-cho-da-khu-du-lich-tam-chuc-ha-nam/",
+    "places": [
+      "Khu du lịch Tam Chúc",
+      "Chùa Bà Đanh"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Hà Tĩnh",
+    "currentProvince": "Hà Tĩnh",
+    "source": "https://vietnamtourism.vn/index.php/news/items/9656",
+    "places": [
+      "Ngã ba Đồng Lộc",
+      "Bãi biển Thiên Cầm"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Quảng Bình",
+    "currentProvince": "Quảng Trị",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2917/2",
+    "places": [
+      "Động Thiên Đường",
+      "Vườn quốc gia Phong Nha - Kẻ Bàng"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Nghệ An",
+    "currentProvince": "Nghệ An",
+    "source": "https://vietnamtourism.gov.vn/en/post/13787",
+    "places": [
+      "Khu di tích Kim Liên",
+      "Bãi biển Cửa Lò"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Quảng Ngãi",
+    "currentProvince": "Quảng Ngãi",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1275",
+    "places": [
+      "Đảo Lý Sơn",
+      "Khu chứng tích Sơn Mỹ",
+      "Chùa Thiên Ấn"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Quảng Nam",
+    "currentProvince": "Đà Nẵng",
+    "source": "https://2025.vietnam.travel/en/quang-nam-launches-hoi-an-my-son-dong-giang-heaven-gate-tourism-route/",
+    "places": [
+      "Phố cổ Hội An",
+      "Thánh địa Mỹ Sơn"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Quảng Trị",
+    "currentProvince": "Quảng Trị",
+    "source": "https://vietnamtourism.gov.vn/post/45986",
+    "places": [
+      "Thành cổ Quảng Trị",
+      "Địa đạo Vịnh Mốc",
+      "Cầu Hiền Lương"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Bình Định",
+    "currentProvince": "Gia Lai",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2063",
+    "places": [
+      "Tháp Đôi Quy Nhơn",
+      "Ghềnh Ráng Tiên Sa",
+      "Tháp Bánh Ít"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Phú Yên",
+    "currentProvince": "Đắk Lắk",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2930",
+    "places": [
+      "Gành Đá Đĩa",
+      "Tháp Nhạn",
+      "Bãi Môn - Mũi Điện"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Khánh Hòa",
+    "currentProvince": "Khánh Hòa",
+    "source": "https://vietnam.travel/node/220",
+    "places": [
+      "Tháp Bà Ponagar",
+      "Chùa Long Sơn"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Ninh Thuận",
+    "currentProvince": "Khánh Hòa",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1295",
+    "places": [
+      "Tháp Po Klong Garai",
+      "Vịnh Vĩnh Hy",
+      "Vườn quốc gia Núi Chúa"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Bình Thuận",
+    "currentProvince": "Lâm Đồng",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2703",
+    "places": [
+      "Đồi cát Mũi Né",
+      "Tháp Pô Sah Inư",
+      "Trường Dục Thanh"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Kon Tum",
+    "currentProvince": "Quảng Ngãi",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2834",
+    "places": [
+      "Nhà thờ gỗ Kon Tum",
+      "Khu du lịch Măng Đen"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Gia Lai",
+    "currentProvince": "Gia Lai",
+    "source": "https://dantoc.vietnamtourism.gov.vn/bien-ho-chu-dang-ya-vien-ngoc-xanh-giua-dai-ngan-tay-nguyen/",
+    "places": [
+      "Biển Hồ Pleiku",
+      "Núi lửa Chư Đăng Ya"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Đắk Nông",
+    "currentProvince": "Lâm Đồng",
+    "source": "https://vietnamtourism.vn/index.php/news/items/21815",
+    "places": [
+      "Hồ Tà Đùng",
+      "Thác Liêng Nung",
+      "Chùa Pháp Hoa Gia Nghĩa"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18",
+    "aliases": [
+      "Đăk Nông",
+      "Dak Nong"
+    ]
+  },
+  {
+    "name": "Bình Phước",
+    "currentProvince": "Đồng Nai",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2706",
+    "places": [
+      "Vườn quốc gia Bù Gia Mập",
+      "Trảng cỏ Bàu Lạch",
+      "Hồ Suối Lam"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Đắk Lắk",
+    "currentProvince": "Đắk Lắk",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2182/3",
+    "places": [
+      "Hồ Lắk",
+      "Chùa Khải Đoan"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18",
+    "aliases": [
+      "Đăk Lăk",
+      "Dak Lak"
+    ]
+  },
+  {
+    "name": "Bình Dương",
+    "currentProvince": "Hồ Chí Minh",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2881",
+    "places": [
+      "Chùa Hội Khánh",
+      "Chùa Bà Thiên Hậu Bình Dương",
+      "Núi Châu Thới"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Đồng Nai",
+    "currentProvince": "Đồng Nai",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2881",
+    "places": [
+      "Vườn quốc gia Cát Tiên",
+      "Bàu Sấu"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Bà Rịa - Vũng Tàu",
+    "currentProvince": "Hồ Chí Minh",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2119/4",
+    "places": [
+      "Bãi Sau Vũng Tàu",
+      "Bạch Dinh",
+      "Tượng Chúa Kitô Vua"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18",
+    "aliases": [
+      "Bà Rịa Vũng Tàu",
+      "BRVT"
+    ]
+  },
+  {
+    "name": "Tây Ninh",
+    "currentProvince": "Tây Ninh",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1341",
+    "places": [
+      "Tòa thánh Cao Đài Tây Ninh",
+      "Núi Bà Đen"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Tiền Giang",
+    "currentProvince": "Đồng Tháp",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/2737",
+    "places": [
+      "Chùa Vĩnh Tràng",
+      "Cù lao Thới Sơn",
+      "Chợ nổi Cái Bè"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Bến Tre",
+    "currentProvince": "Vĩnh Long",
+    "source": "https://vietnamtourism.vn/index.php/news/items/9867",
+    "places": [
+      "Cồn Phụng",
+      "Khu lăng mộ Nguyễn Đình Chiểu"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Trà Vinh",
+    "currentProvince": "Vĩnh Long",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1395",
+    "places": [
+      "Ao Bà Om",
+      "Chùa Âng",
+      "Bãi biển Ba Động"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Đồng Tháp",
+    "currentProvince": "Đồng Tháp",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/815/",
+    "places": [
+      "Vườn quốc gia Tràm Chim",
+      "Làng hoa Sa Đéc",
+      "Khu di tích Gò Tháp"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "An Giang",
+    "currentProvince": "An Giang",
+    "source": "https://vietnamtourism.vn/index.php/news/items/28534",
+    "places": [
+      "Miếu Bà Chúa Xứ núi Sam",
+      "Rừng tràm Trà Sư",
+      "Núi Cấm"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Vĩnh Long",
+    "currentProvince": "Vĩnh Long",
+    "source": "https://nongthon.vietnamtourism.gov.vn/mot-so-diem-du-lich-hap-dan-tai-vinh-long/",
+    "places": [
+      "Văn Thánh Miếu Vĩnh Long",
+      "Làng gạch Mang Thít"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Long An",
+    "currentProvince": "Tây Ninh",
+    "source": "https://dulich.longan.gov.vn/tin-tuc/ket-noi-tour-diem-khoi-day-tiem-nang-du-lich-long-an-193",
+    "places": [
+      "Làng nổi Tân Lập",
+      "Nhà cổ Trăm Cột"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Cần Thơ",
+    "currentProvince": "Cần Thơ",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1288",
+    "places": [
+      "Chợ nổi Cái Răng",
+      "Nhà cổ Bình Thủy",
+      "Bến Ninh Kiều"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Kiên Giang",
+    "currentProvince": "An Giang",
+    "source": "https://dulich.angiang.gov.vn/page/gioi-thieu-khai-quat-ve-tinh-kien-giang",
+    "places": [
+      "Thạch Động Hà Tiên",
+      "Bãi biển Mũi Nai",
+      "Lăng Mạc Cửu"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Hậu Giang",
+    "currentProvince": "Cần Thơ",
+    "source": "https://vietnamtourism.gov.vn/post/40583",
+    "places": [
+      "Khu bảo tồn thiên nhiên Lung Ngọc Hoàng",
+      "Kênh Xà No"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Sóc Trăng",
+    "currentProvince": "Cần Thơ",
+    "source": "https://vietnamtourism.vn/index.php/about/provinces/8479",
+    "places": [
+      "Chùa Dơi",
+      "Chùa Đất Sét",
+      "Chùa Chén Kiểu"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Bạc Liêu",
+    "currentProvince": "Cà Mau",
+    "source": "https://vietnamtourism.vn/index.php/tourism/items/1187",
+    "places": [
+      "Nhà công tử Bạc Liêu",
+      "Vườn chim Bạc Liêu",
+      "Chùa Xiêm Cán"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Cà Mau",
+    "currentProvince": "Cà Mau",
+    "source": "https://vietnamtourism.vn/index.php/news/items/25579",
+    "places": [
+      "Vườn quốc gia U Minh Hạ",
+      "Vườn quốc gia Mũi Cà Mau"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  },
+  {
+    "name": "Lâm Đồng",
+    "currentProvince": "Lâm Đồng",
+    "source": "https://vietnam.travel/index.php/vi/places-to-go/central-vietnam/dalat",
+    "places": [
+      "Hồ Xuân Hương",
+      "Chùa Linh Phước",
+      "Hồ Tuyền Lâm"
+    ],
+    "level": "legacy-province",
+    "verifiedAt": "2026-10-18"
+  }
+]

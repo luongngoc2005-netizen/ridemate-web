@@ -1,5 +1,6 @@
 import { searchPlannedCandidates, geocode } from './route-data.js';
 import { validPoint } from './places-data.js';
+import {suggestionsFor,destinationAddressMatches} from './destination-data.js';
 
 export const locationKey = (name, destination) => `${destination.trim()}::${name.trim()}`;
 const fold = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
@@ -10,7 +11,8 @@ export function cleanDestinationAttractions(value,destination){
 }
 export function relevantAttractions(name,destination,candidates){
   const tokens=fold(name).split(' ').filter(t=>!['dong','thac','vuon','quoc','gia','deo','nui','chua','di','tich','khu','pho','co','thanh'].includes(t));
-  return candidates.filter(p=>validPoint(p.coordinates)&&fold(p.address||'').includes(fold(destination))&&
+  const known=suggestionsFor(destination)?.places.some(place=>fold(place)===fold(name));
+  return candidates.filter(p=>validPoint(p.coordinates)&&destinationAddressMatches(destination,p.address,{allowCurrent:known&&fold(p.name)===fold(name)})&&
     (['tourism','historic','natural'].includes(p.kind)||p.kind==='waterway'&&p.subtype==='waterfall')&&
     !['hotel','hostel','guest_house','motel','city','town','village'].includes(p.subtype)&&
     (fold(p.name)===fold(name)||tokens.length>=2&&tokens.every(t=>fold(p.name).split(' ').includes(t))));
@@ -43,7 +45,7 @@ export async function findAttraction(name, destination, signal) {
   const exact = matchingAttractions(name, candidates);
   // Matching a name alone does not establish the province. Require the local
   // address as well; otherwise the user must confirm a candidate.
-  const region = fold(destination);
-  const verified = exact.filter(p => fold(p.address).includes(region));
+  const known=suggestionsFor(destination)?.places.some(place=>fold(place)===fold(name));
+  const verified = exact.filter(p => destinationAddressMatches(destination,p.address,{allowCurrent:known}));
   return { candidates, automatic: verified.length === 1 && exact.length === 1 ? verified[0] : null };
 }

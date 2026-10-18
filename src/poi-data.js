@@ -4,6 +4,8 @@ export function poiCategory(tags = {}) {
   if (tags.amenity === 'fuel') return 'fuel';
   if (['motorcycle_repair', 'car_repair', 'tyres'].includes(tags.shop) || (tags.shop === 'motorcycle' && tags['service:motorcycle:repair'] === 'yes')) return 'repair';
   if (['rest_area', 'services'].includes(tags.highway) || ['hotel', 'guest_house', 'motel'].includes(tags.tourism)) return 'rest';
+  if (['restaurant', 'fast_food', 'food_court'].includes(tags.amenity)) return 'food';
+  if (['cafe', 'ice_cream'].includes(tags.amenity)) return 'drink';
   return null;
 }
 

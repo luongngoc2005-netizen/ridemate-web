@@ -32,7 +32,7 @@ try {
       times.push(Math.round((performance.now() - start) * 100) / 100);
     }
     searches.push({ name, point: [lon, lat], radiusMeters: 2000, firstMs: times[0], repeatMs: times.slice(1),
-      complete: data.complete, counts: Object.fromEntries(['fuel', 'rest', 'repair'].map(type => [type, data.places.filter(p => p.category === type).length])) });
+      complete: data.complete, counts: Object.fromEntries(['fuel', 'rest', 'repair', 'food', 'drink'].map(type => [type, data.places.filter(p => p.category === type).length])) });
   }
   const routeSearches = [];
   if (routePath) {
@@ -49,7 +49,7 @@ try {
       return { ok: true, json: async () => data };
     };
     try {
-      for (const category of ['fuel', 'rest', 'repair']) {
+      for (const category of ['fuel', 'rest', 'repair', 'food', 'drink']) {
         rpcTimes = [];
         const started = performance.now();
         const result = await loadRoutePlaces(route, category);

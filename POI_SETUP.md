@@ -1,4 +1,61 @@
-# Điểm xăng / nghỉ / sửa xe từ OSM trong Supabase
+# Điểm xăng / nghỉ / sửa xe / ăn / uống từ OSM trong Supabase
+
+## Bổ sung quán ăn và đồ uống (18/10/2026)
+
+Web đã hỗ trợ cả 5 nhóm qua RPC `route_pois`. Quán ăn gồm OSM
+`restaurant`, `fast_food`, `food_court`; đồ uống gồm `cafe`, `ice_cream`.
+Đây là dữ liệu tên, tọa độ, địa chỉ và giờ mở cửa nếu OSM có ghi;
+không phải thực đơn, đánh giá hoặc giá bán đã được xác minh.
+
+**Nếu project đã nhập bộ 3 nhóm cũ, vẫn phải nhập snapshot mới để có ăn/uống.**
+Chỉ chạy migration sẽ mở rộng bảng/RPC, chưa tạo thêm địa điểm.
+Bộ dữ liệu cũ vẫn hoạt động trong suốt quá trình nhập; snapshot mới chỉ được
+kích hoạt khi đủ dòng. Không xóa bảng hoặc tắt RLS.
+
+Bộ bổ sung đã chuẩn bị nằm trong `output/poi/food-drink/` trên máy quản trị:
+
+Snapshot `4d79da9e526d5d01c96d3084` được tạo lại từ PBF Việt Nam đã lưu
+trên máy (dữ liệu OSM đến `2026-10-16T20:21:21Z`, MD5
+`6d8abd6bf5c5e3e85549bfeb0d903f4a`), không phải tải bản mới ngày 18/10.
+Bộ này có **39.765 điểm**: 5.020 xăng, 9.469 nghỉ, 1.560 sửa xe,
+14.039 quán ăn và 9.677 đồ uống; CSV khoảng 4,97 MB. Với đối tượng có
+nhiều loại thẻ, ưu tiên nhóm xăng/nghỉ/sửa xe cũ để giữ các điểm hiện có.
+File ZIP tiện chuyển máy: `output/poi/food-drink-import.zip`.
+
+1. Supabase → SQL Editor → New query: chạy **toàn bộ `01-setup.sql`** trong
+   thư mục này. File đã gồm migration `202610180001_food_drink_pois.sql`
+   và đăng ký snapshot mới, nên không cần chạy riêng migration nữa.
+2. Table Editor → `public.osm_pois` → Insert → Import data from CSV:
+   chọn **`pois.csv` trong cùng thư mục**, chờ nhập xong.
+3. SQL Editor: chạy **`03-activate.sql` trong cùng thư mục**. Đối chiếu
+   `ready = true` và `imported_count` với `total` trong `report.json`.
+4. Deploy code mới, tải lại web và chọn Quán ăn/Đồ uống trong bong bóng
+   Hành trình. Network phải gọi `route_pois` với `category_name` là
+   `food` hoặc `drink`.
+
+Nếu CSV đã được nhập một phần và báo trùng khóa, dùng các phần SQL trong
+`sql-editor/<datasetId>/` của **cùng bộ mới**, rồi chạy lại bước 3.
+Không trộn file setup/CSV/activate giữa hai bộ dữ liệu.
+
+Để tự tạo bản mới từ nguồn Geofabrik:
+
+```powershell
+python scripts/extract-poi.py --output output/poi/food-drink
+node scripts/prepare-poi.js output/poi/food-drink/poi-elements.jsonl output/poi/food-drink
+```
+
+Migration giữ thông tin nhóm được hỗ trợ theo từng snapshot. Khi chưa nhập
+ăn/uống, chế độ `auto` tiếp tục dùng Overpass cho hai nhóm này; chế độ
+`supabase` báo chưa sẵn sàng. Sau khi kích hoạt dữ liệu mới, tải lại trang
+để bỏ cache nguồn cũ (hoặc chờ tối đa 5 phút).
+
+Kiểm chứng local ngày 18/10: đã nhập đúng CSV 39.765 dòng qua COPY và kích hoạt
+trên PGlite/PostGIS; bảng cùng chỉ mục chiếm 12.156.928 byte. Trên tuyến thử
+Cao Bằng–An Giang có 41.038 đỉnh, cả quán ăn và đồ uống đều trả 30 ghim trải
+dọc tuyến. Thời gian toàn bộ nạp/lọc local lần lượt khoảng 1.079 và 1.017 ms;
+bật lại dùng cache khoảng 1–3 ms. Báo cáo:
+`output/poi/food-drink/benchmark-csv.json`. Đây là kiểm chứng local,
+chưa phải kết quả trên Supabase/Render online.
 
 Render tiếp tục phục vụ web và API AI. Supabase lưu bản trích POI Việt Nam;
 trình duyệt gọi RPC `route_pois` trực tiếp để tìm loại được chọn dọc tuyến đi–đến,
@@ -17,7 +74,7 @@ npm run prepare:poi
 
 Lần đầu tải file PBF Việt Nam khoảng 315 MB từ Geofabrik; file này **không** được
 đưa vào bundle web hoặc Supabase. MD5 được đối chiếu trước khi xử lý. Bộ lọc chỉ
-giữ fuel, hotel/guest_house/motel, rest_area/services, motorcycle_repair,
+giữ restaurant/fast_food/food_court, cafe/ice_cream, fuel, hotel/guest_house/motel, rest_area/services, motorcycle_repair,
 car_repair, tyres và motorcycle có `service:motorcycle:repair=yes`. Cửa hàng bán
 xe đơn thuần không được xem là sửa xe. Chưa có đảm bảo một điểm sửa ô tô có phục
 vụ xe máy; người đi vẫn cần xác nhận dịch vụ.
@@ -46,15 +103,15 @@ không phải dung lượng database. Báo cáo không suy đoán số MB của 
 
 Mở **đúng project RideMate**, thực hiện ba bước:
 
-Nếu đã hoàn tất nhập và kích hoạt dữ liệu trước đây, chỉ chạy
-`output/poi/04-route-search.sql` trong SQL Editor. Không cần nhập lại CSV.
+Nếu chỉ cần cập nhật RPC cho bộ cũ, chạy `output/poi/04-route-search.sql`.
+Để bổ sung ăn/uống, dùng đầy đủ ba bước với bộ mới như hướng dẫn đầu tài liệu.
 Nếu chưa nhập dữ liệu, dùng ba bước dưới đây; `01-setup.sql` đã gồm RPC dọc tuyến.
 
 1. SQL Editor → New query: dán toàn bộ `output/poi/01-setup.sql` rồi Run với vai trò `postgres`.
 2. Table Editor → schema `public` → bảng `osm_pois` → Insert → Import data from CSV.
    Chọn `output/poi/pois.csv`, kiểm tra tên cột khớp và chờ import hoàn tất.
 3. SQL Editor → New query: chạy toàn bộ `output/poi/03-activate.sql`.
-   Kết quả cần `ready = true` và `imported_count = 16049` với bản dữ liệu hiện tại.
+   Kết quả cần `ready = true` và `imported_count` bằng `total` trong `report.json`.
 
 SQL Editor từ chối file gộp gần 2 MB. Hai file SQL nhỏ chỉ khoảng 9 KB và
 0,9 KB; phần dữ liệu được tải lên dưới dạng CSV khoảng 2 MB. Supabase hỗ trợ
@@ -112,7 +169,8 @@ Overpass khác. Request dọc tuyến Supabase giới hạn chờ 8 giây. Chưa
 không tải POI; chọn loại nào chỉ tải loại đó. Có thể bật nhiều loại cùng lúc.
 Tắt loại đang chờ sẽ hủy request nếu không còn màn hình nào cần. Kết quả thành công
 được giữ khi bật/tắt trong cùng hành trình; bộ nạp có cache RAM 5 phút theo tuyến/loại.
-Thử lại chỉ tải các loại/đoạn bị lỗi. Quán ăn/đồ uống vẫn dùng Overpass khi được chọn.
+Thử lại chỉ tải các loại/đoạn bị lỗi. Quán ăn/đồ uống dùng Supabase khi snapshot
+đã hỗ trợ; nếu chưa có, chế độ `auto` dùng Overpass.
 Biến `VITE_*` được đọc lúc build, nên đổi chế độ cần build/deploy.
 
 ## 4. Đo thật và cập nhật

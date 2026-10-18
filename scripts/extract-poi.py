@@ -1,4 +1,4 @@
-"""Download/verify a Vietnam OSM extract and stream the three POI categories.
+"""Download/verify a Vietnam OSM extract and stream five POI categories.
 
 Local preparation only: never connects to a database or collects rider GPS.
 Run from the repo root after installing scripts/requirements-poi.txt.
@@ -83,6 +83,10 @@ def category(tags):
         return 'repair'
     if tags.get('tourism') in ('hotel', 'guest_house', 'motel') or tags.get('highway') in ('rest_area', 'services'):
         return 'rest'
+    if tags.get('amenity') in ('restaurant', 'fast_food', 'food_court'):
+        return 'food'
+    if tags.get('amenity') in ('cafe', 'ice_cream'):
+        return 'drink'
     return None
 
 
@@ -165,7 +169,8 @@ def main():
         # Filter in libosmium before invoking Python for millions of untagged
         # road/building nodes. SimpleHandler still fills the location index and
         # assembles relation geometry before this filter is applied to output.
-        tags = [('amenity', 'fuel'), ('shop', 'motorcycle_repair'), ('shop', 'car_repair'),
+        tags = [('amenity', 'restaurant'), ('amenity', 'fast_food'), ('amenity', 'food_court'),
+                ('amenity', 'cafe'), ('amenity', 'ice_cream'), ('amenity', 'fuel'), ('shop', 'motorcycle_repair'), ('shop', 'car_repair'),
                 ('shop', 'tyres'), ('shop', 'motorcycle'), ('tourism', 'hotel'),
                 ('tourism', 'guest_house'), ('tourism', 'motel'),
                 ('highway', 'rest_area'), ('highway', 'services')]

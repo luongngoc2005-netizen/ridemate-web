@@ -19,7 +19,7 @@ test('PostGIS searches real distances and enforces read-only guest access, bound
   const db = new PGlite({ extensions: { postgis } });
   try {
     await db.exec('create role anon nologin; create role authenticated nologin;');
-    const migration = await readFile(new URL('../supabase/migrations/202610170001_osm_pois.sql', import.meta.url), 'utf8');
+    const migration = await readFile(new URL('../supabase/migrations/202610170001_osm_pois.sql', import.meta.url), 'utf8') + '\n' + await readFile(new URL('../supabase/migrations/202610180001_food_drink_pois.sql', import.meta.url), 'utf8');
     await db.exec(migration);
     const search = async (lon = 105, lat = 21, radius = 1500) => (await db.query('select public.nearby_pois($1, $2, $3) as data', [lon, lat, radius])).rows[0].data;
     await db.exec('set role anon'); assert.deepEqual(await search(), { ready: false });
