@@ -36,7 +36,7 @@ Backend hỗ trợ `AI_PROVIDER=vllm|openrouter|openai`. Xem [vLLM](./VLLM_SETUP
 
 AI Assistant dùng một ô chat, có thể mở khi chưa chọn kế hoạch. “Kiểm tra chuyến đi của tôi” mở đánh giá kế hoạch đang chọn. Lời chào/cảm ơn không tự tạo lịch trình; yêu cầu chưa rõ không tự sửa kế hoạch.
 
-Ví dụ: “Lập lịch trình 3 ngày 2 đêm ở Cao Bằng”. Trợ lý hỏi từng thông tin còn thiếu: vị trí, điểm đến, ngày/đêm, ngày/giờ đi, người/xe, loại xe, kinh nghiệm, giới hạn giờ chạy, tránh tối và sở thích. Không mặc định Hà Nội khi thiếu điểm đi. GPS mới cần thao tác cho phép; vị trí sống đã bật và còn mới có thể được dùng cho điểm xuất phát.
+Ví dụ: “Lập lịch trình 3 ngày 2 đêm ở Cao Bằng”. Trợ lý mở một form thông tin chuyến đi: điểm đi/đến, ngày/giờ đi, số ngày/đêm, người/xe và sở thích. Những mục đọc được từ yêu cầu được điền trước; người dùng kiểm tra rồi bấm Tạo lịch trình một lần. Loại xe, kinh nghiệm, giới hạn giờ chạy và tránh tối là nhóm không bắt buộc, không bị hỏi tiếp từng câu. Không mặc định Hà Nội khi thiếu điểm đi. GPS mới cần thao tác cho phép; vị trí sống đã bật và còn mới có thể được dùng cho điểm xuất phát.
 
 Mặc định có chặng về ngày cuối; yêu cầu một chiều bỏ chặng về. Giữ số đêm đã yêu cầu. Bản nháp AI giới hạn 1–7 ngày; form kế hoạch thủ công hỗ trợ tới 30 ngày. Tọa độ GPS giữ ở frontend, chỉ tên khu vực được gửi cho model. Đổi tên điểm đi trong form xác nhận bỏ tọa độ xuất phát cũ.
 
@@ -56,7 +56,19 @@ Giá vé, phòng, nhiên liệu và giờ mở cửa chưa xác minh không đư
 
 Form xác nhận điền sẵn câu trả lời về ngày, giờ, điểm đi/đến và người/xe. Chỉ sau xác nhận mới tạo kế hoạch chứa lịch trình, checklist, tọa độ và thông tin lập kế hoạch đã duyệt. Lưu cache thất bại giữ bản nháp; lưu thành công có nút Mở kế hoạch ngay trong chat.
 
-Kế hoạch đã lưu tự đồng bộ khi đăng nhập. Hội thoại và bản nháp chưa xác nhận chỉ giữ trong phiên màn hình, không tự đồng bộ. Không tự đặt phòng, mua vé hoặc đổi lịch để xử lý cảnh báo quá tải.
+Kế hoạch đã lưu tự đồng bộ khi đăng nhập. Lịch sử chat, bản nháp và form điền dở có cache riêng theo tài khoản; đồng bộ qua `assistant_conversations` sau khi chạy migration `202610180002_assistant_conversations.sql`. Khách dùng cache riêng, không tự nhập vào tài khoản. Không tự đặt phòng, mua vé hoặc đổi lịch để xử lý cảnh báo quá tải.
+
+## Lịch sử chat
+
+Sidebar desktop hoặc nút Lịch sử chat trên điện thoại cho phép mở lại, tìm theo tên/nội dung, tạo Chat mới, đổi tên, xóa và xuất JSON. Tiêu đề mặc định lấy từ tin nhắn đầu tiên; đổi tên không bị ghi đè. Rời tab/reload giữ hội thoại đang mở, tin nhắn, form và bản nháp; không khôi phục yêu cầu model đang chạy. Chat mới không xóa cuộc cũ.
+
+Đồng bộ sau khoảng 900 ms khi ngừng sửa, kiểm tra lại mỗi 15 giây khi AI Assistant đang mở và khi trở lại tab/kết nối mạng. Lỗi mạng hoặc thiếu migration giữ cache và báo chưa đồng bộ. Hai thiết bị sửa cùng hội thoại giữ bản tài khoản và tách bản thiết bị thành hội thoại riêng, không ghép bừa thứ tự tin nhắn. Hai tab trình duyệt ghi cache khác nhau báo lỗi thay vì ghi đè; xuất dữ liệu đang xem rồi tải lại tab.
+
+Đánh giá chuyến đi được lưu dưới dạng nội dung tại thời điểm trả lời, không tự tính lại hoặc áp dụng thao tác sửa kế hoạch cũ. Hội thoại liên kết kế hoạch khác hiển thị nút mở kế hoạch liên quan; không áp dụng câu trả lời cho kế hoạch đang mở. Bản nháp vẫn có thể sửa/xác nhận tạo kế hoạch. Đã xác nhận lưu thì chỉ hiện liên kết kế hoạch, không tạo lại đơn/kế hoạch khi mở lịch sử.
+
+Giới hạn ban đầu: 100 bản ghi hội thoại kể cả các bản đã đánh dấu xóa, 400 tin nhắn/chat, snapshot tối đa 600 KB, cache tổng 3,5 MB. Không tự cắt tin nhắn cũ khi vượt giới hạn; báo lỗi và cho xuất JSON có bản đang xem. Xóa chat đánh dấu xóa để các thiết bị khác không khôi phục lại bản cũ; không xóa kế hoạch đã tạo. Cache tài khoản trên thiết bị được giữ riêng sau đăng xuất để hỗ trợ tiếp tục khi đăng nhập lại. Lịch sử cũ từ phiên bản chưa có tính năng này không thể khôi phục sau khi phiên chat đã mất.
+
+Lịch sử lưu cả tên địa điểm và tọa độ đã chọn trong bản nháp/form để khôi phục; khi đăng nhập các dữ liệu này đi cùng lịch sử riêng tư trên Supabase. Bấm Xuất lịch sử JSON tải nội dung đang lưu xuống máy; không gửi file cho model.
 
 ## Đánh giá kế hoạch trong chat
 

@@ -1,6 +1,6 @@
 # Bàn giao RideMate
 
-Tài liệu mô tả code hiện tại, cập nhật 04/10/2026. Xem [README](./README.md) để chạy ứng dụng. Không dùng tài liệu này làm bằng chứng đã deploy hoặc nghiệm thu dịch vụ thật.
+Tài liệu mô tả code hiện tại, cập nhật 18/10/2026. Xem [README](./README.md) để chạy ứng dụng. Không dùng tài liệu này làm bằng chứng đã deploy hoặc nghiệm thu dịch vụ thật.
 
 ## Kiến trúc
 
@@ -17,6 +17,7 @@ Tài liệu mô tả code hiện tại, cập nhật 04/10/2026. Xem [README](./
 | Nhiều kế hoạch | `src/plans-data.js`, `src/Plans.jsx` |
 | Đồng bộ tài khoản | `src/usePlanSync.js`, `src/plan-sync.js` |
 | AI và bản nháp | `src/AIAssistant.jsx`, `src/DraftReply.jsx`, `server/draft-api.js` |
+| Form tạo hành trình và lịch sử chat | `src/TripIntakeForm.jsx`, `src/AssistantWorkspace.jsx`, `src/chat-history-store.js` |
 | Tọa độ điểm tham quan | `src/attraction-location.js`, `src/DraftLocations.jsx`, `src/TripLocations.jsx` |
 | Quỹ thời gian từng ngày | `src/trip-feasibility.js`, `src/TripFeasibility.jsx` |
 | Tuyến tổng quan | `src/route-data.js`, `src/motorcycle-routing.js`, `src/TripRouteContext.jsx` |
@@ -27,7 +28,7 @@ Tài liệu mô tả code hiện tại, cập nhật 04/10/2026. Xem [README](./
 
 Khách dùng localStorage cho kế hoạch và IndexedDB cho nhật ký/ảnh. Đăng nhập dùng cache kế hoạch riêng theo user ID và tự đồng bộ Supabase; nhật ký lưu trực tiếp lên tài khoản. Không tự nhập dữ liệu khách: dùng nút nhập kế hoạch trong Tài khoản và nút nhập nhật ký trong Nhật ký hành trình.
 
-Cache kế hoạch chứa bản sửa và bản gốc để hợp nhất ba phiên bản. Sửa các mục khác nhau được gộp; sửa trùng nội dung cần chọn bản giữ lại. RPC retry giữ nguyên nhật ký và ảnh. Đổi tài khoản không chuyển bản sửa sang tài khoản khác. Hồ sơ người lái chung và hội thoại chưa tự đồng bộ; hồ sơ đã xác nhận trong kế hoạch đi cùng kế hoạch.
+Cache kế hoạch chứa bản sửa và bản gốc để hợp nhất ba phiên bản. Sửa các mục khác nhau được gộp; sửa trùng nội dung cần chọn bản giữ lại. RPC retry giữ nguyên nhật ký và ảnh. Đổi tài khoản không chuyển bản sửa sang tài khoản khác. Hồ sơ người lái chung chưa tự đồng bộ; hồ sơ đã xác nhận trong kế hoạch đi cùng kế hoạch. Lịch sử chat có cache theo tài khoản và đồng bộ qua migration `202610180002_assistant_conversations.sql`; xem `SUPABASE_SETUP.md`. Yêu cầu tạo hành trình mở một form thông tin ban đầu thay vì hỏi từng câu; chat mới, bản nháp và form điền dở được lưu riêng từng hội thoại.
 
 Khi đổi máy/origin, chờ kế hoạch báo đã đồng bộ trước khi mở tài khoản trên thiết bị mới. Dữ liệu khách ở origin cũ không tự di chuyển. Cập nhật tất cả thiết bị sang bản app mới để tránh thao tác ghi snapshot từ phiên bản cũ.
 

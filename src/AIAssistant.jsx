@@ -9,41 +9,44 @@ import './ai-assistant.css';
 import DraftReply from './DraftReply.jsx';
 import {cleanDraft} from './assistant-draft.js';
 import {chatAction,draftExample} from './assistant-chat.js';
-import {startIntake,intakeQuestion,answerIntake,intakeContext,attachIntake,withIntakeOrigin,requestedEditPlaces} from './assistant-intake.js';
-import DraftIntakeQuestion from './DraftIntakeQuestion.jsx';
+import {startIntake,intakeContext,attachIntake,withIntakeOrigin,requestedEditPlaces} from './assistant-intake.js';
+import TripIntakeForm from './TripIntakeForm.jsx';
+import {validateTripIntake,startFormIntake} from './trip-intake-data.js';
 import {useLocation} from './Location.jsx';
 import {chosenOrigin} from './origin-data.js';
 import {resolveOriginArea} from './origin-area.js';
 import TimePicker from './TimePicker.jsx';
 import {clockLabel} from './time-data.js';
+import AssistantWorkspace from './AssistantWorkspace.jsx';
 
 const quickPrompts=['Kiểm tra chuyến đi của tôi','Ngày mai tôi nên đi thế nào?','Tôi xuất phát muộn','Tôi đang mệt','Tôi đang gặp mưa','Chuẩn bị theo xe của tôi'];
 const profileNames={bike:'Loại xe',party:'Người đi cùng',experience:'Kinh nghiệm',hours:'Giờ chạy mỗi ngày',avoidDark:'Tránh chạy tối'};
 
 export default function AIAssistant(props) {
-  return <Conversation key={props.userId||'guest'} {...props}/>;
+  return <AssistantWorkspace Conversation={Conversation} {...props}/>;
 }
 
-function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,onOpenPlan}) {
+function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,onOpenPlan,initial,onSnapshot,onBusy,embedded}) {
   const location=useLocation();
   const routeState=useTripRoute();
-  const [profile,setProfile]=useState(()=>{try{return cleanProfile(JSON.parse(localStorage.getItem(PROFILE_KEY)||'{}'));}catch{return {};}});
+  const [profile,setProfile]=useState(()=>{try{return initial?.profile||cleanProfile(JSON.parse(localStorage.getItem(PROFILE_KEY)||'{}'));}catch{return {};}});
   const [storageError,setStorageError]=useState('');
-  const [dayId,setDayId]=useState(trip?.itinerary[0]?.id);
-  const [intent,setIntent]=useState('review');
-  const [messages,setMessages]=useState([]);
-  const [pending,setPending]=useState(null);
-  const [text,setText]=useState('');
+  const [dayId,setDayId]=useState(initial?.dayId||trip?.itinerary[0]?.id);
+  const [intent,setIntent]=useState(initial?.intent||'review');
+  const [messages,setMessages]=useState(initial?.messages||[]);
+  const [pending,setPending]=useState(initial?.pending&&trip?.itinerary.some(d=>d.id===initial.pending.dayId)?initial.pending:null);
+  const [text,setText]=useState(initial?.text||'');
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   const [service,setService]=useState({ready:false,authRequired:true});
   const online=service.ready&&(!service.authRequired||!!userId);
   const [showProposal,setShowProposal]=useState(null);
-  const sequence=useRef(0), started=useRef(false), messageList=useRef(null), request=useRef(null);
+  const sequence=useRef(Math.max(0,...(initial?.messages||[]).map(m=>m.id))), started=useRef(false), messageList=useRef(null), request=useRef(null);
   const day=trip?.itinerary.find(d=>d.id===dayId)||trip?.itinerary[0];
-  const [draftId,setDraftId]=useState(null);
-  const [intake,setIntake]=useState(null);
-  const draftQuestion=intake?intakeQuestion(intake):null;
+  const [draftId,setDraftId]=useState(initial?.draftId??null);
+  const [intake,setIntake]=useState(initial?.intake||null);
+  useEffect(()=>{onSnapshot?.({messages,pending,text,dayId,intent,draftId,intake,profile});},[messages,pending,text,dayId,intent,draftId,intake,profile,onSnapshot]);
+  useEffect(()=>{onBusy?.(busy);return ()=>onBusy?.(false);},[busy,onBusy]);
   const activeDraft=messages.find(m=>m.id===draftId&&!m.saved)?.draft||null;
   const contextRef=useRef();contextRef.current={trip,profile,day,routeState};
   const append=message=>setMessages(current=>[...current,{...message,id:++sequence.current}]);
@@ -99,18 +102,14 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
     if(next){
       if(details)next=attachIntake(next,details);
       const id=++sequence.current;setMessages(current=>[...current,{id,role:'assistant',draft:next,mode}]);setDraftId(id);setIntake(null);
-    }else append({role:'assistant',text:previous?'Tôi chưa xử lý được thay đổi này khi AI không sẵn sàng. Bản nháp vẫn được giữ ở trên.':'Thông tin chuyến đi đã được giữ trong cuộc trò chuyện. Hãy đăng nhập và cấu hình AI để tạo lịch trình theo yêu cầu, rồi bấm Thử tạo lịch trình.'});
+    }else append({role:'assistant',text:previous?'Tôi chưa xử lý được thay đổi này khi AI không sẵn sàng. Bản nháp vẫn được giữ ở trên.':'Thông tin chuyến đi đã được giữ trong cuộc trò chuyện. Hãy đăng nhập và cấu hình AI, rồi bấm Tạo lịch trình trong form để thử lại.'});
   };
-  const continueIntake=async(next)=>{
-    setIntake(next);setError('');
-    if(!intakeQuestion(next))await generatePlan(next.message,null,next);
-  };
-  const answerDraft=async(value,label=value)=>{
-    if(!intake||!draftQuestion||busy)return;
+  const submitIntake=async(value)=>{
+    if(busy)return;
     try{
-      const next=answerIntake(intake,draftQuestion,String(value));
-      append({role:'assistant',text:draftQuestion.label});append({role:'user',text:String(label)});
-      await continueIntake(next);
+      const next=validateTripIntake(value);setIntake(next);setError('');
+      append({role:'user',text:`Thông tin đã xác nhận: ${next.origin} → ${next.destination}; ${next.days} ngày ${next.nights} đêm; ${next.date}, ${clockLabel(next.departure)}; ${next.people} người / ${next.vehicles} xe. Sở thích: ${next.preferences}.`});
+      await generatePlan(next.message,null,next);
     }catch(failure){setError(failure.message);}
   };
   const selectDraftOrigin=async(value)=>{
@@ -120,9 +119,7 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
       try{const point=await resolveOriginArea(value.originPoint);value={...value,origin:point.label,originPoint:point};}
       finally{setBusy(false);}
     }
-    append({role:'assistant',text:draftQuestion?.label});append({role:'user',text:`Điểm đi: ${value.origin}`});
-    if(value.originPoint?.area)append({role:'assistant',text:`Đã nhận diện điểm xuất phát: ${value.origin} (Photon/OpenStreetMap). Tôi giữ tọa độ GPS để tính tuyến và tiếp tục thông tin còn thiếu.`});
-    await continueIntake(withIntakeOrigin(intake,value));
+    setIntake(current=>withIntakeOrigin(current,value));setError('');
   };
 
   const send=async raw=>{
@@ -132,8 +129,8 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
     if(intake&&/^(hủy|huỷ|huy|dừng|dung)(?:\s+yêu cầu)?[.!]?$/i.test(message)){
       setIntake(null);append({role:'user',text:message});append({role:'assistant',text:'Đã hủy yêu cầu đang trao đổi. Các kế hoạch và bản nháp đã có vẫn được giữ.'});return;
     }
-    if(intake&&draftQuestion&&!['newDraft','greeting','thanks'].includes(intakeAction)){
-      await answerDraft(message);return;
+    if(intake&&!['newDraft','greeting','thanks'].includes(intakeAction)){
+      append({role:'assistant',text:'Bạn có thể sửa đầy đủ thông tin trong form bên dưới rồi bấm Tạo lịch trình.'});return;
     }
     const answer=parseAnswer(pending,message);
     if(answer!==null){saveAnswer(pending,answer,message);return;}
@@ -147,7 +144,7 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
       setPending(null);append({role:'user',text:message});
       const previous=action==='newDraft'?null:activeDraft;
       if(!previous){
-        let next=startIntake(message,profile);
+        let next=startFormIntake(message,profile);
         const position=location?.position;
         if(!next.origin&&position&&Number.isFinite(position.timestamp)&&Date.now()-position.timestamp<=30000){
           setBusy(true);
@@ -158,8 +155,8 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
           }catch(failure){setError(failure.message);}
           finally{setBusy(false);}
         }
-        append({role:'assistant',text:next.returnToOrigin?'Tôi sẽ hỏi từng thông tin còn thiếu rồi tạo bản nháp. Lịch mặc định gồm chặng đi và quay về điểm xuất phát vào ngày cuối; bạn có thể yêu cầu đổi.':'Tôi sẽ hỏi từng thông tin còn thiếu rồi tạo bản nháp một chiều theo yêu cầu của bạn.'});
-        await continueIntake(next);
+        append({role:'assistant',text:'Tôi đã điền thông tin từ yêu cầu vào form. Bạn bổ sung một lần rồi bấm Tạo lịch trình.'});
+        setIntake(next);
       }else{
         // Edits retain confirmed metadata unless the user explicitly changes it.
         const parsed=startIntake(message);
@@ -198,11 +195,11 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
       setPending(null);append({role:'assistant',text:'Tôi chưa hiểu rõ yêu cầu này để trả lời chính xác. Bạn có thể nói cụ thể điều muốn biết, chẳng hạn “Nên chơi gì ở Cao Bằng?” hoặc “Chặng này có quá nhiều điểm không?”.'});return;
     }
     const explicit=message.match(/ngày\s+(\d+)/i);
-    if(explicit){target=trip.itinerary[Number(explicit[1])-1];}
-    if(detected==='tomorrow')target=tomorrowDay(trip);
+    if(explicit&&trip){target=trip.itinerary[Number(explicit[1])-1];}
+    if(detected==='tomorrow'&&trip)target=tomorrowDay(trip);
     if(!target){
       append({role:'assistant',text:'Tôi chưa xác định được chặng bạn hỏi trong lịch của kế hoạch này. Bạn muốn kiểm tra ngày nào?'});
-      setPending({key:'selectDay',label:'Bạn muốn kiểm tra ngày nào?',options:trip.itinerary.map((d,i)=>[d.id,`Ngày ${i+1}: ${d.title}`])});return;
+      if(trip)setPending({key:'selectDay',label:'Bạn muốn kiểm tra ngày nào?',options:trip.itinerary.map((d,i)=>[d.id,`Ngày ${i+1}: ${d.title}`])});return;
     }
     setDayId(target.id);
     respond(detected,target,trip,profile,interpreted?'Tôi đã hiểu yêu cầu; dưới đây là đánh giá từ dữ liệu kế hoạch của bạn.':'');
@@ -216,7 +213,8 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
     respond('review',next.itinerary.find(d=>d.id===current.id),next);
   };
 
-  return <main className="page ai-assistant">
+  const Container=embedded?'div':'main';
+  return <Container className={embedded?'ai-assistant':'page ai-assistant'}>
     <header className="ai-header"><div><span className="ai-kicker">RIDEMATE · NGƯỜI BẠN TRÊN MỖI CHẶNG</span><h1>AI Assistant</h1><p>Trợ lý đồng hành du lịch bằng xe máy</p></div><span className={`ai-mode ${online?'connected':''}`}>{online?'AI đã cấu hình':service.ready?'Đăng nhập để dùng AI':'Chế độ cơ bản · chưa cấu hình AI'}</span></header>
     <section className="card ai-conversation" aria-label="Trò chuyện với AI Assistant">
     {trip&&<details className="ai-context"><summary>Kế hoạch tham khảo: {trip.origin} → {trip.destination}</summary><span className="ai-kicker">KẾ HOẠCH ĐANG MỞ</span><h2>{trip.origin} → {trip.destination}</h2><p>{trip.days} ngày · {trip.date}</p>
@@ -243,8 +241,7 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
         {busy&&<p role="status" className="ai-thinking">Đang đọc yêu cầu và đối chiếu kế hoạch…</p>}
       </div>
       <div className="ai-compose-area">
-        {intake&&draftQuestion&&<DraftIntakeQuestion key={draftQuestion.key} question={draftQuestion} value={intake} busy={busy} onAnswer={answerDraft} onOrigin={selectDraftOrigin} onCancel={()=>{setIntake(null);setError('');append({role:'assistant',text:'Đã hủy yêu cầu tạo lịch trình. Chưa lưu kế hoạch mới.'});}}/>}
-        {intake&&!draftQuestion&&!busy&&<button className="green" onClick={()=>generatePlan(intake.message,null,intake)}>Thử tạo lịch trình</button>}
+        {intake&&<TripIntakeForm value={intake} busy={busy} onChange={setIntake} onSubmit={submitIntake} onOrigin={selectDraftOrigin} onCancel={()=>{setIntake(null);setError('');append({role:'assistant',text:'Đã hủy yêu cầu tạo lịch trình. Chưa lưu kế hoạch mới.'});}}/>}
         {service.ready&&service.authRequired&&!userId&&<p className="ai-muted">Bạn vẫn dùng được đánh giá cơ bản. <button className="soft" onClick={()=>setPage('account')}>Đăng nhập để trò chuyện với AI</button></p>}
         {pending&&<button className="soft" disabled={busy} onClick={()=>{setPending(null);append({role:'assistant',text:'Bạn có thể tiếp tục với gợi ý hiện tại hoặc hỏi câu khác. Tôi sẽ để các thông tin chưa có ở trạng thái chưa xác minh.'});}}>Bỏ qua câu hỏi này</button>}
         {pending?.options&&<div className="ai-answer-options" aria-label={pending.label}>{pending.options.map(([value,label])=><button className="soft" disabled={busy} key={value} onClick={()=>saveAnswer(pending,value,label)}>{label}</button>)}</div>}
@@ -252,10 +249,10 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
         <div className="ai-quick-prompts">{[draftExample,'Cao Bằng có gì chơi?',...(trip?quickPrompts:[])].map(prompt=><button disabled={busy} key={prompt} onClick={()=>send(prompt)}>{prompt}</button>)}</div>
         {error&&<p role="alert" className="ai-error">{error}</p>}
         <form className="ai-composer" onSubmit={e=>{e.preventDefault();send();}}><label className="ai-sr-only" htmlFor="assistant-message">Tin nhắn cho AI Assistant</label><textarea id="assistant-message" value={text} maxLength={2000} disabled={busy} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();send();}}} placeholder="Ví dụ: Cho tôi lịch trình 3N2Đ từ HN–CB…" rows={2}/><button className="green" disabled={busy||!text.trim()} type="submit">Gửi</button></form>
-        {!online&&<small>Chưa kết nối AI. Thông tin bạn trả lời vẫn được giữ trong phiên chat để tiếp tục.</small>}
+        {!online&&<small>Chưa kết nối AI. Bạn vẫn có thể xem lịch sử và chuẩn bị thông tin chuyến đi.</small>}
       </div>
     </section>
-  </main>;
+  </Container>;
 }
 
 function ExplorationReply({exploration}) { return <div><span className="ai-author">RideMate · Gợi ý từ dữ liệu điểm đến</span><p>{exploration.text}</p><ul>{exploration.places.map(name=><li key={name}>{name} · <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name}, ${exploration.destination}`)}`} target="_blank" rel="noreferrer">Tìm trên bản đồ</a></li>)}</ul>{exploration.source?<a href={exploration.source} target="_blank" rel="noreferrer">Nguồn tham khảo điểm đến</a>:<a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`điểm tham quan ${exploration.destination}`)}`} target="_blank" rel="noreferrer">Tìm điểm tham quan trên bản đồ</a>}<p className="ai-muted">Chưa xác minh giờ mở cửa, vé, thời tiết hay điều kiện đường. Liên kết bản đồ là tìm kiếm theo tên, chưa phải ghim tọa độ đã xác minh.</p></div>; }

@@ -65,6 +65,16 @@ Kiểm tra đặt/hủy, số phòng mẫu, đơn trên hai thiết bị và tá
 
 ## Nghiệm thu và deploy
 
+### Bật lịch sử chat AI theo tài khoản
+
+1. Mở project trên **Supabase Dashboard → SQL Editor → New query**.
+2. Mở file [202610180002_assistant_conversations.sql](./supabase/migrations/202610180002_assistant_conversations.sql), sao chép **toàn bộ nội dung** vào SQL Editor và bấm **Run**. Đây là SQL, không import bằng Table Editor/CSV.
+3. Sau khi deploy mã mới, tải lại AI Assistant khi đã đăng nhập. Gửi một tin nhắn rồi kiểm tra Lịch sử chat báo **Đã đồng bộ lịch sử**; thử cùng tài khoản trên thiết bị khác.
+
+Migration tạo bảng riêng `assistant_conversations`, RLS chỉ đọc chat của chính `auth.uid()` và RPC `save_assistant_conversation` có revision chống ghi đè. Có thể chạy lại migration; không xóa bảng kế hoạch/nhật ký/đặt phòng. Web không cần thêm khóa service role hay đổi biến môi trường. Nếu chưa chạy SQL, chat vẫn cache riêng trên thiết bị và hiển thị chưa đồng bộ.
+
+Kiểm tra riêng: tài khoản A không đọc được chat B, rời trang/reload giữ form điền dở và bản nháp, Chat mới không ghi đè hội thoại trước, hai thiết bị sửa cùng chat tạo bản giữ lại, xóa chat không xóa kế hoạch liên kết. SQL tests local dùng PGlite, chưa chứng minh migration đã chạy trên Supabase thật.
+
 Chạy `npm test` và `npm run build`. Kiểm thử SQL dùng PostgreSQL nhúng PGlite với Auth/Storage giả lập; chưa thay thế kiểm tra trên project thật.
 
 Trên hai tài khoản và hai thiết bị, kiểm tra: Auth/email, RLS, ảnh private, đồng bộ checklist, xung đột ghi chú, mất mạng/reload, nhập dữ liệu khách, nhật ký và đơn demo. Cập nhật mọi thiết bị sang bản app mới để tránh thao tác snapshot từ bản cũ.

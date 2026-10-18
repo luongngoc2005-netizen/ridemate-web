@@ -53,12 +53,11 @@ test('AI clock and origin dialog stay usable on a narrow screen',async({page},te
  await page.locator('#assistant-message').fill('Tạo chuyến đi 3 ngày 2 đêm từ Hà Nội đến Lạng Sơn');
  await page.getByRole('button',{name:'Gửi',exact:true}).click();
  const author=await page.locator('.ai-message.user .ai-author').first().boundingBox();expect(author.height).toBeLessThan(30);
- await page.locator('.ai-answer-form input[type=date]').fill('2026-11-07');
- await page.getByRole('button',{name:'Tiếp tục',exact:true}).click();
+ await page.locator('.trip-intake-form input[type=date]').fill('2026-11-07');
  await page.locator('.time-picker-trigger').click();await expect(page.locator('.time-picker-panel')).toBeVisible();
  await capture(page,'clock',testInfo);await noOverflow(page);
  await page.getByRole('button',{name:'Chọn giờ',exact:true}).click();
- await expect(page.getByRole('button',{name:'Tiếp tục',exact:true})).toBeEnabled();
+ await expect(page.getByRole('button',{name:'Tạo lịch trình',exact:true})).toBeEnabled();
  if(testInfo.project.name!=='desktop'){
   await page.setViewportSize({width:page.viewportSize().width,height:500});
   await page.locator('#assistant-message').fill('Tôi muốn xuất phát buổi sáng');

@@ -29,6 +29,7 @@ test('Plans → Journey → AI review → Plans never leaves duplicate screens o
   });
   t.after(() => dom.window.close());
   const { window } = dom, { document } = window;
+  window.TextEncoder=TextEncoder;
   window.scrollTo = () => {};
   window.HTMLElement.prototype.scrollTo = () => {};
   window.HTMLElement.prototype.scrollIntoView = () => {};
