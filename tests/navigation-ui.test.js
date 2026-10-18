@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { JSDOM, VirtualConsole } from 'jsdom';
+import { IDBFactory } from 'fake-indexeddb';
 import { createTrip, initialDetails } from '../src/trip-data.js';
 import { savePlans } from '../src/plans-data.js';
 
@@ -30,6 +31,7 @@ test('Plans → Journey → AI review → Plans never leaves duplicate screens o
   t.after(() => dom.window.close());
   const { window } = dom, { document } = window;
   window.TextEncoder=TextEncoder;
+  window.indexedDB = new IDBFactory();
   window.scrollTo = () => {};
   window.HTMLElement.prototype.scrollTo = () => {};
   window.HTMLElement.prototype.scrollIntoView = () => {};
@@ -56,6 +58,41 @@ test('Plans → Journey → AI review → Plans never leaves duplicate screens o
     assert.ok(document.querySelector('.riding-view')); oneScreen();
     button('1. Chuẩn bị').click(); await settle();
     assert.ok(document.querySelector('.preparation-card')); oneScreen();
+    for (const label of ['Checklist', 'Mở checklist']) {
+      button(label).click(); await settle();
+      oneScreen();
+      assert.equal(new URL(window.location.href).searchParams.get('page'), 'trip');
+      assert.equal(new URL(window.location.href).searchParams.get('trip'), plan.id);
+      assert.ok(document.querySelector('.trip-checklist'));
+      assert.equal(document.querySelector('.subnav [aria-current="page"]').textContent, 'Checklist');
+      const check = document.querySelector('.trip-checklist input[type="checkbox"]');
+      const previous = check.checked;
+      check.click(); await settle();
+      button('Tổng quan').click(); await settle();
+      button('Checklist').click(); await settle();
+      assert.equal(document.querySelector('.trip-checklist input[type="checkbox"]').checked, !previous);
+      button('Lịch trình').click(); await settle();
+      assert.ok(document.querySelector('.itinerary')); oneScreen();
+      button('Tổng quan').click(); await settle();
+    }
+    button('3. Nhật ký').click(); await settle();
+    assert.equal(new URL(window.location.href).searchParams.get('page'), 'trip');
+    assert.equal(new URL(window.location.href).searchParams.get('trip'), plan.id);
+    assert.ok(document.querySelector('.journey-page .journal-page')); oneScreen();
+    assert.equal(document.querySelector('.journey-phases [aria-current="page"]').textContent, '3. Nhật ký');
+    assert.equal(document.querySelector('.trip-completion'), null);
+    button('2. Đang đi').click(); await settle();
+    assert.ok(document.querySelector('.riding-view')); oneScreen();
+    button('3. Nhật ký').click(); await settle();
+    window.history.back(); await settle();
+    assert.ok(document.querySelector('.riding-view')); oneScreen();
+    button('1. Chuẩn bị').click(); await settle();
+    assert.ok(document.querySelector('.preparation-card'));
+    button('Nhật ký').click(); await settle();
+    assert.equal(document.querySelector('.journey-phases'), null);
+    button('Quay lại chuyến đi của bạn').click(); await settle();
+    assert.ok(document.querySelector('.preparation-card')); oneScreen();
+    assert.equal(new URL(window.location.href).searchParams.get('trip'), plan.id);
     button('Kiểm tra chuyến đi của tôi').click(); await settle();
     // React effects may arrive after the first frame under parallel browser/SQL tests.
     for(let attempt=0;attempt<100&&!document.querySelector('.ai-messages')?.textContent.includes('Kiểm tra chuyến đi của tôi');attempt++)await settle();

@@ -51,3 +51,16 @@ test('reload preserves URL route and can navigate to older history entries', asy
   b.history.go(-1); assert.equal(reloaded.get('page'), 'plans');
   b.history.go(1); assert.equal(reloaded.get('page'), 'trip');
 });
+test('trip checklist and journal survive reload and history fallback with the selected trip', async () => {
+  for (const view of ['checklist', 'journal']) {
+    const b = browser(), first = createNavigationStore(b);
+    first.set('page', 'trip'); first.set('activeId', 'trip-1'); first.set('view', view); await tick();
+    const reloaded = createNavigationStore(b);
+    assert.equal(reloaded.get('page'), 'trip');
+    assert.equal(reloaded.get('activeId'), 'trip-1');
+    assert.equal(reloaded.get('view'), view);
+    b.history.go(-1); b.history.go(1);
+    assert.equal(reloaded.get('activeId'), 'trip-1');
+    assert.equal(reloaded.get('view'), view);
+  }
+});

@@ -1,10 +1,11 @@
+const views = new Set(['overview', 'itinerary', 'checklist', 'notes', 'journal']);
 const pages = new Set(['home', 'plans', 'create', 'edit', 'trip', 'checklist', 'stays', 'tools', 'ai', 'account', 'journal']);
 export function createNavigationStore(browser) {
   const defaults = new Map(), listeners = new Set(), frames = new Map();
   let state = {}, index = browser.history.state?.rideMateNavigation?.index || 0, pending = null, queued = false, blocked = 0;
   const params = new URLSearchParams(browser.location.search);
   if (pages.has(params.get('page'))) {
-    state = { page: params.get('page'), activeId: params.get('trip') || null, view: ['overview', 'itinerary', 'notes'].includes(params.get('view')) ? params.get('view') : 'overview' };
+    state = { page: params.get('page'), activeId: params.get('trip') || null, view: views.has(params.get('view')) ? params.get('view') : 'overview' };
   }
   if (state.activeId && params.has('phase')) state[`riding.${state.activeId}`] = params.get('phase') === 'ride';
   const url = value => {
@@ -39,7 +40,7 @@ export function createNavigationStore(browser) {
     if (blocked && target !== index) { browser.history.go(index - target); return; }
     pending = null; index = target;
     const query = new URLSearchParams(browser.location.search);
-    state = frames.get(target) || { page: pages.has(query.get('page')) ? query.get('page') : 'home', activeId: query.get('trip') || null, view: ['overview', 'itinerary', 'notes'].includes(query.get('view')) ? query.get('view') : 'overview' };
+    state = frames.get(target) || { page: pages.has(query.get('page')) ? query.get('page') : 'home', activeId: query.get('trip') || null, view: views.has(query.get('view')) ? query.get('view') : 'overview' };
     if (!frames.has(target) && state.activeId && query.has('phase')) state[`riding.${state.activeId}`] = query.get('phase') === 'ride';
     frames.set(target, state); notify();
     browser.scrollTo({ top: 0, behavior: 'instant' });
