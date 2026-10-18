@@ -84,7 +84,8 @@ function CompanionPanel({ trip, setTrip, onClose }) {
 }
 
 export default function TripCompanion({ trip, setTrip }) {
-  const [open, setOpen] = useState(false), trigger = useRef(null);
-  const close = () => { setOpen(false); trigger.current?.focus(); };
-  return <div className="trip-companion">{open && <CompanionPanel trip={trip} setTrip={setTrip} onClose={close}/>}<button className="companion-launcher" ref={trigger} type="button" aria-expanded={open} aria-controls="trip-companion-panel" onClick={() => open ? close() : setOpen(true)}><ToolIcon name={open ? 'close' : 'assistant'}/><span>{open ? 'Thu gọn' : 'Hành trình'}</span></button></div>;
+  const [open, setOpen] = useState(false), trigger = useRef(null),previousOpen=useRef(false);
+  useEffect(()=>{if(!open&&previousOpen.current)trigger.current?.focus();previousOpen.current=open;},[open]);
+  const close = () => setOpen(false);
+  return <div className={`trip-companion${open?' is-open':''}`}>{open && <CompanionPanel trip={trip} setTrip={setTrip} onClose={close}/>}<button className="companion-launcher" ref={trigger} type="button" aria-expanded={open} aria-controls="trip-companion-panel" onClick={() => open ? close() : setOpen(true)}><ToolIcon name={open ? 'close' : 'assistant'}/><span>{open ? 'Thu gọn' : 'Hành trình'}</span></button></div>;
 }

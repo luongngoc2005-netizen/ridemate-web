@@ -1,0 +1,191 @@
+/* Shared phone layout, loaded after feature styles. Desktop keeps its layout. */
+.nav .nav-item-icon{display:none}
+.ai-message.user{display:block}
+.companion-header button .tool-icon{color:inherit}
+
+@media(max-width:1100px){
+  :root{--mobile-nav-height:76px;--mobile-header-height:calc(60px + env(safe-area-inset-top))}
+  body{padding-bottom:calc(var(--mobile-nav-height) + env(safe-area-inset-bottom))}
+  html{scroll-padding-top:calc(var(--mobile-header-height) + 12px);scroll-padding-bottom:calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 16px)}
+  #root{min-height:calc(100vh - var(--mobile-nav-height) - env(safe-area-inset-bottom));min-height:calc(100dvh - var(--mobile-nav-height) - env(safe-area-inset-bottom))}
+  .nav{height:var(--mobile-header-height);padding:8px 16px;gap:12px;background:#fff}
+  .nav{padding-top:calc(8px + env(safe-area-inset-top));padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+  .nav .logo{padding:0;min-height:44px;white-space:nowrap;font-size:20px}
+  .nav .account-link{max-width:48%;min-height:40px;padding:8px 12px;font-size:12px}
+  .nav nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));height:calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));gap:4px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px #183c2410;border-radius:18px 18px 0 0}
+  .nav nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;min-height:52px;padding:6px 0;border-radius:12px;font-size:11px;line-height:1.2;font-weight:500;white-space:nowrap}
+  .nav .nav-item-icon{display:block;width:21px;height:21px;color:inherit}
+  .nav nav button.active{background:#e7f4ec;color:#0f6745;font-weight:700}
+  .trip-companion{bottom:calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 12px);right:12px}
+  .companion-launcher{min-height:48px;gap:7px;padding:10px 14px;font-size:12px}
+  .companion-launcher .tool-icon{width:21px;height:21px;color:inherit}
+  .trip-companion.is-open{inset:calc(var(--mobile-header-height) + 10px) 12px calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 10px);display:flex;flex-direction:column}
+  .trip-companion.is-open .companion-panel{width:100%;height:100%;max-height:100%;margin:0;border-radius:18px}
+  .trip-companion.is-open .companion-launcher{display:none}
+  /* Leave space for typing when the software keyboard is open. */
+  .app-content:has(.ai-compose-area:focus-within) .trip-companion:not(.is-open){visibility:hidden;pointer-events:none}
+  .companion-content{flex:1;min-height:0;scroll-padding:12px;padding-bottom:24px}
+  .companion-header{padding:14px 16px}
+  .companion-header h2{font-size:19px}
+  .companion-header button{width:44px;height:44px;min-height:44px}
+  .companion-categories button{min-height:48px;font-size:12px}
+  .companion-place-name b{font-size:15px}
+  .companion-place-name small{font-size:12px}
+  .companion-place-actions a,.companion-place-actions button{min-height:44px;font-size:13px}
+  footer{margin-bottom:0;padding-bottom:24px;line-height:1.7}
+}
+
+@media(max-width:760px){
+  .page{padding:20px 16px 32px;min-width:0}
+  .page h1{font-size:25px;line-height:1.35;overflow-wrap:anywhere}
+  .page h2{font-size:20px;line-height:1.4}
+  .page h3{font-size:17px;line-height:1.45}
+  .page .box,.page .card{min-width:0}
+  .page input,.page select,.page textarea,.origin-dialog input,.origin-dialog select{max-width:100%;min-width:0;font-size:16px}
+  .page>.title{align-items:flex-start;flex-wrap:wrap;gap:14px;margin-bottom:20px}
+  .page>.title>.green{width:100%;margin:0;min-height:48px;background:var(--g);color:white;font-size:14px;text-align:center}
+  .dash{padding:12px;gap:16px;min-width:0}
+  .maincol,.side{min-width:0;gap:16px}
+  .hero{padding:20px;gap:22px;border-radius:20px}
+  .hero h1{font-size:30px;line-height:1.15;margin:12px 0}
+  .hero>div>small{font-size:10px;letter-spacing:.08em}
+  .hero>div>p{font-size:13px;line-height:1.7;margin-bottom:0}
+  .tripbar{padding:16px;gap:12px;border-radius:16px;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tripbar>.origin-field,.tripbar>label:nth-child(2){grid-column:1/-1}
+  .tripbar label{font-size:12px;font-weight:600;color:#52675a;min-width:0}
+  .tripbar .origin-field>label{gap:0}
+  .tripbar .province-select,.tripbar input{height:46px;padding:10px;margin-top:6px;min-width:0;max-width:100%;font-size:16px}
+  .tripbar .orange{min-height:48px;padding:12px 8px;font-size:14px}
+  .tripbar .origin-adjust{min-height:32px;margin-top:4px;font-size:12px;line-height:1.4}
+  .dash .box{padding:16px;border-radius:18px}
+  .dash .title{align-items:center;gap:8px}
+  .dash .title h2{font-size:17px;line-height:1.4}
+  .dash .title button{font-size:11px;min-height:40px;padding:6px 0}
+  .quick{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+  .quick button{min-height:86px;font-size:11px;gap:7px;padding:8px 3px}
+  .quick button>span{width:36px;height:36px}
+  .dash .side h3{font-size:20px;line-height:1.4}
+  .dash .side p{font-size:14px;line-height:1.65}
+  .plans-grid{gap:14px}
+  .plans-grid article{padding:18px;border-radius:18px}
+  .plans-grid h2{margin:0 0 10px;font-size:21px;line-height:1.4}
+  .plans-grid p{font-size:14px;line-height:1.65;margin:8px 0}
+  .plans-grid .plan-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+  .plan-actions button{min-width:0;min-height:46px;padding:10px 7px;font-size:13px}
+  .journey-page .trip-heading{align-items:flex-start;gap:10px}
+  .journey-page .trip-heading>div{min-width:0;flex:1}
+  .journey-page .trip-heading h1{font-size:23px}
+  .journey-page .trip-heading>.soft{flex-shrink:0;margin:0;padding:9px 12px;font-size:12px}
+  .journey-phases{gap:4px;padding:5px}
+  .journey-phases button{min-height:46px;font-size:12px;padding:10px 3px}
+  .journey-page .subnav{gap:2px;margin:16px 0}
+  .journey-page .subnav button{font-size:12px;padding:11px 2px}
+  .journey-disclosure{margin:12px 0;padding:14px}
+  .journey-disclosure>summary{font-size:14px}
+  .preparation-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .preparation-actions button{padding:10px 6px;font-size:13px}
+  .trip-form .edit-actions{display:grid;grid-template-columns:1fr;gap:8px}
+  .trip-form .edit-actions button{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin:0;font-size:14px}
+  .origin-field label>small{display:block;font-size:11px;font-weight:400;line-height:1.6;color:#617366}
+  .origin-field label>small a{color:var(--g)}
+  .riding-view .riding-caption{font-size:14px;line-height:1.6}
+  .route-legend{gap:6px}
+  .route-legend button{min-height:44px;padding:8px;font-size:11px}
+  .route-canvas .maplibregl-ctrl button{width:36px;height:36px;min-height:36px}
+  .location-buttons{gap:6px}
+  .location-buttons button{min-height:44px;padding:8px;font-size:12px;flex:1}
+  .ai-assistant .ai-header{gap:10px;margin-bottom:18px}
+  .ai-assistant .ai-kicker{font-size:9px;letter-spacing:.08em;line-height:1.6}
+  .ai-header h1{margin:5px 0;font-size:26px}
+  .ai-header p{font-size:14px;line-height:1.6}
+  .ai-mode{font-size:11px;padding:7px 11px}
+  .ai-conversation{border-radius:18px}
+  .ai-context{padding:14px}
+  .ai-context>summary{font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+  .ai-conversation-heading{padding:16px}
+  .ai-conversation-heading b{font-size:14px;line-height:1.5}
+  .ai-conversation-heading span{font-size:11px;line-height:1.5}
+  .ai-messages{min-height:220px;max-height:52svh;padding:12px;overscroll-behavior-y:contain}
+  .ai-message{padding:14px;margin:0 0 12px;border-radius:5px 16px 16px 16px}
+  .ai-message.user{display:block;margin-left:12%;padding:12px 14px;border-radius:16px 5px 16px 16px}
+  .ai-message h2{font-size:19px}
+  .ai-message p,.ai-message li{font-size:14px;line-height:1.75}
+  .ai-compose-area{padding:12px}
+  .ai-quick-prompts{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;gap:8px;padding:2px 0 10px;margin:0 0 8px;scroll-snap-type:x proximity}
+  .ai-quick-prompts button{flex:0 0 auto;max-width:90%;min-height:44px;padding:9px 12px;white-space:normal;text-align:left;font-size:12px;scroll-snap-align:start}
+  .ai-composer{gap:8px;padding:7px;border-radius:14px;align-items:flex-end}
+  .ai-composer textarea{font-size:16px;line-height:1.5;min-height:52px;resize:none}
+  .ai-composer>.green{min-height:44px;padding:10px 14px;font-size:13px;flex-shrink:0}
+  .ai-intake-question>p{font-size:14px;line-height:1.7}
+  .ai-intake-question>button{font-size:12px}
+  .ai-answer-options button{min-height:44px;padding:10px 12px;margin:0;font-size:13px;text-align:left}
+  .ai-draft-message .draft-confirm{padding:12px}
+  .ai-draft-message .draft-fields{gap:8px}
+  .ai-draft-message .draft-fields label{margin:6px 0;font-size:13px}
+  .ai-draft-message .draft-ack{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.6}
+  .draft-ack input{width:18px;min-width:18px;margin-top:5px}
+  .toolgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .toolgrid button{padding:16px 12px;min-height:170px;min-width:0}
+  .toolgrid h3{font-size:16px;margin:12px 0 8px}
+  .toolgrid p{font-size:12px;line-height:1.65}
+  .journal-achievements{padding:18px;margin:20px 0 24px}
+  .journal-totals{gap:7px;margin:18px 0 0}
+  .journal-totals>div{min-width:0;padding:12px 8px;border-radius:12px}
+  .journal-totals b{font-size:25px;line-height:1.3}
+  .journal-page .journal-totals small{font-size:11px;line-height:1.5}
+  .journal-page .journal-totals .tool-icon{width:24px;height:24px}
+  .journal-totals .tool-icon{color:#bff0d3}
+  .stays .stay-actions{gap:8px}
+  .stays .stay-actions button{margin:0;font-size:12px;padding:10px 12px}
+  .stays .stay-filters{grid-template-columns:repeat(2,minmax(0,1fr));padding:14px;gap:12px;margin:18px 0}
+  .stay-filters>label{font-size:12px;min-width:0;gap:6px}
+  .stay-filters>label:first-child,.stay-filters>label:last-child{grid-column:1/-1}
+  .stays .stay-layout{gap:16px}
+  .stays .stay-card{display:grid;grid-template-columns:88px minmax(0,1fr);gap:12px;padding:12px;border-radius:16px}
+  .stays .stay-card>img{width:88px;height:116px}
+  .stay-card>div{min-width:0;overflow-wrap:anywhere}
+  .stay-card h2{font-size:18px;margin:5px 0}
+  .stay-card p{font-size:12px;line-height:1.65;margin:6px 0}
+  .stay-card small,.stay-card b{font-size:12px}
+  .stay-card button{min-height:44px;padding:9px 12px;font-size:12px;margin-top:10px}
+  .stay-details{padding:14px}
+  .stay-room{gap:10px}
+  .stay-room>.green{width:100%;margin:0;font-size:14px}
+  .stay-photos{gap:6px}
+  .stay-photos img{height:85px;border-radius:8px}
+  .booking-summary{padding:14px;gap:12px}
+  .origin-dialog{width:calc(100vw - 24px);max-height:calc(100dvh - 24px);padding:16px;border-radius:18px;scroll-padding:16px}
+  .origin-dialog .title{align-items:flex-start;gap:10px}
+  .origin-dialog h2{font-size:20px;line-height:1.4;margin:0}
+  .origin-dialog .title button{min-width:44px;min-height:44px;border-radius:10px}
+  .origin-dialog .origin-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+  .origin-dialog .origin-search label{font-size:13px;min-width:0}
+  .origin-dialog .origin-search button{min-width:44px;min-height:46px}
+  .origin-dialog>.green{width:100%;margin-top:14px;min-height:48px}
+  .origin-dialog .route-canvas{height:34svh!important;min-height:220px}
+  footer{padding:22px 18px;gap:8px;font-size:11px}
+  footer b{font-size:14px;color:#27563e}
+}
+
+@media(max-width:359px){
+  .nav{padding-inline:12px}
+  .nav nav{gap:2px;padding-inline:4px}
+  .nav nav button{font-size:10px}
+  .page{padding-inline:12px}
+  .hero{padding:16px}
+  .hero h1{font-size:26px}
+  .tripbar{padding:12px}
+  .quick{gap:5px}
+  .quick button{font-size:10px}
+  .quick button>span{width:32px;height:32px}
+  .plans-grid .plan-actions{grid-template-columns:1fr}
+  .toolgrid{gap:8px}
+  .toolgrid button{padding:14px 10px}
+  .companion-categories button{flex-direction:column;font-size:11px;gap:3px}
+}
+
+/* Native date controls need room for the complete year and calendar button. */
+@media(max-width:380px){
+  .tripbar>label:has(input[type=date]),.tripbar>label:has(input[type=number]),
+  .stay-filters>label:has(input[type=date]){grid-column:1/-1}
+}

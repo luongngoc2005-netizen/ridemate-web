@@ -56,6 +56,8 @@ test('Plans → Journey → AI review → Plans never leaves duplicate screens o
     button('1. Chuẩn bị').click(); await settle();
     assert.ok(document.querySelector('.preparation-card')); oneScreen();
     button('Kiểm tra chuyến đi của tôi').click(); await settle();
+    // React effects may arrive after the first frame under parallel browser/SQL tests.
+    for(let attempt=0;attempt<100&&!document.querySelector('.ai-messages')?.textContent.includes('Kiểm tra chuyến đi của tôi');attempt++)await settle();
     assert.equal(new URL(window.location.href).searchParams.get('page'), 'ai');
     oneScreen();
     assert.equal(document.querySelectorAll('.journey-phases').length, 0);

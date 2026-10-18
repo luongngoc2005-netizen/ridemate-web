@@ -8,3 +8,5 @@ dist/
 .poi-cache/
 output/poi/
 scripts/__pycache__/
+output/mobile/
+playwright-report/
