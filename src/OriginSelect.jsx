@@ -6,7 +6,7 @@ import {chosenOrigin,validOriginPoint} from './origin-data.js';
 import {searchPlannedCandidates} from './route-data.js';
 import './origin-select.css';
 
-export default function OriginSelect({value,onChange,label='Điểm xuất phát',confirmLabel='Dùng làm điểm xuất phát'}) {
+export default function OriginSelect({value,onChange,label='Điểm xuất phát',confirmLabel='Dùng làm điểm xuất phát',showLocationHint=true}) {
   const [open,setOpen]=useState(false),[candidate,setCandidate]=useState(null),[error,setError]=useState(''),[pending,setPending]=useState(false),[query,setQuery]=useState(''),[results,setResults]=useState([]),[searching,setSearching]=useState(false);
   const dialog=useRef(null),dispose=useRef(null),sequence=useRef(0),searchRequest=useRef(null);
   useEffect(()=>()=>{sequence.current++;dispose.current?.();searchRequest.current?.abort();},[]);
@@ -24,7 +24,7 @@ export default function OriginSelect({value,onChange,label='Điểm xuất phát
   async function search(){searchRequest.current?.abort();const controller=new AbortController();searchRequest.current=controller;setSearching(true);setError('');setResults([]);
     try{const found=await searchPlannedCandidates(query,null,controller.signal);if(!controller.signal.aborted){setResults(found);if(!found.length)setError('Chưa tìm thấy địa chỉ. Thử tên đường, phường/xã hoặc chọn trực tiếp trên bản đồ.');}}
     catch(e){if(!controller.signal.aborted)setError(e.message);}finally{if(!controller.signal.aborted)setSearching(false);}}
-  return <div className="origin-field"><label>{label}<ProvinceSelect required value={value.origin} onChange={e=>{
+  return <div className="origin-field"><label>{label}<ProvinceSelect required showLocationHint={showLocationHint} value={value.origin} onChange={e=>{
     if(e.target.value==='__gps__'||e.target.value==='__map__'){launch(e.target.value==='__gps__'?'gps':'map');return;}
     onChange({...value,origin:e.target.value,originPoint:null});
   }} extraOptions={<optgroup label="Vị trí cụ thể"><option value="__gps__">Vị trí hiện tại của tôi (GPS)</option><option value="__map__">Chọn địa chỉ / ghim trên bản đồ</option></optgroup>}/></label><button type="button" className="origin-adjust" onClick={()=>launch('map')}>Chọn vị trí chính xác hơn</button>{validOriginPoint(value.originPoint)&&<small>Đã lưu tọa độ xuất phát. Vị trí không tự đổi khi bạn di chuyển.</small>}

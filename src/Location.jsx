@@ -40,7 +40,7 @@ export function LocationControls({ onCenter, follow, onFollow }) {
       {onCenter && <button type="button" disabled={!location.position} onClick={onCenter}>Về vị trí tôi</button>}
       {onFollow && <button type="button" aria-pressed={follow} disabled={!location.tracking} onClick={onFollow}>{follow ? 'Dừng bám vị trí' : 'Bám theo tôi'}</button>}
     </div>
-    <p className="location-status" role="status">{location.error || (location.pending ? 'Đang lấy vị trí… Hãy cho phép trình duyệt truy cập vị trí.' : location.position ? `${location.stale ? 'Vị trí lần cuối' : 'Vị trí của bạn'} · sai số khoảng ${Math.round(location.position.accuracy)} m · ${new Date(location.position.timestamp).toLocaleTimeString('vi-VN')}` : 'Bật định vị để thấy vị trí của bạn trên bản đồ.')}</p>
+    {(location.error||location.pending||location.position)&&<p className="location-status" role="status">{location.error || (location.pending ? 'Đang lấy vị trí… Hãy cho phép trình duyệt truy cập vị trí.' : `${location.stale ? 'Vị trí lần cuối' : 'Vị trí của bạn'} · sai số khoảng ${Math.round(location.position.accuracy)} m · ${new Date(location.position.timestamp).toLocaleTimeString('vi-VN')}`)}</p>}
   </div>;
 }
 

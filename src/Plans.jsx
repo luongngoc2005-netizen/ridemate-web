@@ -17,7 +17,7 @@ export default function Plans({ plans, onOpen, onCreate, onDelete }) {
   };
   return <main className="page">
     <div className="title"><h1>Kế hoạch của tôi ({plans.length})</h1><button className="green" onClick={onCreate}>Tạo kế hoạch mới</button></div>
-    <p>Chọn một kế hoạch để mở lịch trình và checklist. Mỗi kế hoạch được lưu riêng.</p>
+
     {plans.length === 0 && <section className="box">Chưa có kế hoạch. Tạo kế hoạch đầu tiên để bắt đầu.</section>}
     <div className="plans-grid">{plans.map(plan => <article className="box" key={plan.id}>
       <h2>{plan.origin} → {plan.destination}</h2><p>{dateRange(plan)} · {plan.days} ngày</p>

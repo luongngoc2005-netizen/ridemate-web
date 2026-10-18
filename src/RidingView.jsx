@@ -30,6 +30,6 @@ export default function RidingView({ trip }) {
       </details>)}
     </section>}
     {route.route && <a className="riding-directions" href={directionsUrl(route.route.start, route.route.end)} target="_blank" rel="noreferrer">Mở Google Maps để dẫn đường</a>}
-    <p className="riding-footnote">Google Maps tự tính tuyến riêng. Kiểm tra chế độ xe máy và các điểm dừng trước khi đi.</p>
+
   </section>;
 }

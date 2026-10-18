@@ -67,7 +67,7 @@ test('Plans → Journey → AI review → Plans never leaves duplicate screens o
     window.history.forward(); await settle();
     oneScreen(); assert.equal(document.querySelectorAll('.journey-phases').length, 0);
     assert.ok(document.querySelector('.ai-assistant'));
-    button('Kế hoạch của tôi').click(); await settle();
+    button('Kế hoạch').click(); await settle();
     oneScreen(); assert.equal(new URL(window.location.href).searchParams.get('page'), 'plans');
     assert.equal(document.querySelectorAll('.plans-grid article').length, 2);
     assert.equal(document.querySelectorAll('.journey-phases').length, 0);

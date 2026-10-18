@@ -252,7 +252,7 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
         <div className="ai-quick-prompts">{[draftExample,'Cao Bằng có gì chơi?',...(trip?quickPrompts:[])].map(prompt=><button disabled={busy} key={prompt} onClick={()=>send(prompt)}>{prompt}</button>)}</div>
         {error&&<p role="alert" className="ai-error">{error}</p>}
         <form className="ai-composer" onSubmit={e=>{e.preventDefault();send();}}><label className="ai-sr-only" htmlFor="assistant-message">Tin nhắn cho AI Assistant</label><textarea id="assistant-message" value={text} maxLength={2000} disabled={busy} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();send();}}} placeholder="Ví dụ: Cho tôi lịch trình 3N2Đ từ HN–CB…" rows={2}/><button className="green" disabled={busy||!text.trim()} type="submit">Gửi</button></form>
-        <small>{online?'Khi tạo bản nháp, yêu cầu và thông tin chuyến đi được gửi tới model AI đã cấu hình. Tọa độ GPS được giữ để vẽ tuyến, không gửi trong thông tin tạo lịch trình.':'Chưa kết nối AI. Thông tin bạn trả lời vẫn được giữ trong phiên chat để tiếp tục.'} Chỉ lưu kế hoạch khi bạn xác nhận.</small>
+        {!online&&<small>Chưa kết nối AI. Thông tin bạn trả lời vẫn được giữ trong phiên chat để tiếp tục.</small>}
       </div>
     </section>
   </main>;
