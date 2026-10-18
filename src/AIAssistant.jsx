@@ -95,7 +95,7 @@ function Conversation({trip,setTrip,initialReview,userId,setPage,onCreatePlan,on
       setBusy(true);const controller=new AbortController();request.current=controller;
       try{
         const result=await requestAssistant({message,previous,...(details?{context:intakeContext(details)}:{})},{client:supabase,signal:controller.signal,expectedUserId:userId,drafting:true});
-        next=cleanDraft(result.draft);mode='Bản nháp do AI đề xuất';
+        next=cleanDraft(result.draft);mode=result.source==='catalog'?'Lịch trình từ địa danh đã đối chiếu':'Bản nháp do AI đề xuất';
       }catch(failure){if(controller.signal.aborted)return;append({role:'assistant',text:failure.message});return;}
       finally{setBusy(false);request.current=null;}
     }

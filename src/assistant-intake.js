@@ -1,7 +1,7 @@
 import {cleanProfile,profileQuestions} from './ride-review.js';
 import {validOriginPoint} from './origin-data.js';
 import {provinceLocation} from './province-locations.js';
-import {destinationArea} from './destination-data.js';
+import {destinationArea,destinations,foldDestination} from './destination-data.js';
 
 const fold=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase();
 const text=value=>typeof value==='string'?value.trim():'';
@@ -22,10 +22,36 @@ export function requestedDuration(message){
   const days=q.match(/\b(\d+)\s*ngay\b/),nights=q.match(/\b(\d+)\s*dem\b/);
   return {days:compact?+compact[1]:days?+days[1]:null,nights:compact?+compact[2]:nights?+nights[1]:null};
 }
+// Accept compact routes such as "3 ngày 2 đêm Hà Nội Thanh Hóa".
+// Only adjacent, complete known names qualify; never infer a route from scattered mentions.
+function adjacentPlaces(message){
+  const q=foldDestination(message),matches=[];
+  for(const area of destinations){
+    for(const alias of [area.name,...(area.aliases||[])]){
+      const name=foldDestination(alias);if(!name)continue;
+      let start=0,index;
+      while((index=q.indexOf(name,start))>=0){
+        const end=index+name.length;
+        if((index===0||q[index-1]===' ')&&(end===q.length||q[end]===' '))matches.push({start:index,end,name:area.name});
+        start=end;
+      }
+    }
+  }
+  matches.sort((a,b)=>a.start-b.start||b.end-a.end);
+  const names=[];
+  for(const match of matches)if(!names.length||match.start>=names.at(-1).end)names.push(match);
+  const pairs=names.slice(1).map((next,i)=>({previous:names[i],next})).filter(({previous,next})=>previous.name!==next.name&&/^\s*(?:(?:den|toi|di)\s*)?$/.test(q.slice(previous.end,next.start)));
+  if(pairs.length!==1)return null;
+  const {previous,next}=pairs[0];
+  // "đến Cát Bà, Hải Phòng" names a destination plus its province, not a route.
+  if(/\b(?:den|toi|o|tai)\s*$/.test(q.slice(0,previous.start)))return null;
+  return {origin:previous.name,destination:next.name};
+}
 export function requestedPlaces(message){
+  message=String(message).normalize('NFC');
   const q=fold(message);
   const truncate=value=>{
-    const end=fold(value).search(/\s+(?:(?:trong\s+)?\d+\s*(?:ngay|n\s*\d)|(?:bang|di)\s+xe\b|gom\b|bao gom\b|voi\b|ngay di\b|khoi hanh\b|xuat phat luc\b)|[,;]\s*(?:khong|co|thich|uu tien|chon|tham quan|ghe|quay ve|gom|voi|ngay|xuat|chi|mot chieu)\b/);
+    const end=fold(value).search(/\s+(?:(?:trong\s+)?\d+\s*(?:ngay|n\s*\d)|(?:bang|di)\s+xe\b|gom\b|bao gom\b|voi\b|ngay di\b|khoi hanh\b|xuat phat luc\b)|[,;]\s*(?:khong|co|thich|uu tien|chon|tham quan|ghe|bo|bot|loai|quay ve|gom|voi|ngay|xuat|chi|mot chieu)\b/);
     return place(end>=0?value.slice(0,end):value);
   };
   const route=q.match(/\btu\s+(.+?)\s*(?:den\b|toi\b|di\b|[-–→])\s*(.+)/);
@@ -40,7 +66,8 @@ export function requestedPlaces(message){
     const origin=arrow[1].replace(/^.*?(?:lịch trình|lich trinh|kế hoạch|ke hoach)\s*/i,'').replace(/^\d+\s*[nN]\s*\d+\s*[đdĐD]\s*/,'').trim();
     if(destinationArea(origin)||provinceLocation(origin))return {origin:place(origin),destination:truncate(arrow[2])};
   }
-  const destination=message.match(/(?:^|\s)(?:ở|tại|đến|tới|đi|o|tai|den)\s+(?:địa điểm\s+)?(.+)/i);
+  const adjacent=adjacentPlaces(message);if(adjacent)return adjacent;
+  const destination=message.match(/(?:^|\s)(?:ở|tại|đến|tới|o|tai|den)\s+(?:địa điểm\s+)?(.+)/i)||message.match(/(?:^|\s)(?:đi|di)\s+(?:địa điểm\s+)?(.+)/i);
   if(!destination)return {origin:'',destination:''};
   const start=destination.index+destination[0].lastIndexOf(destination[1]);
   return {origin:'',destination:truncate(message.slice(start))};

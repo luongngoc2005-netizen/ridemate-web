@@ -90,3 +90,9 @@ Phần kiểm tra từng ngày trong bản nháp/chi tiết kế hoạch tính t
 OpenAI dùng Responses Structured Outputs; OpenRouter/vLLM dùng Chat Completions với JSON Schema. Đầu vào/đầu ra được kiểm tra, không chuyển provider hoặc tự thử lại khi lỗi. Timeout OpenAI 30 giây; OpenRouter/vLLM 90 giây. Model offline, sai schema, output thiếu hoặc hết quota được báo rõ; bản nháp đang có được giữ.
 
 Chi tiết hạn mức và cấu hình production: [RENDER_DEPLOY](./RENDER_DEPLOY.md). Kiểm thử provider giả lập và smoke test trực tiếp tới model không thay thế nghiệm thu đầy đủ Auth/quota trên bản deploy.
+
+### Nhận diện tuyến viết gọn và kết quả sai khu vực
+
+Yêu cầu như “Tạo cho tôi chuyến đi 3 ngày 2 đêm Hà Nội Thanh Hóa” tự điền Hà Nội → Thanh Hóa trong form; hai tên tỉnh/thành đứng liền nhau cũng được nhận diện, ngoài cú pháp từ…đến… và dấu mũi tên. Không suy ra điểm đi từ các địa danh rải rác trong phần sở thích.
+
+Schema gửi model giới hạn stops trong catalog của điểm đến. Vẫn kiểm tra nội dung mô tả để ngăn model lồng điểm/chặng ngoài khu vực. Khi bản JSON hợp lệ nhưng sai khu vực hoặc bỏ điểm bắt buộc, bỏ toàn bộ nội dung model đó và dựng lại lịch từ catalog đã đối chiếu của chính điểm đến, giữ điểm bắt buộc/loại trừ, ngày/đêm và chặng về. Kết quả được gắn nhãn “Lịch trình từ địa danh đã đối chiếu”; không gọi model lần hai. Lỗi kết nối hoặc JSON không hợp lệ vẫn báo lỗi, không giả là AI đã trả lịch thành công. Lịch này chưa kiểm tra thời gian tuyến, giờ mở cửa hoặc giá.

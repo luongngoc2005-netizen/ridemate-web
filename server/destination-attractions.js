@@ -88,7 +88,8 @@ export function validateDestinationDraft(draft,selection,origin){
   const allowed=new Set(selection.places.map(foldPlace));
   if(draft.days.some(d=>d.stops.some(name=>!allowed.has(foldPlace(name)))))throw apiError(502,'AI_DESTINATION_MISMATCH');
   if(selection.required?.some(name=>!draft.days.some(d=>d.stops.some(p=>foldPlace(p)===foldPlace(name)))))throw apiError(502,'AI_REQUESTED_PLACE_MISSING');
-  const prose=foldPlace([draft.summary,...draft.days.flatMap(d=>[d.title,d.morning,d.afternoon,d.evening,d.lodging])].join(' '));
+  // Keep field/sentence boundaries: Sóc Trăng + Ăn sáng must not become Tràng An.
+  const prose=[draft.summary,...draft.days.flatMap(d=>[d.title,d.morning,d.afternoon,d.evening,d.lodging])].flatMap(value=>value.split(/[.!?;\n]/)).map(foldPlace).join(' | ');
   if(selection.excluded?.some(name=>` ${prose} `.includes(` ${foldPlace(name)} `)))throw apiError(502,'AI_DESTINATION_MISMATCH');
   const regions=[...destinations,...provinceLocations];
   const subregions=destinations.filter(region=>region.parent&&foldPlace(region.parent)===foldPlace(selection.name)).map(region=>region.name);
@@ -96,12 +97,12 @@ export function validateDestinationDraft(draft,selection,origin){
   // A landmark can contain another area name (e.g. Mộc Châu in Sơn La).
   // Validate those names separately, then mask approved landmarks for region checks.
   let regionProse=` ${prose} `;
-  for(const name of [...allowed].sort((a,b)=>b.length-a.length))regionProse=regionProse.replaceAll(` ${name} `,' ');
+  for(const name of [...allowed].sort((a,b)=>b.length-a.length))regionProse=regionProse.replace(new RegExp(`(?:^| )${name}(?= |$)`,'g'),' ');
   const permitted=[origin,draft.destination,selection.name,local?.parent,local?.currentProvince,...subregions].filter(Boolean).flatMap(value=>[value,destinationArea(value)?.name].filter(Boolean)).map(foldPlace);
   for(const region of regions){
     // Origin is valid in the travel legs, but unrelated regions/attractions are not.
     const name=foldPlace(region.name);
-    if(region.places?.some(p=>!allowed.has(foldPlace(p))&&` ${prose} `.includes(` ${foldPlace(p)} `)))throw apiError(502,'AI_DESTINATION_MISMATCH');
+    if(region.places?.some(p=>!allowed.has(foldPlace(p))&&regionProse.includes(` ${foldPlace(p)} `)))throw apiError(502,'AI_DESTINATION_MISMATCH');
     if(permitted.some(p=>p===name||` ${p} `.includes(` ${name} `)))continue;
     if(regionProse.includes(` ${name} `))throw apiError(502,'AI_DESTINATION_MISMATCH');
   }

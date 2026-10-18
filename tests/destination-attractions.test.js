@@ -112,3 +112,53 @@ test('Bac Ninh is supported and older deployed missing-catalog errors remain cle
  const draft=localDraft();draft.landmarkSource={destination:draft.destination,url:'https://haiphong.gov.vn.evil.test/source'};
  assert.equal(cleanDraft(draft).landmarkSource,undefined);
 });
+
+
+test('the exact compact Hanoi Thanh Hoa request recovers from wrong-region model output without another model call',async()=>{
+ const message='Tạo cho tôi chuyến đi 3 ngày 2 đêm Hà Nội Thanh Hóa';
+ assert.deepEqual(normalizeDraftRequest({message}).context,{origin:'Hà Nội',destination:'Thanh Hóa'});
+ let calls=0;
+ const result=await generateDraft({message,context:{days:3,nights:2,date:'2026-11-07',departure:'06:30',people:2,vehicles:1}},{apiKey:'test',model:'test',fetchImpl:async(url,init)=>{
+  calls++;const body=JSON.parse(init.body),input=JSON.parse(body.input);
+  assert.equal(input.catalog.name,'Thanh Hóa');
+  assert.deepEqual(body.text.format.schema.properties.days.items.properties.stops.items.enum,input.catalog.places);
+  return response(basicDraft('3N2Đ HN-CB'));
+ }});
+ assert.equal(calls,1);assert.equal(result.source,'catalog');assert.equal(result.draft.origin,'Hà Nội');assert.equal(result.draft.destination,'Thanh Hóa');assert.equal(result.draft.days.length,3);assert.equal(result.draft.nights,2);
+ assert.deepEqual(result.draft.days.flatMap(day=>day.stops),['Thành nhà Hồ','Khu di tích Lam Kinh']);
+ assert.ok(!JSON.stringify(result.draft).includes('Bản Giốc'));
+ const selection=await destinationAttractions('Thanh Hóa');
+ assert.doesNotThrow(()=>validateDestinationDraft(result.draft,selection,'Hà Nội'));
+ assert.match(cleanDraft(result.draft).landmarkSource.url,/vietnamtourism/);
+});
+
+test('catalog recovery keeps required/excluded local points and the one-way duration',async()=>{
+ const wrong=basicDraft('3N2Đ HN-CB');wrong.days=wrong.days.slice(0,2);
+ const result=await generateDraft({message:'Từ Hà Nội đến Lạng Sơn, bỏ Động Tam Thanh, ghé Động Nhị Thanh',context:{days:2,nights:1,returnToOrigin:false}},{apiKey:'test',model:'test',fetchImpl:async()=>response(wrong)});
+ assert.equal(result.source,'catalog');assert.equal(result.draft.days.length,2);assert.equal(result.draft.returnToOrigin,false);
+ const stops=result.draft.days.flatMap(day=>day.stops);assert.ok(stops.includes('Động Nhị Thanh'));assert.ok(!stops.includes('Động Tam Thanh'));
+ assert.ok(!result.draft.days.some(day=>day.title==='Lạng Sơn → Hà Nội'));
+ assert.match(result.draft.warnings.join(' '),/dựng lại/);
+});
+
+
+test('recovery never substitutes another province for any supported destination',async()=>{
+ for(const area of destinations){
+  const wrong=localDraft();wrong.days[0].stops=['Địa điểm không thuộc danh sách'];
+  const result=await generateDraft({message:'Tạo chuyến đi',context:{origin:'Hà Nội',destination:area.name,days:3,nights:2}},{apiKey:'test',model:'test',fetchImpl:async()=>response(wrong)});
+  assert.equal(result.source,'catalog',area.name);assert.equal(result.draft.destination,area.name);
+  const selection=await destinationAttractions(area.name);
+  assert.ok(result.draft.days.flatMap(day=>day.stops).every(name=>selection.places.includes(name)),area.name);
+  assert.doesNotThrow(()=>validateDestinationDraft(result.draft,selection,'Hà Nội'),area.name);
+ }
+});
+
+
+test('a sourced full landmark name is not rejected because another province lists a shorter homonym',async()=>{
+ const selection=await destinationAttractions('Vĩnh Long');
+ const draft=localDraft();draft.destination='Vĩnh Long';draft.summary='Hà Nội đến Vĩnh Long.';
+ draft.days=draft.days.map(day=>({...day,title:'Khám phá Vĩnh Long',morning:'Tham quan Văn Thánh Miếu Vĩnh Long.',afternoon:'Ghé Làng gạch Mang Thít.',evening:'Nghỉ ở Vĩnh Long.',lodging:'Vĩnh Long',stops:['Văn Thánh Miếu Vĩnh Long','Làng gạch Mang Thít']}));
+ assert.doesNotThrow(()=>validateDestinationDraft(draft,selection,'Hà Nội'));
+ draft.days[1].afternoon='Đến Đồng Tháp thăm Văn Thánh Miếu.';
+ assert.throws(()=>validateDestinationDraft(draft,selection,'Hà Nội'),e=>e.code==='AI_DESTINATION_MISMATCH');
+});

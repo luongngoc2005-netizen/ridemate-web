@@ -86,3 +86,14 @@ test('model omissions cannot replace provided origin/destination and duration mi
   assert.equal(result.draft.destination,'Cao Bằng');assert.equal(result.draft.nights,2);
   await assert.rejects(generateDraft({message,context:details},{apiKey:'test',model:'test',fetchImpl:async()=>completion({...draft,days:draft.days.slice(0,2)})}),e=>e.code==='AI_INVALID_DRAFT');
 });
+
+
+test('compact adjacent endpoints fill the requested trip without confusing the phrase chuyến đi',()=>{
+ for(const prompt of ['Tạo cho tôi chuyến đi 3 ngày 2 đêm Hà Nội Thanh Hóa','Tạo cho tôi chuyến đi 3 ngày 2 đêm ha noi thanh hoa','Tạo cho tôi chuyến đi 3 ngày 2 đêm HN Thanh Hoá']){
+  assert.deepEqual(requestedPlaces(prompt),{origin:'Hà Nội',destination:'Thanh Hóa'},prompt);
+ }
+ assert.deepEqual(requestedPlaces('Hà Nội tới Thanh Hóa'),{origin:'Hà Nội',destination:'Thanh Hóa'});
+ assert.deepEqual(requestedPlaces('Tạo chuyến đi 3 ngày 2 đêm đến Hải Phòng'),{origin:'',destination:'Hải Phòng'});
+ assert.notEqual(requestedPlaces('Tạo lịch trình đến Cát Bà, Hải Phòng').origin,'Cát Bà');
+ assert.equal(requestedPlaces('Tạo chuyến đi 3 ngày 2 đêm').origin,'');
+});
