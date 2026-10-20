@@ -1,6 +1,7 @@
 import {validOriginPoint} from './origin-data.js';
 import {suggestionsFor} from './destination-data.js';
 export {destinations,suggestionsFor} from './destination-data.js';
+export const EXTRA_CHECKLIST_SUGGESTIONS = ['Mũ bảo hiểm đạt chuẩn', 'Găng tay bảo hộ', 'Nước uống', 'Bộ sơ cứu cá nhân', 'Tiền mặt dự phòng'];
 export const STORAGE_KEY = 'ridemate.trip.v1';
 export const newId = () => globalThis.crypto.randomUUID();
 export const initialDetails = { origin: 'Hà Nội', destination: 'Hà Giang', date: '2026-09-15', days: 4, notes: '', interests: [] };
@@ -30,7 +31,7 @@ export function suggestItinerary(details) {
 export function createTrip(details) {
   if (!validDetails(details)) throw new Error('Thông tin chuyến đi không hợp lệ.');
   const result = { ...details, origin: details.origin.trim(), destination: details.destination.trim(), days: Number(details.days), id: newId(), notes: details.notes || '', interests: details.interests || [] };
-  return { ...result, itinerary: suggestItinerary(result), checklist: ['CCCD/CMND', 'Giấy phép lái xe', 'Đăng ký xe', 'Bảo hiểm xe máy', 'Kiểm tra lốp xe', 'Kiểm tra dầu nhớt', 'Kiểm tra phanh', 'Kiểm tra đèn, còi', 'Bộ vá xe', 'Áo mưa', 'Sạc dự phòng'].map(name => ({ id: newId(), name, done: false })) };
+  return { ...result, itinerary: suggestItinerary(result), checklist: ['CCCD/CMND', 'Giấy phép lái xe', 'Đăng ký xe', 'Bảo hiểm xe máy', 'Kiểm tra lốp xe', 'Kiểm tra dầu nhớt', 'Kiểm tra phanh', 'Kiểm tra đèn, còi', 'Bộ vá xe', 'Áo mưa', 'Sạc dự phòng', ...EXTRA_CHECKLIST_SUGGESTIONS].map(name => ({ id: newId(), name, done: false })) };
 }
 export function editTripDetails(trip, details) {
   if (!validDetails(details)) throw new Error('Thông tin chuyến đi không hợp lệ.');
