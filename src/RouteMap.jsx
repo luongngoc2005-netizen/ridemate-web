@@ -41,7 +41,7 @@ export default function RouteMap({ route, center, places = emptyPlaces, visible 
   useEffect(() => {
     let instance;
     try {
-      instance = new maplibregl.Map({ container: container.current, style: mapServices.style, center: [106.2, 16.2], zoom: 5, cooperativeGestures: !riding, attributionControl: { compact: true } });
+      instance = new maplibregl.Map({ container: container.current, style: mapServices.style, center: [106.2, 16.2], zoom: 5, cooperativeGestures: false, attributionControl: { compact: true } });
     } catch {
       setError('Không khởi tạo được bản đồ WebGL. Hãy bật tăng tốc đồ họa hoặc thử trình duyệt khác.'); return;
     }

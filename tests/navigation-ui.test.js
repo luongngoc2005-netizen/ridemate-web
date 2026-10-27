@@ -9,27 +9,96 @@ import { savePlans } from '../src/plans-data.js';
 // Exercise the real App, navigation store, Journey and AI review in a DOM.
 // Authentication and map canvases are isolated: this test never contacts a
 // live account, model, GPS service or tile provider.
-const bundle = await build({
-  entryPoints: ['src/main.jsx'], bundle: true, write: false, format: 'iife',
-  loader: { '.css': 'empty' }, define: { 'import.meta.env': '{}', 'import.meta.url': '"https://navigation.test/assets/app.js"', 'process.env.NODE_ENV': '"development"' },
-  plugins: [{ name: 'offline-navigation-test', setup(builder) {
-    builder.onLoad({ filter: /[\\/]src[\\/]supabase\.js$/ }, () => ({ contents: 'export const supabase=null; export const authRedirect=()=>"";', loader: 'js' }));
-    builder.onLoad({ filter: /[\\/]src[\\/](RouteMap|DestinationMap)\.jsx$/ }, () => ({
-      contents: 'import React from "react"; export default function TestMap(){return React.createElement("div",{"data-testid":"map"});}', loader: 'js',
-    }));
-  } }],
-});
-const source = bundle.outputFiles[0].text;
 
 test('Plans → Journey → AI review → Plans never leaves duplicate screens or traps navigation', async t => {
   const errors = [], console = new VirtualConsole();
   console.on('error', (...args) => errors.push(args.join(' ')));
   console.on('jsdomError', error => errors.push(error.message));
-  const dom = new JSDOM('<!doctype html><div id="root"></div>', {
-    url: 'https://navigation.test/?page=plans', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: console,
+  const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
+    url: 'https://navigation.test/?page=plans', runScripts: 'dangerously', pretendToBeVisual: true, virtualConsole: console,
   });
   t.after(() => dom.window.close());
   const { window } = dom, { document } = window;
+
+  // Polyfills React 18 + maplibre-gl need in JSDOM
+  window.requestAnimationFrame = (cb) => setTimeout(cb, 16);
+  window.cancelAnimationFrame = (id) => clearTimeout(id);
+  window.IntersectionObserver = class IntersectionObserver {
+    constructor(cb) { this.cb = cb; this.elements = new Set(); }
+    observe(el) { this.elements.add(el); }
+    unobserve(el) { this.elements.delete(el); }
+    disconnect() { this.elements.clear(); }
+    takeRecords() { return []; }
+  };
+  window.ResizeObserver = class ResizeObserver {
+    constructor(cb) { this.cb = cb; }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  window.matchMedia = (query) => ({ matches: false, media: query, onchange: null, addListener: () => {}, removeListener: () => {} });
+
+  // JSDOM history API fix - ensure replaceState/pushState work
+  if (!window.history.replaceState) {
+    window.history.replaceState = (state, title, url) => {
+      window.location.href = url;
+    };
+  }
+  if (!window.history.pushState) {
+    window.history.pushState = (state, title, url) => {
+      window.location.href = url;
+    };
+  }
+  // Ensure history.state exists (read-only in JSDOM, need defineProperty)
+  try {
+    if (!window.history.state) {
+      Object.defineProperty(window.history, 'state', { value: {}, writable: true, configurable: true });
+    }
+  } catch (e) {
+    // Ignore if can't set
+  }
+  // Ensure location.search is properly parsed
+  if (!window.location.search && window.location.href.includes('?')) {
+    const url = new URL(window.location.href);
+    Object.defineProperty(window.location, 'search', { value: url.search, configurable: true });
+  }
+
+  // Catch unhandled promise rejections (React errors often end up here)
+  window.addEventListener('unhandledrejection', (e) => {
+    errors.push('UNHANDLED REJECTION: ' + (e.reason?.stack || e.reason?.message || e.reason));
+  });
+
+  // Build bundle inside test so we can eval in this window
+  const bundle = await build({
+    entryPoints: ['src/main.jsx'], bundle: true, write: false, format: 'iife',
+    loader: { '.css': 'empty', '.png': 'dataurl' }, define: { 'import.meta.env': '{}', 'import.meta.url': '"https://navigation.test/assets/app.js"', 'process.env.NODE_ENV': '"development"' },
+    plugins: [{ name: 'offline-navigation-test', setup(builder) {
+      builder.onLoad({ filter: /[\\/]src[\\/]supabase\.js$/ }, () => ({ contents: 'export const supabase=null; export const authRedirect=()=>"";', loader: 'js' }));
+      builder.onLoad({ filter: /[\\/]src[\\/](RouteMap|DestinationMap)\.jsx$/ }, () => ({
+        contents: 'import React from "react"; export default function TestMap(){return React.createElement("div",{"data-testid":"map"});}', loader: 'js',
+      }));
+    } }],
+  });
+  const source = bundle.outputFiles[0].text;
+
+  // DEBUG: wrap eval to catch errors
+  try {
+    window.eval(source);
+  } catch (e) {
+    errors.push('EVAL ERROR: ' + e.stack);
+  }
+
+  // Wait a bit for React to render
+  await new Promise(r => setTimeout(r, 100));
+
+  // DEBUG: check errors after eval
+  if (errors.length > 0) {
+    // Don't use console.log, just let it be captured in the final assertion
+  }
+
+  // Flush microtasks (React 18 render is scheduled as microtasks)
+  await Promise.resolve();
+  await Promise.resolve();
   window.TextEncoder=TextEncoder;
   window.indexedDB = new IDBFactory();
   window.scrollTo = () => {};
@@ -45,9 +114,19 @@ test('Plans → Journey → AI review → Plans never leaves duplicate screens o
     const found = [...document.querySelectorAll('button')].find(node => node.textContent.trim() === label);
     assert.ok(found, `Missing button: ${label}`); return found;
   };
-  const oneScreen = () => assert.equal(document.querySelectorAll('main').length, 1, 'The previous page must be unmounted');
+  const oneScreen = (mainCount, hasPlansGrid, bodyHtml) => {
+    const msg = 'The previous page must be unmounted. '
+      + 'main count: ' + (mainCount ?? document.querySelectorAll('main').length)
+      + ', plans-grid: ' + (hasPlansGrid ?? !!document.querySelector('.plans-grid'))
+      + ', body: ' + (bodyHtml ?? document.body.innerHTML.substring(0, 2000));
+    assert.equal(document.querySelectorAll('main').length, 1, msg);
+  };
   for (let attempt = 0; attempt < 100 && !document.querySelector('.plans-grid'); attempt++) await settle();
-  oneScreen();
+  // DEBUG: include DOM info in assertion message
+  const mainCount = document.querySelectorAll('main').length;
+  const hasPlansGrid = !!document.querySelector('.plans-grid');
+  const bodyHtml = document.body.innerHTML.substring(0, 2000);
+  oneScreen(mainCount, hasPlansGrid, bodyHtml);
   for (const plan of [first, second, first]) {
     const cards = [...document.querySelectorAll('.plans-grid article')];
     const card = cards.find(node => node.textContent.includes(`${plan.origin} → ${plan.destination}`));

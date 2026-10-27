@@ -20,3 +20,12 @@
 .toolgrid button > span { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #f1f6f3; }
 @media(max-width: 600px) { .nav .account-link { max-width: 48%; } .quick .tool-icon { width: 22px; height: 22px; } }
 @media(max-width: 600px) { .account-actions > button { width: 100%; } .nav .account-link { font-size: 12px; } }
+
+.oauth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: #667; font-size: 14px; }
+.oauth-divider::before, .oauth-divider::after { content: ''; flex: 1; height: 1px; background: #d9e7df; }
+.oauth-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px 16px; border: 1px solid #d9e7df; border-radius: 10px; background: #fff; color: #15231c; font: inherit; font-size: 15px; font-weight: 500; cursor: pointer; transition: background .15s, border-color .15s; }
+.oauth-btn:hover { background: #f4f8f5; border-color: #bcd5c5; }
+.oauth-btn:active { background: #e8f2eb; }
+.oauth-btn:disabled { opacity: .55; cursor: wait; }
+.oauth-btn.google { border-color: #dadce0; }
+.oauth-btn.google:hover { background: #f8f9fa; border-color: #c1c7cd; }
