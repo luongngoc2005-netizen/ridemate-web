@@ -1,7 +1,7 @@
 import TripDateInput from './TripDateInput.jsx';
 import { useNavigationState } from './useNavigationState.js';
 import OriginSelect from './OriginSelect.jsx';
-import {StayNightPlan} from './stays/Stays.jsx';
+import {StayNightPlan} from './stays/StayNightPlan.jsx';
 import ToolIcon from './ToolIcon.jsx';
 import ProvinceSelect from './ProvinceSelect.jsx';
 import React, { useRef, useState } from 'react';

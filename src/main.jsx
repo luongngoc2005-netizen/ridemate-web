@@ -1,6 +1,13 @@
 import TripDateInput from './TripDateInput.jsx';
 import { useNavigationState, useNavigationBlock } from './useNavigationState.js';
-import AIAssistant from './AIAssistant.jsx';
+// Feature styles remain before responsive.css to preserve the existing cascade.
+import './ai-assistant.css';
+import './assistant-planner.css';
+import './chat-history.css';
+import './time-picker.css';
+import './journal.css';
+import './stays/stays.css';
+import ScreenContent from './ScreenContent.jsx';
 import Plans from './Plans.jsx';
 import usePlanSync from './usePlanSync.js';
 import {putPlan,removePlan} from './plans-data.js';
@@ -8,15 +15,13 @@ import OriginSelect from './OriginSelect.jsx';
 import {tripOrigin} from './origin-data.js';
 import {directionsUrl} from './route-data.js';
 import {BookingProvider,useBookings} from './stays/BookingContext.jsx';
-import Stays from './stays/Stays.jsx';
 import {tripWithStays} from './stays/booking-data.js';
-import React,{useState,useEffect,useMemo} from 'react';
+import React,{lazy,useState,useEffect,useMemo} from 'react';
 import { TripForm, Journey, TripChecklist } from './Journey.jsx';
 import { initialDetails, createTrip, editTripDetails, dateRange, readTrip, saveTrip, validDetails } from './trip-data.js';
 import {createRoot} from 'react-dom/client';
 import './styles.css';
 import './journey.css';
-import Journal from './Journal.jsx';
 import Account, { useAccount } from './Account.jsx';
 import { accountName } from './account-name.js';
 import ToolIcon from './ToolIcon.jsx';
@@ -25,11 +30,15 @@ import ProvinceDirectory from './ProvinceDirectory.jsx';
 import { LocationProvider, LocationStatus } from './Location.jsx';
 import { TripRouteProvider } from './TripRouteContext.jsx';
 import TripCompanion from './TripCompanion.jsx';
-import DestinationMap from './DestinationMap.jsx';
+import DeferredDestinationMap from './DeferredDestinationMap.jsx';
 import './mobile-journey.css';
 import './responsive.css';
 import './trip-date-input.css';
 import BrandLogo from './BrandLogo.jsx';
+
+const AIAssistant = lazy(() => import('./AIAssistant.jsx'));
+const Journal = lazy(() => import('./Journal.jsx'));
+const Stays = lazy(() => import('./stays/Stays.jsx'));
 
 const tools=[['fuel','Cây xăng','gas station'],['repair','Sửa xe','motorcycle repair'],['food','Ăn uống','restaurant'],['bed','Chỗ nghỉ','hotel'],['medical','Y tế','hospital'],['pin','Điểm hot','tourist attraction']];
 const searchMaps=q=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,'_blank');
@@ -43,7 +52,7 @@ function Home({trip: savedTrip,onCreate,setPage}){const [trip,setTrip]=useState(
   </section>
   <section className="box"><div className="title"><h2>Công cụ hỗ trợ nhanh</h2><button onClick={()=>setPage('tools')}>Xem tất cả <ToolIcon name="arrowRight" className="inline-icon"/></button></div><div className="quick"><button onClick={()=>setPage('checklist')}><span><ToolIcon name="checklist"/></span>Checklist</button>{tools.map(t=><button key={t[1]} onClick={()=>t[0]==='bed'?setPage('stays'):searchMaps(t[2])}><span><ToolIcon name={t[0]}/></span>{t[1]}</button>)}<button onClick={()=>setPage('ai')}><span><ToolIcon name="assistant"/></span>AI Assistant</button></div></section>
 </div><aside className="side">{savedTrip && <section className="box"><div className="title"><h2>Chuyến đi của bạn</h2><button onClick={()=>setPage('trip')}>Xem chi tiết <ToolIcon name="arrowRight" className="inline-icon"/></button></div><h3>{savedTrip.origin} <ToolIcon name="arrowRight" className="inline-icon"/> {savedTrip.destination}</h3><p>{dateRange(savedTrip)} · {savedTrip.days} ngày</p><p>{savedTrip.itinerary.reduce((total,day)=>total+day.places.length,0)} điểm tham quan · {savedTrip.checklist.filter(item=>item.done).length}/{savedTrip.checklist.length} mục chuẩn bị</p><button className="green full" onClick={()=>setPage('trip')}>Quay lại tổng quan hành trình <ToolIcon name="arrowRight" className="inline-icon"/></button></section>}
-<section className="box"><div className="title"><h2>Bản đồ gợi ý</h2><button onClick={()=>directions(tripOrigin(trip),trip.destination)}>Mở Google Maps <ToolIcon name="external" className="inline-icon"/></button></div>{savedTrip?.completedAt ? <p>Chuyến đi đã hoàn thành. Bản đồ không tự tải.</p> : <DestinationMap name={trip.destination}/>}</section>
+<section className="box"><div className="title"><h2>Bản đồ gợi ý</h2><button onClick={()=>directions(tripOrigin(trip),trip.destination)}>Mở Google Maps <ToolIcon name="external" className="inline-icon"/></button></div>{savedTrip?.completedAt ? <p>Chuyến đi đã hoàn thành. Bản đồ không tự tải.</p> : <DeferredDestinationMap name={trip.destination}/>}</section>
 <section className="box"><div className="title"><h2>Nhật ký của bạn</h2><button onClick={()=>setPage('journal')}>Mở nhật ký <ToolIcon name="arrowRight" className="inline-icon"/></button></div><button className="soft" onClick={()=>setPage('journal')}>Xem các hành trình đã lưu</button></section></aside></main>}
 
 function Tools({setPage}){return <main className="page"><h1>Công cụ hỗ trợ</h1><p>Những công cụ nhỏ, cho hành trình lớn hơn.</p><div className="toolgrid"><button onClick={()=>setPage('checklist')}><span><ToolIcon name="checklist"/></span><h3>Checklist</h3><p>Chuẩn bị giấy tờ, hành lý và tình trạng xe.</p></button>{tools.map(t=><button key={t[1]} onClick={()=>t[0]==='bed'?setPage('stays'):searchMaps(t[2])}><span><ToolIcon name={t[0]}/></span><h3>{t[1]}</h3><p>Tìm nhanh trên Google Maps khi cần.</p></button>)}<button onClick={()=>setPage('ai')}><span><ToolIcon name="assistant"/></span><h3>AI Assistant</h3><p>Kiểm tra lịch trình theo hồ sơ người lái và thời gian của bạn.</p></button></div><ProvinceDirectory/></main>}
@@ -110,6 +119,6 @@ function AppContent({account}){
   else if(page==='tools')content=<Tools setPage={setPage}/>;
   else if(page==='ai')content=<AIAssistant trip={trip} setTrip={setTrip} setPage={setPage} onCreatePlan={createFromAssistant} onOpenPlan={id=>{setActiveId(id);setPage('trip');}} initialReview={reviewRequested} userId={account.session?.user.id}/>;
   else content=account.loading ? <main className="page" role="status">Đang mở tài khoản…</main> : <Journal key={account.session?.user.id || "guest"} userId={account.session?.user.id} completionTrip={plans.find(plan=>plan.id===completionTrip?.id)||null} onEntryChange={journalChanged} onBack={trip?()=>setPage('trip'):null}/>;
-  return <TripRouteProvider key={`${trip?.id}:${trip?.origin}:${trip?.destination}`} trip={mapTrip}><Nav page={page} setPage={setPage} user={account.session?.user}/><div className="app-content"><LocationStatus/>{page==='plans'&&<div className="plans-shortcut"><button className="soft" onClick={()=>setPage('plans')}>Kế hoạch của tôi ({plans.length})</button></div>}{trip && <div className="trip-return"><span>{trip.origin} <ToolIcon name="arrowRight" className="inline-icon"/> {trip.destination}</span><button onClick={()=>setPage('ai-review')}>Kiểm tra chuyến đi của tôi</button></div>}{sync.error&&<div className="storage-warning" role="alert"><p>{sync.error}</p><button onClick={()=>sync.retry()}>Thử đồng bộ lại</button>{sync.conflict&&<><button onClick={()=>{if(window.confirm("Chọn bản trên thiết bị cho những nội dung bị xung đột?"))sync.retry("local");}}>Giữ bản trên thiết bị</button><button onClick={()=>{if(window.confirm("Chọn bản tài khoản cho những nội dung bị xung đột?"))sync.retry("remote");}}>Giữ bản tài khoản</button></>}</div>}{storageError?<p className="storage-warning" role="alert">{storageError}</p>:trip&&(!account.session||sync.status!=="synced")?<p className="storage-hint">{account.session ? "Kế hoạch được giữ trên thiết bị; đang chờ đồng bộ tài khoản." : "Kế hoạch khách lưu trên trình duyệt này. Đăng nhập để tự đồng bộ; nhập kế hoạch khách tại Tài khoản."}</p>:null}{feedback&&<p className="save-feedback app-feedback" role="status">{feedback}</p>}{sync.loading&&page!=="account"?<main className="page" role="status">Đang mở kế hoạch theo tài khoản…</main>:content}{trip && !trip.completedAt && !accountBusy && <TripCompanion key={`companion:${trip.id}`} trip={mapTrip} setTrip={setTrip}/>}</div><footer><BrandLogo/><span>Đi xa hơn, an toàn hơn, trải nghiệm nhiều hơn.</span><span>Giới thiệu · Hỗ trợ · Góp ý · Chính sách bảo mật</span></footer></TripRouteProvider>;
+  return <TripRouteProvider key={`${trip?.id}:${trip?.origin}:${trip?.destination}`} trip={mapTrip}><Nav page={page} setPage={setPage} user={account.session?.user}/><div className="app-content"><LocationStatus/>{page==='plans'&&<div className="plans-shortcut"><button className="soft" onClick={()=>setPage('plans')}>Kế hoạch của tôi ({plans.length})</button></div>}{trip && <div className="trip-return"><span>{trip.origin} <ToolIcon name="arrowRight" className="inline-icon"/> {trip.destination}</span><button onClick={()=>setPage('ai-review')}>Kiểm tra chuyến đi của tôi</button></div>}{sync.error&&<div className="storage-warning" role="alert"><p>{sync.error}</p><button onClick={()=>sync.retry()}>Thử đồng bộ lại</button>{sync.conflict&&<><button onClick={()=>{if(window.confirm("Chọn bản trên thiết bị cho những nội dung bị xung đột?"))sync.retry("local");}}>Giữ bản trên thiết bị</button><button onClick={()=>{if(window.confirm("Chọn bản tài khoản cho những nội dung bị xung đột?"))sync.retry("remote");}}>Giữ bản tài khoản</button></>}</div>}{storageError?<p className="storage-warning" role="alert">{storageError}</p>:trip&&(!account.session||sync.status!=="synced")?<p className="storage-hint">{account.session ? "Kế hoạch được giữ trên thiết bị; đang chờ đồng bộ tài khoản." : "Kế hoạch khách lưu trên trình duyệt này. Đăng nhập để tự đồng bộ; nhập kế hoạch khách tại Tài khoản."}</p>:null}{feedback&&<p className="save-feedback app-feedback" role="status">{feedback}</p>}{sync.loading&&page!=="account"?<main className="page" role="status">Đang mở kế hoạch theo tài khoản…</main>:<ScreenContent key={`${page}:${activeId || ""}`}>{content}</ScreenContent>}{trip && !trip.completedAt && !accountBusy && <TripCompanion key={`companion:${trip.id}`} trip={mapTrip} setTrip={setTrip}/>}</div><footer><BrandLogo/><span>Đi xa hơn, an toàn hơn, trải nghiệm nhiều hơn.</span><span>Giới thiệu · Hỗ trợ · Góp ý · Chính sách bảo mật</span></footer></TripRouteProvider>;
 }
 createRoot(document.getElementById('root')).render(<LocationProvider><App/></LocationProvider>);

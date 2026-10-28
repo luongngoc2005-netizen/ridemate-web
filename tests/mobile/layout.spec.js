@@ -22,6 +22,9 @@ for(const view of ['home','plans','create','checklist','ai','journal','tools','s
  test(`${view} fits the screen`,async({page},testInfo)=>{
   await page.goto(`/?page=${view}&trip=${plan.id}`);
   await expect(page.locator('main')).toBeVisible();
+  if(view==='ai')await expect(page.locator('.ai-messages')).toBeVisible();
+  if(view==='journal')await expect(page.locator('.journal-page')).toBeVisible();
+  if(view==='stays')await expect(page.getByRole('heading',{name:'Chỗ nghỉ cho chuyến đi',exact:true})).toBeVisible();
   await capture(page,view,testInfo);
   await noOverflow(page);
   const nav=page.locator('.nav nav button');await expect(nav).toHaveCount(5);

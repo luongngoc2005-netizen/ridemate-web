@@ -38,6 +38,7 @@ test('production pages render and map worker loads from the same app',async({pag
   });
   await page.goto('/?page=home');
   await expect(page.locator('.hero')).toBeVisible();
+  await page.locator('.deferred-destination-map').scrollIntoViewIfNeeded();
   await expect(page.locator('.maplibregl-canvas')).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>window.__mapWorkerReplies)).toBeGreaterThan(0);
   const urls=await page.evaluate(()=>window.__mapWorkers);
@@ -58,6 +59,7 @@ test('failed map stylesheet load shows one retry and navigation stays usable',as
     return route.fallback();
   });
   await page.goto('/?page=home');
+  await page.locator('.deferred-destination-map').scrollIntoViewIfNeeded();
   const retry=page.getByRole('button',{name:'Thử lại bản đồ',exact:true});
   await expect(retry).toBeVisible();
   await expect(page.locator('.hero')).toBeVisible();
