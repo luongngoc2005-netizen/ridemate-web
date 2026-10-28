@@ -1,4 +1,4 @@
-import logo from './assets/ridemate-logo.png';
+import logo from './assets/ridemate-logo.webp';
 import './brand-logo.css';
 
 export default function BrandLogo() {

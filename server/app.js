@@ -3,6 +3,7 @@ import {createReadStream} from 'node:fs';
 import {realpath,stat} from 'node:fs/promises';
 import {extname,resolve,relative,isAbsolute,sep} from 'node:path';
 import {assistantMiddleware} from './assistant-api.js';
+import {acceptedEncodings} from './static-encoding.js';
 
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon','.woff2':'font/woff2','.txt':'text/plain; charset=utf-8','.wasm':'application/wasm'};
 const inside=(root,path)=>{const rel=relative(root,path);return rel!== '..'&&!rel.startsWith(`..${sep}`)&&!isAbsolute(rel);};
@@ -32,7 +33,23 @@ export async function createApp({distDirectory=resolve('dist'),...options}={}){
         file=index;info=await stat(file);
       }
       const type=types[extname(file)];if(!type)return send(404,{error:'NOT_FOUND'});
-      res.writeHead(200,{'Content-Type':type,'Content-Length':info.size,'Cache-Control':file===index?'no-cache':path.startsWith('/assets/')?'public, max-age=31536000, immutable':'public, max-age=3600'});
+      const headers={'Content-Type':type,'Cache-Control':file===index?'no-cache':path.startsWith('/assets/')?'public, max-age=31536000, immutable':'public, max-age=3600'};
+      const compressible=/\.(html|js|css|json|svg|txt|wasm)$/.test(file);
+      if(compressible)headers.Vary='Accept-Encoding';
+      let selected=false;
+      for(const encoding of acceptedEncodings(req.headers['accept-encoding']||'')){
+        if(encoding==='identity'){selected=true;break;}
+        if(!compressible)continue;
+        try{
+          const compressed=await realpath(file+(encoding==='br'?'.br':'.gz'));
+          if(!inside(root,compressed))continue;
+          const candidate=await stat(compressed);if(!candidate.isFile())continue;
+          file=compressed;info=candidate;headers['Content-Encoding']=encoding;selected=true;break;
+        }catch{ /* This asset has no precompressed representation. */ }
+      }
+      if(!selected)return send(406,{error:'NOT_ACCEPTABLE'});
+      headers['Content-Length']=info.size;
+      res.writeHead(200,headers);
       if(req.method==='HEAD')return res.end();
       const stream=createReadStream(file);stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());stream.pipe(res);
     }catch{if(!res.headersSent)send(500,{error:'SERVER_ERROR'});else res.destroy();}

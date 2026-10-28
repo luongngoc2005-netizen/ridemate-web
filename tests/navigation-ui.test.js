@@ -12,7 +12,7 @@ import { savePlans } from '../src/plans-data.js';
 const bundle = await build({
   entryPoints: ['src/main.jsx'], bundle: true, write: false, format: 'iife',
   jsx: 'automatic',
-  loader: { '.css': 'empty', '.png': 'dataurl' }, define: { 'import.meta.env': '{}', 'import.meta.url': '"https://navigation.test/assets/app.js"', 'process.env.NODE_ENV': '"development"' },
+  loader: { '.css': 'empty', '.png': 'dataurl', '.webp': 'dataurl' }, define: { 'import.meta.env': '{}', 'import.meta.url': '"https://navigation.test/assets/app.js"', 'process.env.NODE_ENV': '"development"' },
   plugins: [{ name: 'offline-navigation-test', setup(builder) {
     builder.onLoad({ filter: /[\\/]src[\\/]supabase\.js$/ }, () => ({ contents: 'export const supabase=null; export const authRedirect=()=>"";', loader: 'js' }));
     builder.onLoad({ filter: /[\\/]src[\\/](RouteMap|DestinationMap)\.jsx$/ }, () => ({

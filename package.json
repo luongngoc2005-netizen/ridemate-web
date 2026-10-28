@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/compress-build.js",
     "preview": "vite preview",
     "test": "node --test tests/*.test.js",
     "test:mobile": "playwright test",
