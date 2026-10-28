@@ -13,7 +13,7 @@ export default defineConfig(({mode})=>{
         output: {
           manualChunks: {
             'vendor-react': ['react', 'react-dom'],
-            'vendor-map': ['maplibre-gl'],
+            // maplibre-gl is now dynamically imported in RouteMap.jsx, it will create its own chunk
             'shared-utils': [
               './src/trip-data.js',
               './src/plans-data.js',
