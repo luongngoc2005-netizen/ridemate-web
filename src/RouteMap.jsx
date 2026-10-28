@@ -10,26 +10,55 @@ const emptyPlaces = [], emptyVisibility = {};
 
 // Dynamic import maplibre-gl only when map is rendered
 async function loadMapLibre() {
-  const [{ default: maplibregl }, , workerUrl] = await Promise.all([
-    import('maplibre-gl'),
-    import('maplibre-gl/dist/maplibre-gl.css'),
-    import('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'),
-  ]);
-  maplibregl.setWorkerUrl(workerUrl);
-  return maplibregl;
+  try {
+    const [{ default: maplibregl }, , workerUrl] = await Promise.all([
+      import('maplibre-gl'),
+      import('maplibre-gl/dist/maplibre-gl.css'),
+      import('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'),
+    ]);
+    maplibregl.setWorkerUrl(workerUrl);
+    return maplibregl;
+  } catch (primaryError) {
+    console.warn('Primary maplibre load failed, trying fallback:', primaryError);
+    // Fallback: try loading without worker, or use CDN worker
+    const [{ default: maplibregl }] = await Promise.all([
+      import('maplibre-gl'),
+      import('maplibre-gl/dist/maplibre-gl.css'),
+    ]);
+    // Use a reliable CDN worker as fallback
+    maplibregl.setWorkerUrl('https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl-worker.min.js');
+    return maplibregl;
+  }
 }
 
 function MapLibreLoader({ children }) {
   const [maplibregl, setMaplibregl] = useState(null);
   const [error, setError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    loadMapLibre()
-      .then(setMaplibregl)
-      .catch(() => setError('Không tải được thư viện bản đồ. Kiểm tra kết nối.'));
-  }, []);
+    let cancelled = false;
+    const doLoad = async () => {
+      try {
+        const lib = await loadMapLibre();
+        if (!cancelled) setMaplibregl(lib);
+      } catch (err) {
+        console.error('MapLibre load error:', err);
+        if (!cancelled) {
+          if (retryCount < 2) {
+            setRetryCount(c => c + 1);
+            setTimeout(doLoad, 1000 * (retryCount + 1));
+          } else {
+            setError('Không tải được bản đồ sau vài lần thử. Kiểm tra kết nối hoặc tắt extension chặn script.');
+          }
+        }
+      }
+    };
+    doLoad();
+    return () => { cancelled = true; };
+  }, [retryCount]);
 
-  if (error) return <div className="map-error">{error}</div>;
+  if (error) return <div className="map-error">{error} <button onClick={() => setRetryCount(0)}>Thử lại</button></div>;
   if (!maplibregl) return <div className="map-loading" role="status">Đang tải bản đồ…</div>;
   return children(maplibregl);
 }
