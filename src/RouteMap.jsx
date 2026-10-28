@@ -1,4 +1,7 @@
-import React, { useEffect, useRef, useState, Suspense } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import * as maplibregl from 'maplibre-gl';
+import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { createToolIconElement } from './ToolIcon.jsx';
 import { mapServices, markerTypes, placeDirectionsUrl, validPoint } from './route-data.js';
 import { routeGeoJSON, accuracyGeoJSON, dayColor } from './osrm-data.js';
@@ -7,92 +10,34 @@ import { reconcilePlaceMarkers, clearPlaceMarkers } from './map-markers.js';
 import './route-map.css';
 
 const emptyPlaces = [], emptyVisibility = {};
-
-// Dynamic import maplibre-gl only when map is rendered
-async function loadMapLibre() {
-  try {
-    const [{ default: maplibregl }, , workerUrl] = await Promise.all([
-      import('maplibre-gl'),
-      import('maplibre-gl/dist/maplibre-gl.css'),
-      import('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'),
-    ]);
-    maplibregl.setWorkerUrl(workerUrl);
-    return maplibregl;
-  } catch (primaryError) {
-    console.warn('Primary maplibre load failed, trying fallback:', primaryError);
-    // Fallback: try loading without worker, or use CDN worker
-    const [{ default: maplibregl }] = await Promise.all([
-      import('maplibre-gl'),
-      import('maplibre-gl/dist/maplibre-gl.css'),
-    ]);
-    // Use a reliable CDN worker as fallback
-    maplibregl.setWorkerUrl('https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl-worker.min.js');
-    return maplibregl;
-  }
+// MapLibre 6 ships an external worker: let Vite bundle its dependencies too.
+maplibregl.setWorkerUrl(mapWorkerUrl);
+function fitPoints(map, points) {
+  if (!points.length) return;
+  const bounds = new maplibregl.LngLatBounds(points[0], points[0]);
+  for (const point of points) bounds.extend(point);
+  map.fitBounds(bounds, { padding: 48, maxZoom: 15, duration: 600 });
 }
-
-function MapLibreLoader({ children }) {
-  const [maplibregl, setMaplibregl] = useState(null);
-  const [error, setError] = useState('');
-  const [retryCount, setRetryCount] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    const doLoad = async () => {
-      try {
-        const lib = await loadMapLibre();
-        if (!cancelled) setMaplibregl(lib);
-      } catch (err) {
-        console.error('MapLibre load error:', err);
-        if (!cancelled) {
-          if (retryCount < 2) {
-            setRetryCount(c => c + 1);
-            setTimeout(doLoad, 1000 * (retryCount + 1));
-          } else {
-            setError('Không tải được bản đồ sau vài lần thử. Kiểm tra kết nối hoặc tắt extension chặn script.');
-          }
-        }
-      }
-    };
-    doLoad();
-    return () => { cancelled = true; };
-  }, [retryCount]);
-
-  if (error) return <div className="map-error">{error} <button onClick={() => setRetryCount(0)}>Thử lại</button></div>;
-  if (!maplibregl) return <div className="map-loading" role="status">Đang tải bản đồ…</div>;
-  return children(maplibregl);
+function popupContent(place, label) {
+  const root = document.createElement('div');
+  const name = document.createElement('strong'); name.textContent = place.name || place.label; root.append(name);
+  const address = document.createElement('p'); address.textContent = place.address || label; root.append(address);
+  const link = document.createElement('a'); link.href = placeDirectionsUrl(place); link.textContent = 'Chỉ đường đến đây'; link.target = '_blank'; link.rel = 'noopener noreferrer'; root.append(link);
+  const notice = document.createElement('small'); notice.textContent = 'Google Maps tự tính tuyến riêng; kiểm tra tuyến không qua biên giới trước khi đi.'; root.append(notice);
+  return root;
 }
-
-function RouteMapInner({ maplibregl, route, center, places = emptyPlaces, visible = emptyVisibility, selected, onPick, onSelectPlace, onMapPick, riding = false }) {
+export default function RouteMap({ route, center, places = emptyPlaces, visible = emptyVisibility, selected, onPick, onSelectPlace, onMapPick, riding = false }) {
   const container = useRef(null), map = useRef(null), markers = useRef(new Map());
   const pick = useRef(onPick); pick.current = onPick;
   const selectPlace = useRef(onSelectPlace); selectPlace.current = onSelectPlace;
   const mapPick = useRef(onMapPick); mapPick.current = onMapPick;
   const [ready, setReady] = useState(false), [error, setError] = useState(''), [follow, setFollow] = useState(false), [activeLeg, setActiveLeg] = useState(null);
   const location = useLocation(), position = location?.position;
-
-  function fitPoints(mapInstance, points) {
-    if (!points.length) return;
-    const bounds = new maplibregl.LngLatBounds(points[0], points[0]);
-    for (const point of points) bounds.extend(point);
-    mapInstance.fitBounds(bounds, { padding: 48, maxZoom: 15, duration: 600 });
-  }
-
-  function popupContent(place, label) {
-    const root = document.createElement('div');
-    const name = document.createElement('strong'); name.textContent = place.name || place.label; root.append(name);
-    const address = document.createElement('p'); address.textContent = place.address || label; root.append(address);
-    const link = document.createElement('a'); link.href = placeDirectionsUrl(place); link.textContent = 'Chỉ đường đến đây'; link.target = '_blank'; link.rel = 'noopener noreferrer'; root.append(link);
-    const notice = document.createElement('small'); notice.textContent = 'Google Maps tự tính tuyến riêng; kiểm tra tuyến không qua biên giới trước khi đi.'; root.append(notice);
-    return root;
-  }
-
   useEffect(() => {
     if (ready) return;
     const timer = setTimeout(() => setError('Nền bản đồ phản hồi chậm. Kiểm tra kết nối hoặc bấm tải lại nền.'), 20000);
     return () => clearTimeout(timer);
   }, [ready]);
-
   useEffect(() => {
     let instance;
     try {
@@ -109,8 +54,7 @@ function RouteMapInner({ maplibregl, route, center, places = emptyPlaces, visibl
     instance.on('click', event => { if(event.originalEvent?.target?.closest?.('.maplibregl-marker, .maplibregl-popup'))return; mapPick.current?.([event.lngLat.lng,event.lngLat.lat]); });
     const resize = new ResizeObserver(() => instance.resize()); resize.observe(container.current);
     return () => { resize.disconnect(); clearPlaceMarkers(markers.current); instance.remove(); map.current = null; };
-  }, [maplibregl]);
-
+  }, []);
   useEffect(() => {
     if (!ready || !map.current) return;
     const instance = map.current, geojson = routeGeoJSON(route);
@@ -131,8 +75,7 @@ function RouteMapInner({ maplibregl, route, center, places = emptyPlaces, visibl
     if (route) fitPoints(instance, route.coordinates);
     else if (validPoint(center?.coordinates)) instance.flyTo({ center: center.coordinates, zoom: mapPick.current ? Math.max(16,instance.getZoom()) : 12 });
     return () => endpoints.forEach(marker => marker.remove());
-  }, [ready, route, center, maplibregl]);
-
+  }, [ready, route, center]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const instance = map.current;
@@ -163,8 +106,7 @@ function RouteMapInner({ maplibregl, route, center, places = emptyPlaces, visibl
       }
       marker.setLngLat(place.coordinates); marker.getPopup().setDOMContent(root);
     });
-  }, [ready, places, visible, !!onPick, maplibregl]);
-
+  }, [ready, places, visible, !!onPick]);
   useEffect(() => {
     if (!ready) return;
     const marker = markers.current.get(selected?.id)?.marker;
@@ -172,7 +114,6 @@ function RouteMapInner({ maplibregl, route, center, places = emptyPlaces, visibl
     setFollow(false); map.current.flyTo({ center: marker.getLngLat(), zoom: 15 });
     if (!marker.getPopup().isOpen()) marker.togglePopup();
   }, [selected, ready]);
-
   useEffect(() => {
     if (!ready || !map.current) return;
     const instance = map.current;
@@ -185,40 +126,17 @@ function RouteMapInner({ maplibregl, route, center, places = emptyPlaces, visibl
     const marker = new maplibregl.Marker({ element }).setLngLat(position.coordinates).addTo(instance);
     if (follow && !location.stale) instance.easeTo({ center: position.coordinates, zoom: Math.max(15, instance.getZoom()), duration: 500 });
     return () => marker.remove();
-  }, [ready, position, location?.stale, follow, maplibregl]);
-
+  }, [ready, position, location?.stale, follow]);
   useEffect(() => { if (!location?.tracking) setFollow(false); }, [location?.tracking]);
-
   useEffect(() => {
     if (ready && map.current?.getLayer('trip-route-selected')) map.current.setFilter('trip-route-selected', ['==', ['get', 'index'], activeLeg ?? -1]);
   }, [ready, activeLeg, route]);
-
   const fit = () => { setFollow(false); setActiveLeg(null); if (map.current) fitPoints(map.current, [...(route?.coordinates || []), ...places.filter(p => visible[p.type] && validPoint(p.coordinates)).map(p => p.coordinates)]); };
-
-  return (
-    <div className="live-map">
-      <LocationControls onCenter={() => { if (position) map.current?.flyTo({ center: position.coordinates, zoom: 16 }); }} follow={follow} onFollow={() => setFollow(value => !value)}/>
-      {!!route?.routingVia?.length && <p className="route-message">Đã chia tuyến qua {route.routingVia.join(' → ')} để tính từng chặng trong nước. Đây là điểm dẫn tuyến tự động; lịch trình đã lưu không bị thay đổi.</p>}
-      {error && <p className="route-message" role="status">{error} <button type="button" onClick={() => { if (map.current) { setReady(false); map.current.once('style.load', () => { setReady(true); setError(''); }); map.current.setStyle(mapServices.style); } }}>Tải lại nền</button></p>}
-      <div className="live-map-frame">
-        <div ref={container} className="route-canvas" role="region" aria-label={route ? `Cung đường ${route.start.label} đến ${route.end.label}` : 'Bản đồ vị trí'}/>
-        {(route || places.length>0) && <button className="route-fit map-fit-button" type="button" onClick={fit}>{route?'Toàn tuyến':'Tất cả địa điểm'}</button>}
-      </div>
-      {!riding && !!route?.legs?.length && (
-        <div className="route-stages" aria-label="Các chặng theo lịch trình">
-          {route.legs.map((leg, index) => (
-            <button key={index} aria-pressed={activeLeg === index} style={{ borderLeftColor: dayColor(leg.dayNumber) }} onClick={() => { setFollow(false); setActiveLeg(index); if (map.current) fitPoints(map.current, leg.coordinates); }}>
-              <small>Ngày {leg.dayNumber}</small>
-              <b>{leg.start.label || leg.start.name} → {leg.end.label || leg.end.name}</b>
-              <span>{leg.distanceKm.toFixed(1)} km · {Math.round(leg.durationSeconds / 60)} phút</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function RouteMap(props) {
-  return <MapLibreLoader><RouteMapInner {...props} /></MapLibreLoader>;
+  return <div className="live-map">
+    <LocationControls onCenter={() => { if (position) map.current?.flyTo({ center: position.coordinates, zoom: 16 }); }} follow={follow} onFollow={() => setFollow(value => !value)}/>
+    {!!route?.routingVia?.length && <p className="route-message">Đã chia tuyến qua {route.routingVia.join(' → ')} để tính từng chặng trong nước. Đây là điểm dẫn tuyến tự động; lịch trình đã lưu không bị thay đổi.</p>}
+    {error && <p className="route-message" role="status">{error} <button type="button" onClick={() => { if (map.current) { setReady(false); map.current.once('style.load', () => { setReady(true); setError(''); }); map.current.setStyle(mapServices.style); } }}>Tải lại nền</button></p>}
+    <div className="live-map-frame"><div ref={container} className="route-canvas" role="region" aria-label={route ? `Cung đường ${route.start.label} đến ${route.end.label}` : 'Bản đồ vị trí'}/>{(route || places.length>0) && <button className="route-fit map-fit-button" type="button" onClick={fit}>{route?'Toàn tuyến':'Tất cả địa điểm'}</button>}</div>
+    {!riding && !!route?.legs?.length && <div className="route-stages" aria-label="Các chặng theo lịch trình">{route.legs.map((leg, index) => <button key={index} aria-pressed={activeLeg === index} style={{ borderLeftColor: dayColor(leg.dayNumber) }} onClick={() => { setFollow(false); setActiveLeg(index); if (map.current) fitPoints(map.current, leg.coordinates); }}><small>Ngày {leg.dayNumber}</small><b>{leg.start.label || leg.start.name} → {leg.end.label || leg.end.name}</b><span>{leg.distanceKm.toFixed(1)} km · {Math.round(leg.durationSeconds / 60)} phút</span></button>)}</div>}
+  </div>;
 }

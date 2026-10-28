@@ -13,24 +13,11 @@ export default defineConfig(({mode})=>{
         output: {
           manualChunks: {
             'vendor-react': ['react', 'react-dom'],
-            // maplibre-gl is now dynamically imported in RouteMap.jsx, it will create its own chunk
-            'shared-utils': [
-              './src/trip-data.js',
-              './src/plans-data.js',
-              './src/plan-sync.js',
-              './src/planned-places.js',
-              './src/route-data.js',
-              './src/osrm-data.js',
-              './src/domestic-routing.js',
-              './src/useNavigationState.js',
-              './src/usePlanSync.js',
-              './src/supabase.js',
-              './src/account-name.js',
-              './src/journal-sync.js',
-            ],
+            'vendor-map': ['maplibre-gl'],
             'vietnam-routing': [
               './src/motorcycle-routing.js',
-              './src/boundary-geometry.js',
+              './src/osrm-data.js',
+              './src/domestic-routing.js'
             ],
             'ai-assistant': [
               './src/AIAssistant.jsx',
@@ -45,6 +32,7 @@ export default defineConfig(({mode})=>{
             'journal': [
               './src/Journal.jsx',
               './src/journal-data.js',
+              './src/journal-sync.js',
               './src/journal.css'
             ],
             'stays': [
@@ -53,19 +41,6 @@ export default defineConfig(({mode})=>{
               './src/stays/booking-data.js',
               './src/stays/BookingContext.jsx',
               './src/stays/booking-store.js'
-            ],
-            'journey': [
-              './src/Journey.jsx',
-              './src/TripCompanion.jsx',
-              './src/journey.css',
-              './src/mobile-journey.css'
-            ],
-            'plans': [
-              './src/Plans.jsx',
-            ],
-            'map-routing': [
-              './src/RouteMap.jsx',
-              './src/DestinationMap.jsx'
             ],
           }
         }
