@@ -26,6 +26,7 @@ export default defineConfig(({mode})=>{
               './src/usePlanSync.js',
               './src/supabase.js',
               './src/account-name.js',
+              './src/journal-sync.js',
             ],
             'vietnam-routing': [
               './src/motorcycle-routing.js',
@@ -44,7 +45,6 @@ export default defineConfig(({mode})=>{
             'journal': [
               './src/Journal.jsx',
               './src/journal-data.js',
-              './src/journal-sync.js',
               './src/journal.css'
             ],
             'stays': [
