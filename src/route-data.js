@@ -92,7 +92,8 @@ export async function geocode(name, signal) {
   // Bundled pins are source-backed and checked against the country geometry in tests.
   // Avoid loading the large boundary file merely to center a province's map.
   if(known)return {...known,representative:true};
-  const { vietnam } = await import('./vietnam-guard.js');
+  const { getVietnamGuard } = await import('./vietnam-guard.js');
+  const vietnam = await getVietnamGuard();
   const key = `geo:v5:${mapServices.geocode}:${name.trim().toLowerCase()}`;
   const saved = cached(key);
   if (saved && vietnam.containsPoint(saved.coordinates)) return saved;
@@ -108,7 +109,8 @@ export async function geocode(name, signal) {
 }
 export async function resolveRoutePoint(value,signal) {
   if(typeof value==='string')return geocode(value,signal);
-  const {vietnam}=await import('./vietnam-guard.js');
+  const { getVietnamGuard } = await import('./vietnam-guard.js');
+  const vietnam = await getVietnamGuard();
   if(!validPoint(value?.coordinates)||!vietnam.containsPoint(value.coordinates))throw new Error('Điểm xuất phát đã chọn không hợp lệ hoặc nằm ngoài Việt Nam. Hãy chọn lại vị trí.');
   return {coordinates:value.coordinates.slice(0,2),label:value.label||'Vị trí đã chọn'};
 }
@@ -116,7 +118,8 @@ export async function loadRoute(origin, destination, signal, stops = [], onProgr
   return withRouteDeadline(boundedSignal => calculateRoute(origin, destination, boundedSignal, stops, onProgress), signal);
 }
 async function calculateRoute(origin, destination, signal, stops, onProgress) {
-  const { vietnam, isDomesticRoute, DOMESTIC_ROUTE_ERROR } = await import('./vietnam-guard.js');
+  const { getVietnamGuard, isDomesticRoute, DOMESTIC_ROUTE_ERROR } = await import('./vietnam-guard.js');
+  const vietnam = await getVietnamGuard();
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   const key = 'motorcycle:vn-v4:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
   const saved = cached(key);
@@ -310,7 +313,8 @@ async function requestPlaces(query, signal, timeout = 25000) {
   }
 }
 export async function loadPlaces(route, signal, onProgress = () => {}, { category } = {}) {
-  const { vietnam } = await import('./vietnam-guard.js');
+  const { getVietnamGuard } = await import('./vietnam-guard.js');
+  const vietnam = await getVietnamGuard();
   const domesticPlaces = elements => elements.filter(item => vietnam.containsPoint([item.lon ?? item.center?.lon, item.lat ?? item.center?.lat]));
   const queries = placeSearchSegments(route.coordinates).map(segment => placesQuery(segment, category));
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -381,7 +385,8 @@ export async function loadRoutePlaces(route, category, signal, onProgress = () =
   }
   let result;
   if (data) {
-    const { vietnam } = await import('./vietnam-guard.js');
+    const { getVietnamGuard } = await import('./vietnam-guard.js');
+  const vietnam = await getVietnamGuard();
     const processor = createPlaceProcessor(route.coordinates, signal);
     try {
       const places = (await processor.add(data.elements.filter(p => vietnam.containsPoint([p.lon, p.lat])))).filter(p => p.type === category);
@@ -400,7 +405,8 @@ export function pointText(point) {
 }
 export async function searchPlannedCandidates(name, route, signal) {
   if (!name.trim()) return [];
-  const { vietnam } = await import('./vietnam-guard.js');
+  const { getVietnamGuard } = await import('./vietnam-guard.js');
+  const vietnam = await getVietnamGuard();
   const url = new URL(mapServices.geocode);
   const params = new URLSearchParams({ q: name.trim(), lang: 'default', limit: '8', bbox: '102,8,110,24' });
   if (validPoint(route?.end?.coordinates)) {

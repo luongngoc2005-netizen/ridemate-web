@@ -40,7 +40,8 @@ export async function findAttraction(name, destination, signal) {
   const center = await geocode(destination, signal);
   let all = await searchPlannedCandidates(`${name}, ${destination}`, {end:center}, signal);
   if(!relevantAttractions(name,destination,all).length)all=await searchPlannedCandidates(name,{end:center},signal);
-  const {vietnam} = await import('./vietnam-guard.js');
+  const {getVietnamGuard} = await import('./vietnam-guard.js');
+  const vietnam = await getVietnamGuard();
   const candidates = relevantAttractions(name,destination,all).filter(p => vietnam.containsPoint(p.coordinates));
   const exact = matchingAttractions(name, candidates);
   // Matching a name alone does not establish the province. Require the local

@@ -14,10 +14,22 @@ export default defineConfig(({mode})=>{
           manualChunks: {
             'vendor-react': ['react', 'react-dom'],
             'vendor-map': ['maplibre-gl'],
+            'shared-utils': [
+              './src/trip-data.js',
+              './src/plans-data.js',
+              './src/plan-sync.js',
+              './src/planned-places.js',
+              './src/route-data.js',
+              './src/osrm-data.js',
+              './src/domestic-routing.js',
+              './src/useNavigationState.js',
+              './src/usePlanSync.js',
+              './src/supabase.js',
+              './src/account-name.js',
+            ],
             'vietnam-routing': [
               './src/motorcycle-routing.js',
-              './src/osrm-data.js',
-              './src/domestic-routing.js'
+              './src/boundary-geometry.js',
             ],
             'ai-assistant': [
               './src/AIAssistant.jsx',
@@ -41,6 +53,19 @@ export default defineConfig(({mode})=>{
               './src/stays/booking-data.js',
               './src/stays/BookingContext.jsx',
               './src/stays/booking-store.js'
+            ],
+            'journey': [
+              './src/Journey.jsx',
+              './src/TripCompanion.jsx',
+              './src/journey.css',
+              './src/mobile-journey.css'
+            ],
+            'plans': [
+              './src/Plans.jsx',
+            ],
+            'map-routing': [
+              './src/RouteMap.jsx',
+              './src/DestinationMap.jsx'
             ],
           }
         }

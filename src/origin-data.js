@@ -4,7 +4,8 @@ export const tripOrigin = trip => validOriginPoint(trip.originPoint)&&trip.origi
 export async function chosenOrigin(coordinates,{source='map',accuracy=null,resolveArea=false,signal,fetchImpl,geocoder}={}) {
   const point={coordinates:[...coordinates],label:source==='gps'?'Vị trí của tôi':'Vị trí đã chọn',source,accuracy};
   if(!validOriginPoint(point))throw new Error('Tọa độ điểm xuất phát không hợp lệ.');
-  const {vietnam}=await import('./vietnam-guard.js');
+  const {getVietnamGuard} = await import('./vietnam-guard.js');
+  const vietnam = await getVietnamGuard();
   if(!vietnam.containsPoint(coordinates))throw new Error('Chỉ chọn điểm xuất phát trong Việt Nam.');
   point.label+=` (${coordinates[1].toFixed(5)}, ${coordinates[0].toFixed(5)})`;
   if(resolveArea)return resolveOriginArea(point,{signal,fetchImpl,geocoder});
