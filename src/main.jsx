@@ -10,7 +10,7 @@ import {directionsUrl} from './route-data.js';
 import {BookingProvider,useBookings} from './stays/BookingContext.jsx';
 import Stays from './stays/Stays.jsx';
 import {tripWithStays} from './stays/booking-data.js';
-import React,{useState,useEffect,useMemo} from 'react';
+import React,{useState,useEffect,useMemo,useCallback} from 'react';
 import { TripForm, Journey, TripChecklist } from './Journey.jsx';
 import { initialDetails, createTrip, editTripDetails, dateRange, readTrip, saveTrip, validDetails } from './trip-data.js';
 import {createRoot} from 'react-dom/client';
@@ -35,7 +35,20 @@ const tools=[['fuel','Cây xăng','gas station'],['repair','Sửa xe','motorcycl
 const searchMaps=q=>window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,'_blank');
 const directions=(a,b)=>window.open(directionsUrl(a,b),'_blank','noopener,noreferrer');
 
-function Nav({page,setPage,user}){return <header className="nav"><button className="logo" aria-label="RideMate — về trang khám phá" onClick={()=>setPage('home')}><BrandLogo/></button><nav aria-label="Điều hướng chính">{[['home','Khám phá'],['plans','Kế hoạch'],['journal','Nhật ký'],['tools','Công cụ'],['ai','AI Assistant']].map(([k,v])=><button className={page===k?'active':''} aria-current={page===k?'page':undefined} onClick={()=>setPage(k)} key={k}><ToolIcon name={({home:'mountain',plans:'route',journal:'image',tools:'repair',ai:'assistant'})[k]} className="nav-item-icon"/><span>{v}</span></button>)}</nav><button className="account-link" title={user ? accountName(user) : undefined} aria-label={user ? `Tài khoản của ${accountName(user)}` : 'Tài khoản'} onClick={()=>setPage('account')}>{user ? accountName(user) : 'Tài khoản'}</button></header>}
+function Nav({page,setPage,user}){
+  const [dark, setDark] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const stored = localStorage.getItem('theme');
+    if (stored) return stored === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  }, [dark]);
+
+  return <header className="nav"><button className="logo" aria-label="RideMate — về trang khám phá" onClick={()=>setPage('home')}><BrandLogo/></button><nav aria-label="Điều hướng chính">{[['home','Khám phá'],['plans','Kế hoạch'],['journal','Nhật ký'],['tools','Công cụ'],['ai','AI Assistant']].map(([k,v])=><button className={page===k?'active':''} aria-current={page===k?'page':undefined} onClick={()=>setPage(k)} key={k}><ToolIcon name={({home:'mountain',plans:'route',journal:'image',tools:'repair',ai:'assistant'})[k]} className="nav-item-icon"/><span>{v}</span></button>)}</nav><div className="user" style={{display:'flex',alignItems:'center',gap:'8px'}}><button onClick={()=>setDark(d=>!d)} aria-label={dark ? 'Chế độ sáng' : 'Chế độ tối'} title={dark ? 'Chế độ sáng' : 'Chế độ tối'} style={{border:0,background:'transparent',padding:'8px',display:'flex',alignItems:'center',justifyContent:'center'}}><ToolIcon name={dark ? 'sun' : 'moon'} className="inline-icon" style={{width:22,height:22}}/></button>{user ? accountName(user) : 'Tài khoản'}</div></header>}
 
 function Home({trip: savedTrip,onCreate,setPage}){const [trip,setTrip]=useState(()=>({...initialDetails,...savedTrip}));return <main className="dash"><div className="maincol">
   <section className="hero"><div><small>RIDE MORE · EXPLORE FURTHER</small><h1>Những cung đường<br/>đẹp hơn khi đi cùng<br/>RideMate</h1><p>Lên kế hoạch dễ dàng · Hành trình an toàn hơn · Trải nghiệm nhiều hơn.</p></div>
