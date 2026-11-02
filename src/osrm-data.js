@@ -22,13 +22,22 @@ export function osrmUrl(endpoint, points, alternatives = false) {
   if (alternatives) url.searchParams.set('alternatives', 'true');
   return url;
 }
+export function legTimeTable(leg) {
+  const steps=leg.steps||[];
+  if(!steps.length||steps.some(s=>!Number.isFinite(s.distance)||s.distance<0||!Number.isFinite(s.duration)||s.duration<0))return null;
+  const distance=steps.reduce((n,s)=>n+s.distance,0),duration=steps.reduce((n,s)=>n+s.duration,0);
+  if(!(distance>0)||!(duration>0))return null;
+  let d=0,t=0;
+  return [{dist:0,time:0},...steps.map(s=>{d+=s.distance;t+=s.duration;return {dist:d/distance*leg.distance/1000,time:t/duration*leg.duration};})];
+}
 export function parseOsrm(result, points) {
   const route = result.routes?.[0];
   if (result.code !== 'Ok' || !route || !Number.isFinite(route.distance) || route.distance < 0 || !Number.isFinite(route.duration) || route.duration < 0 || route.geometry?.coordinates?.length < 2 || !route.geometry?.coordinates?.every(valid) || route.legs?.length !== points.length - 1) throw new Error('Dịch vụ bản đồ chưa tìm được tuyến qua các điểm đã chọn. Hãy kiểm tra vị trí các điểm hoặc thử lại.');
   const legs = route.legs.map((leg, i) => {
     const coordinates = leg.steps?.flatMap(step => step.geometry?.coordinates || []) || [];
     if (coordinates.length < 2 || !coordinates.every(valid) || !Number.isFinite(leg.distance) || !Number.isFinite(leg.duration)) throw new Error('Dịch vụ bản đồ trả về chặng đường không đầy đủ.');
-    return { coordinates, distanceKm: leg.distance / 1000, durationSeconds: leg.duration, start: points[i], end: points[i + 1], dayNumber: points[i + 1].dayNumber || 1 };
+    const timeTable=legTimeTable(leg);
+    return { coordinates, distanceKm: leg.distance / 1000, durationSeconds: leg.duration, ...(timeTable?{timeTable}:{}), start: points[i], end: points[i + 1], dayNumber: points[i + 1].dayNumber || 1 };
   });
   return { coordinates: route.geometry.coordinates, distanceKm: route.distance / 1000, durationSeconds: route.duration, legs, points, start: points[0], end: points.at(-1), provider: 'OSRM', mode: 'driving', fetchedAt: Date.now() };
 }

@@ -118,7 +118,7 @@ export async function loadRoute(origin, destination, signal, stops = [], onProgr
 async function calculateRoute(origin, destination, signal, stops, onProgress) {
   const { vietnam, isDomesticRoute, DOMESTIC_ROUTE_ERROR } = await import('./vietnam-guard.js');
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-  const key = 'motorcycle:vn-v4:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
+  const key = 'motorcycle:vn-v5:' + mapServices.route + ':' + JSON.stringify([origin, destination, stops]);
   const saved = cached(key);
   if (saved && isDomesticRoute(saved)) return saved;
   onProgress('Đang xác định điểm đi–đến…');

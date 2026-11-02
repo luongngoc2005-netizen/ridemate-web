@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import ToolIcon from './ToolIcon.jsx';
 import RouteMap from './RouteMap.jsx';
 import { useTripRoute } from './TripRouteContext.jsx';
@@ -6,6 +6,7 @@ import { supportTypes, directionsUrl, placeDirectionsUrl, validPoint } from './r
 import { plannedPlaces } from './planned-places.js';
 import { travelTime } from './motorcycle-routing.js';
 import TripWeather from './TripWeather.jsx';
+const RouteWeather=lazy(()=>import('./RouteWeather.jsx'));
 
 export default function RouteOverview({ trip, children }) {
   const [selected, setSelected] = useState(null);
@@ -47,5 +48,5 @@ export default function RouteOverview({ trip, children }) {
         <RouteMap route={current.route} center={current.route ? undefined : pendingCenter} places={current.route ? current.places : pendingPlaces} visible={current.route ? visible : { planned: true }} selected={selected} />
         {!current.loading && (current.error || current.placesError) && <button className="soft" onClick={current.retry}>Thử tải lại</button>}
         <p className="route-caption">MapLibre · OpenFreeMap / OpenStreetMap · Tuyến xe máy Valhalla · yêu cầu tránh cao tốc; kiểm tra biển báo thực tế</p>
-      </section></div>;
+      </section><section className="card route-weather-card" style={{gridColumn:"1 / -1",minWidth:0}}><Suspense fallback={<p role="status">Đang mở thời tiết dọc đường…</p>}><RouteWeather trip={trip}/></Suspense></section></div>;
 }

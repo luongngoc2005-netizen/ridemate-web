@@ -4,6 +4,7 @@ import {realpath,stat} from 'node:fs/promises';
 import {extname,resolve,relative,isAbsolute,sep} from 'node:path';
 import {assistantMiddleware} from './assistant-api.js';
 import {acceptedEncodings} from './static-encoding.js';
+import {routeWeatherMiddleware} from './route-weather-api.js';
 
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon','.woff2':'font/woff2','.txt':'text/plain; charset=utf-8','.wasm':'application/wasm'};
 const inside=(root,path)=>{const rel=relative(root,path);return rel!== '..'&&!rel.startsWith(`..${sep}`)&&!isAbsolute(rel);};
@@ -13,12 +14,14 @@ export async function createApp({distDirectory=resolve('dist'),...options}={}){
   const index=await realpath(resolve(root,'index.html'));
   if(!inside(root,index))throw new Error('Invalid build directory.');
   const api=assistantMiddleware(options);
+  const weather=routeWeatherMiddleware();
   const server=createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');res.setHeader('X-Frame-Options','DENY');
     const send=(status,body)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(body));};
     try{
       const rawPath=req.url?.split('?')[0]||'/';
       if(rawPath==='/healthz')return ['GET','HEAD'].includes(req.method)?send(200,{status:'ok'}):send(405,{error:'METHOD_NOT_ALLOWED'});
+      let weatherNext=false;await weather(req,res,()=>{weatherNext=true;});if(!weatherNext)return;
       let fallthrough=false;await api(req,res,()=>{fallthrough=true;});if(!fallthrough)return;
       if(rawPath==='/api'||rawPath.startsWith('/api/'))return send(404,{error:'NOT_FOUND'});
       if(!['GET','HEAD'].includes(req.method))return send(405,{error:'METHOD_NOT_ALLOWED'});

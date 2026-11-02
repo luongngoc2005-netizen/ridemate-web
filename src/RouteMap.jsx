@@ -8,11 +8,11 @@ import { reconcilePlaceMarkers, clearPlaceMarkers } from './map-markers.js';
 import './route-map.css';
 
 const emptyPlaces = [], emptyVisibility = {};
-function fitPoints(map, points, maplibregl) {
+function fitPoints(map, points, maplibregl, padding = 48) {
   if (!points.length) return;
   const bounds = new maplibregl.LngLatBounds(points[0], points[0]);
   for (const point of points) bounds.extend(point);
-  map.fitBounds(bounds, { padding: 48, maxZoom: 15, duration: 600 });
+  map.fitBounds(bounds, { padding, maxZoom: 15, duration: 600 });
 }
 function popupContent(place, label) {
   const root = document.createElement('div');
@@ -36,7 +36,7 @@ export default function RouteMap(props) {
   return <RouteMapCanvas {...props} maplibregl={library}/>;
 }
 
-function RouteMapCanvas({ maplibregl, route, center, places = emptyPlaces, visible = emptyVisibility, selected, onPick, onSelectPlace, onMapPick, riding = false }) {
+function RouteMapCanvas({ maplibregl, route, center, places = emptyPlaces, visible = emptyVisibility, selected, onPick, onSelectPlace, onMapPick, riding = false, weatherData, weatherSelected, onWeatherSelect }) {
   const container = useRef(null), map = useRef(null), markers = useRef(new Map());
   const pick = useRef(onPick); pick.current = onPick;
   const selectPlace = useRef(onSelectPlace); selectPlace.current = onSelectPlace;
@@ -75,17 +75,41 @@ function RouteMapCanvas({ maplibregl, route, center, places = emptyPlaces, visib
       instance.addLayer({ id: 'trip-route-selected', type: 'line', source: 'trip-route', filter: ['==', ['get', 'index'], -1], paint: { 'line-color': '#ffb629', 'line-width': 8 } });
     } else instance.getSource('trip-route').setData(geojson);
     setActiveLeg(null);
-    const points = route?.points || (route ? [route.start, route.end] : center ? [center] : []);
+    const points = weatherData ? [] : route?.points || (route ? [route.start, route.end] : center ? [center] : []);
     const endpoints = points.filter(p => validPoint(p.coordinates)).map((point, index) => {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'route-stop-marker'; button.style.background = dayColor(point.dayNumber);
       button.textContent = String(index + 1); button.title = point.label || point.name; button.setAttribute('aria-label', `${index + 1}. ${point.label || point.name}`);
       const popup = new maplibregl.Popup({ offset: 18 }).setDOMContent(popupContent(point, point.dayNumber ? `Ngày ${point.dayNumber}` : 'Địa điểm'));
       return new maplibregl.Marker({ element: button }).setLngLat(point.coordinates).setPopup(popup).addTo(instance);
     });
-    if (route) fitPoints(instance, route.coordinates, maplibregl);
+    if (route) fitPoints(instance, route.coordinates, maplibregl, weatherData ? {top:90,right:65,bottom:55,left:55} : 48);
     else if (validPoint(center?.coordinates)) instance.flyTo({ center: center.coordinates, zoom: mapPick.current ? Math.max(16,instance.getZoom()) : 12 });
     return () => endpoints.forEach(marker => marker.remove());
-  }, [ready, route, center]);
+  }, [ready, route, center, weatherData]);
+  useEffect(() => {
+    if(!ready||!map.current)return;
+    const instance=map.current,empty={type:'FeatureCollection',features:[]};
+    if(!weatherData&&!instance.getSource('route-weather'))return;
+    if(!instance.getSource('route-weather')) {
+      instance.addSource('route-weather',{type:'geojson',data:weatherData?.geojson||empty});
+      instance.addLayer({id:'route-weather-line',type:'line',source:'route-weather',paint:{'line-color':['get','color'],'line-width':5.5},layout:{'line-cap':'round','line-join':'round'}});
+    }else instance.getSource('route-weather').setData(weatherData?.geojson||empty);
+    instance.setLayoutProperty('trip-route-line','visibility',weatherData?'none':'visible');
+    instance.setLayoutProperty('trip-route-selected','visibility',weatherData?'none':'visible');
+    const pins=(weatherData?.points||[]).map(point=>{
+      const button=document.createElement('button');button.type='button';button.className='weather-map-pin';button.style.background=point.risk.color;
+      button.setAttribute('aria-label',`${point.name}: ${point.risk.label}`);button.title=`${point.name} · ${point.risk.label}`;
+      button.addEventListener('click',()=>onWeatherSelect?.(point.id));
+      const content=document.createElement('div');content.textContent=`${point.name} · ${point.risk.label} · ${new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit'}).format(new Date(point.eta*1000))}`;
+      return new maplibregl.Marker({element:button}).setLngLat(point.coordinates).setPopup(new maplibregl.Popup({offset:12}).setDOMContent(content)).addTo(instance);
+    });
+    return ()=>pins.forEach(pin=>pin.remove());
+  },[ready,weatherData,onWeatherSelect]);
+  useEffect(()=>{
+    if(!ready||!map.current||!weatherSelected)return;
+    const point=weatherData?.points.find(p=>p.id===weatherSelected);
+    if(point)map.current.flyTo({center:point.coordinates,zoom:12});
+  },[ready,weatherSelected,weatherData]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const instance = map.current;
@@ -141,7 +165,7 @@ function RouteMapCanvas({ maplibregl, route, center, places = emptyPlaces, visib
   useEffect(() => {
     if (ready && map.current?.getLayer('trip-route-selected')) map.current.setFilter('trip-route-selected', ['==', ['get', 'index'], activeLeg ?? -1]);
   }, [ready, activeLeg, route]);
-  const fit = () => { setFollow(false); setActiveLeg(null); if (map.current) fitPoints(map.current, [...(route?.coordinates || []), ...places.filter(p => visible[p.type] && validPoint(p.coordinates)).map(p => p.coordinates)], maplibregl); };
+  const fit = () => { setFollow(false); setActiveLeg(null); if (map.current) fitPoints(map.current, [...(route?.coordinates || []), ...places.filter(p => visible[p.type] && validPoint(p.coordinates)).map(p => p.coordinates)], maplibregl, weatherData ? {top:90,right:65,bottom:55,left:55} : 48); };
   return <div className="live-map">
     <LocationControls onCenter={() => { if (position) map.current?.flyTo({ center: position.coordinates, zoom: 16 }); }} follow={follow} onFollow={() => setFollow(value => !value)}/>
     {!!route?.routingVia?.length && <p className="route-message">Đã chia tuyến qua {route.routingVia.join(' → ')} để tính từng chặng trong nước. Đây là điểm dẫn tuyến tự động; lịch trình đã lưu không bị thay đổi.</p>}
